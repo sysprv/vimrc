@@ -1,3 +1,4 @@
+" vim:set ts=8 sw=4 sts=4 et:
 set nocp
 set tabstop=8 shiftwidth=8 softtabstop=8 noexpandtab
 set shiftround
@@ -16,7 +17,7 @@ nnoremap Q gq
 " rot13
 map <F12> ggVGg?
 " I use a Norwegian keyboard, so this mapping is rather useless.
-" nnoremap , :
+nnoremap , :
 """""
 
 set statusline=%f%m%r%h%w\ %{&ff}\ sw%{&sw}\ ts%{&ts}\ sts%{&sts}\ et%{&et}\
@@ -32,55 +33,55 @@ set ttymouse=xterm2
 " show trailing whitespace when list is on
 set listchars=trail:^
 
-" I use view a lot. In Red Hat Linux, view is provided by vim-minimal,
+" I use 'view' a lot. In Red Hat Linux, view is provided by vim-minimal,
 " which evidently does not include folding. This if statement avoids
 " errors that view will otherwise print while starting.
 if has("folding")
-	set foldenable
-	set foldmethod=marker
-	set foldclose=
+    set foldenable
+    set foldmethod=marker
+    set foldclose=
 endif
 
 command Proper set ts=8 noet sts=8 sw=8 ai
 command Lousy set ts=8 et sts=4 sw=4 ai
+" t_Co=0 disables all colours.
+" http://aplawrence.com/Forum/TonyLawrence10.html
+command Basic set syntax=off t_Co=0 t_md= t_Sf= t_Sb= t_us= t_ue= t_ZH= t_ZR=
 
 set backup
 set backupdir=.backup,.    " http://news.ycombinator.com/item?id=360748 ??
 " set patchmode=.bck
 set backupext=~
-au BufWritePre * let &bex = '~' . strftime("%Y%m%d.%H%M") . '~'
-
-
-if has("unix") && (executable("/bin/uname") || executable("/usr/bin/uname"))
-	" maybe check for /usr/lib/boot/unix_mp?
-	let s:uname = system("uname")
-else
-	let s:uname = "unknown"
-endif
-
-" show matching parentheses by underlining.
-if has("gui_running")
-	hi MatchParen gui=underline guibg=NONE guifg=NONE
-else
-	" t_us, t_ue
-	hi MatchParen cterm=underline ctermbg=none ctermfg=none
-endif
+au BufWritePre * let &bex = '~' . strftime("%Y%m%d.%H%M%S") . '~'
 
 if has("gui_running") && has("win32")
-	set guifont=PragmataPro:h10
-	set guicursor+=a:blinkon0
+    set guifont=PragmataPro:h10
+    set guicursor+=a:blinkon0
 endif
 
-if has("gui_running") && s:uname == "Linux"
-	set guifont=PragmataPro\ 11
+if has("gui_running") && !has("win32")
+    " assuming Linux
+    set guifont=PragmataPro\ 11
 endif
 
 if has("gui_running")
-	syntax on
-	syntax sync minlines=128
-	" https://raw.github.com/altercation/vim-colors-solarized/master/colors/solarized.vim
-	try
-		colorscheme solarized
-	catch /^Vim\%((\a\+)\)\=:E185/
-	endtry
+    syntax on
+    syntax sync minlines=128
+    " raw solarized.vim on github - http://goo.gl/Ai3LU
+    try
+        colorscheme solarized
+    catch /^Vim\%((\a\+)\)\=:E185/
+    endtry
 endif
+
+filetype plugin indent on
+
+hi clear MatchParen
+" show matching parentheses by underlining.
+if has("gui_running")
+    hi MatchParen gui=underline guibg=NONE guifg=NONE
+else
+    " t_us, t_ue - underline start, underline end
+    hi MatchParen cterm=underline ctermbg=none ctermfg=none
+endif
+
