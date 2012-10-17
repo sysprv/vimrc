@@ -16,7 +16,6 @@ map <Down> gj
 nnoremap Q gq
 " rot13
 map <F12> ggVGg?
-" I use a Norwegian keyboard, so this mapping is rather useless.
 nnoremap , :
 """""
 
@@ -74,7 +73,7 @@ if has("gui_running")
     endtry
 endif
 
-filetype plugin indent on
+"filetype plugin indent on - found out that I don't like this.
 
 hi clear MatchParen
 " show matching parentheses by underlining.
