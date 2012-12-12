@@ -32,6 +32,9 @@ set ttymouse=xterm2
 " show trailing whitespace when list is on
 set listchars=trail:^
 
+" do not connect to any X server
+set clipboard=exclude:.*
+
 " I use 'view' a lot. In Red Hat Linux, view is provided by vim-minimal,
 " which evidently does not include folding. This if statement avoids
 " errors that view will otherwise print while starting.
