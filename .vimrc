@@ -17,6 +17,10 @@ nnoremap Q gq
 " rot13
 map <F12> ggVGg?
 nnoremap , :
+map ø [
+map æ ]
+map Ø {
+map Æ }
 """""
 
 set statusline=%f%m%r%h%w\ %{&ff}\ sw%{&sw}\ ts%{&ts}\ sts%{&sts}\ et%{&et}\
