@@ -1,4 +1,5 @@
 " vim:set ts=8 sw=4 sts=4 et:
+" oft-used variables - $MYVIMRC
 set nocp
 set tabstop=8 shiftwidth=8 softtabstop=8 noexpandtab
 set shiftround
@@ -51,9 +52,11 @@ endif
 
 command Proper set ts=8 noet sts=8 sw=8 ai
 command Lousy set ts=8 et sts=4 sw=4 ai
+command Clj set ts=8 sts=2 sw=2 et ai
 " t_Co=0 disables all colours.
 " http://aplawrence.com/Forum/TonyLawrence10.html
 command Basic set syntax=off t_Co=0 t_md= t_Sf= t_Sb= t_us= t_ue= t_ZH= t_ZR=
+command Gd cd $GOOGLE_DRIVE_DIRECTORY/PlainText
 
 set backup
 set backupdir=.backup,.    " http://news.ycombinator.com/item?id=360748 ??
