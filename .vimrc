@@ -56,7 +56,11 @@ command Clj set ts=8 sts=2 sw=2 et ai
 " t_Co=0 disables all colours.
 " http://aplawrence.com/Forum/TonyLawrence10.html
 command Basic set syntax=off t_Co=0 t_md= t_Sf= t_Sb= t_us= t_ue= t_ZH= t_ZR=
-command Gd cd $GOOGLE_DRIVE_DIRECTORY/PlainText
+command Gd cd $GOOGLE_DRIVE_DIRECTORY/PlainText | set ff=unix tw=78
+
+if exists('+colorcolumn')
+    set colorcolumn=80
+endif
 
 set backup
 set backupdir=.backup,.    " http://news.ycombinator.com/item?id=360748 ??
