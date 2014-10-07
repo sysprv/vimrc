@@ -1,7 +1,7 @@
 " vim:set ts=8 sw=4 sts=4 et:
 " oft-used variables - $MYVIMRC
 set nocp
-set tabstop=8 shiftwidth=8 softtabstop=8 noexpandtab
+set tabstop=8 shiftwidth=8 softtabstop=8 noexpandtab fileformat=unix
 set shiftround
 set autoindent
 set backspace=indent,eol,start
