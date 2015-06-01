@@ -2,6 +2,7 @@
 " oft-used variables - $MYVIMRC
 set nocp
 set tabstop=8 shiftwidth=8 softtabstop=8 noexpandtab fileformat=unix
+set enc=utf-8 fenc=utf-8 nobomb
 set shiftround
 set autoindent
 set backspace=indent,eol,start
@@ -41,6 +42,7 @@ set listchars=trail:^
 " do not connect to any X server
 set clipboard=exclude:.*
 
+
 " I use 'view' a lot. In Red Hat Linux, view is provided by vim-minimal,
 " which evidently does not include folding. This if statement avoids
 " errors that view will otherwise print while starting.
@@ -56,7 +58,8 @@ command Clj set ts=8 sts=2 sw=2 et ai
 " t_Co=0 disables all colours.
 " http://aplawrence.com/Forum/TonyLawrence10.html
 command Basic set syntax=off t_Co=0 t_md= t_Sf= t_Sb= t_us= t_ue= t_ZH= t_ZR=
-command Gd cd $GOOGLE_DRIVE_DIRECTORY/PlainText | set ff=unix tw=78
+" enable auto reformatting when writing; gqip or vip, gq to format manually.
+command Gd cd $GOOGLE_DRIVE_DIRECTORY/PlainText | set ff=unix tw=78 fo+=at
 
 if exists('+colorcolumn')
     set colorcolumn=80
