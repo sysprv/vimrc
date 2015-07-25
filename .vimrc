@@ -11,6 +11,7 @@ set noshowmatch
 set noerrorbells
 set laststatus=2
 set showcmd
+set formatoptions=
 
 """"" mappings
 map <Up> gk
@@ -19,15 +20,11 @@ nnoremap Q gq
 " rot13
 map <F12> ggVGg?
 nnoremap , :
-imap ø [
-imap æ ]
-imap Ø {
-imap Æ }
 map <F9> :exe 'f' getline(1)<CR>
 """""
 
 set statusline=%f%m%r%h%w\ %{&ff}\ sw%{&sw}\ ts%{&ts}\ sts%{&sts}\ et%{&et}\
-\ wm%{&wm}\ tw%{&tw}\ enc%{&enc}\ fenc%{&fenc}\ l%l\ c%v\ o%o\ B%B
+\ wm%{&wm}\ tw%{&tw}\ fo%{&fo}\ enc%{&enc}\ fenc%{&fenc}\ l%l\ c%v\ o%o\ B%B
 
 " set modeline
 set showmode
@@ -58,18 +55,50 @@ command Clj set ts=8 sts=2 sw=2 et ai
 " t_Co=0 disables all colours.
 " http://aplawrence.com/Forum/TonyLawrence10.html
 command Basic set syntax=off t_Co=0 t_md= t_Sf= t_Sb= t_us= t_ue= t_ZH= t_ZR=
+command Fmt :%!fmt --width=78
+
 " enable auto reformatting when writing; gqip or vip, gq to format manually.
-command Gd cd $GOOGLE_DRIVE_DIRECTORY/PlainText | set ff=unix tw=78 fo+=at
+command Wr setlocal ff=unix tw=78 fo+=at
+au BufNewFile,BufReadPost writing*.txt :Wr
+command Nowr setlocal fo-=at
 
 if exists('+colorcolumn')
     set colorcolumn=80
 endif
 
-set backup
-set backupdir=.backup,.    " http://news.ycombinator.com/item?id=360748 ??
-" set patchmode=.bck
-set backupext=~
-au BufWritePre * let &bex = '~' . strftime("%Y%m%d.%H%M%S") . '~'
+set backup  " http://stackoverflow.com/a/26779916/1183357
+
+" some constants related to backups
+let s:home = expand('~')
+let s:hostname = hostname()
+let s:backup_root = s:home . '/.backup/' . s:hostname
+lockvar s:home s:hostname s:backup_root
+if !isdirectory(s:backup_root)
+    call mkdir(s:backup_root, 'p')
+endif
+
+function s:UpdateBackupOptions()
+    "
+    " update vim's backup-related options so that
+    " a full backup of each file will be kept
+    " under ~/.backup/<hostname>/ including
+    " the absolute path to the file.
+    "
+    let l:dir = s:backup_root . expand('%:p:h')
+    if !isdirectory(l:dir)
+        call mkdir(l:dir, 'p')
+    endif
+    let &bex = '~' . strftime('%Y%m%d.%H%M%S') . '~'
+    let &backupdir = l:dir
+    " echo &bex &backupdir
+endfunction
+
+au BufWritePre * call s:UpdateBackupOptions()
+
+if has("gui_running")
+    " Acme background colour
+    highlight Normal guifg=#000000 guibg=#ffffd8
+endif
 
 if has("gui_running") && has("win32")
     set guifont=PragmataPro:h10
@@ -79,16 +108,6 @@ endif
 if has("gui_running") && !has("win32")
     " assuming Linux
     set guifont=PragmataPro\ 11
-endif
-
-if has("gui_running")
-    syntax on
-    syntax sync minlines=128
-    " raw solarized.vim on github - http://goo.gl/Ai3LU
-    try
-        colorscheme solarized
-    catch /^Vim\%((\a\+)\)\=:E185/
-    endtry
 endif
 
 "filetype plugin indent on - found out that I don't like this.
