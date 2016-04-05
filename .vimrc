@@ -4,7 +4,6 @@ set nocp
 set tabstop=8 shiftwidth=8 softtabstop=8 noexpandtab fileformat=unix
 set enc=utf-8 fenc=utf-8 nobomb
 set shiftround
-set autoindent
 set backspace=indent,eol,start
 set nohlsearch incsearch
 set noshowmatch
