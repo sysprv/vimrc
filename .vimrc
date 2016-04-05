@@ -13,6 +13,9 @@ set laststatus=2
 set showcmd
 set formatoptions=
 
+" leave only one space after ./?/! when joining
+set nojoinspaces
+
 """"" mappings
 map <Up> gk
 map <Down> gj
@@ -56,14 +59,20 @@ command Clj set ts=8 sts=2 sw=2 et ai
 " http://aplawrence.com/Forum/TonyLawrence10.html
 command Basic set syntax=off t_Co=0 t_md= t_Sf= t_Sb= t_us= t_ue= t_ZH= t_ZR=
 command Fmt :%!fmt --width=78
+command Pst set paste
+command Nop set nopaste
 
 " enable auto reformatting when writing; gqip or vip, gq to format manually.
-command Wr setlocal ff=unix tw=78 fo+=at
-au BufNewFile,BufReadPost writing*.txt :Wr
+command Wr setlocal ff=unix tw=78 fo+=at spell
+autocmd BufNewFile,BufReadPost writing*.txt :Wr
+autocmd BufNewFile,BufReadPost *.txt        :set spell
+autocmd BufNewFile,BufReadPost *.py         :Lousy
+
 command Nowr setlocal fo-=at
 
 if exists('+colorcolumn')
     set colorcolumn=80
+    highlight ColorColumn ctermbg=LightGrey guibg=LightGrey
 endif
 
 set backup  " http://stackoverflow.com/a/26779916/1183357
@@ -93,7 +102,7 @@ function s:UpdateBackupOptions()
     " echo &bex &backupdir
 endfunction
 
-au BufWritePre * call s:UpdateBackupOptions()
+autocmd BufWritePre * call s:UpdateBackupOptions()
 
 if has("gui_running")
     " Acme background colour
@@ -121,3 +130,10 @@ else
     hi MatchParen cterm=underline ctermbg=none ctermfg=none
 endif
 
+set spellfile=~/.vimspell.utf-8.add
+
+syntax off
+
+" underline possible spelling errors, instead of highlighting
+hi clear SpellBad
+hi SpellBad cterm=underline
