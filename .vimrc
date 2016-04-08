@@ -65,6 +65,10 @@ command Nop set nopaste
 command Wr setlocal ff=unix tw=78 fo+=at spell
 autocmd BufNewFile,BufReadPost writing*.txt :Wr
 autocmd BufNewFile,BufReadPost *.txt        :set spell
+autocmd BufNewFile,BufReadPost COMMIT_EDITMSG :set spell
+" when editing commit messages, always start from the beginning of the file
+autocmd BufNewFile,BufReadPost COMMIT_EDITMSG call setpos('.', [0, 1, 1, 0])
+autocmd BufNewFile,BufReadPost *music-comments.txt :set nospell
 autocmd BufNewFile,BufReadPost *.py         :Lousy
 
 command Nowr setlocal fo-=at
