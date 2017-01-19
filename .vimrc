@@ -38,7 +38,7 @@ set ttymouse=xterm2
 " show trailing whitespace when list is on
 set listchars=trail:^
 
-" do not connect to any X server
+" do not connect to X
 set clipboard=exclude:.*
 
 
@@ -75,7 +75,7 @@ command Nowr setlocal fo-=at
 
 if exists('+colorcolumn')
     set colorcolumn=80
-    highlight ColorColumn ctermbg=LightGrey guibg=LightGrey
+    highlight ColorColumn ctermbg=darkred guibg=darkred ctermfg=white guifg=white
 endif
 
 set backup  " http://stackoverflow.com/a/26779916/1183357
@@ -122,8 +122,6 @@ if has("gui_running") && !has("win32")
     set guifont=PragmataPro\ 11
 endif
 
-"filetype plugin indent on - found out that I don't like this.
-
 hi clear MatchParen
 " show matching parentheses by underlining.
 if has("gui_running")
@@ -133,10 +131,13 @@ else
     hi MatchParen cterm=underline ctermbg=none ctermfg=none
 endif
 
+" http://vimdoc.sourceforge.net/htmldoc/spell.html
 set spellfile=~/.vimspell.utf-8.add
-
-syntax off
-
-" underline possible spelling errors, instead of highlighting
+" http://vimdoc.sourceforge.net/htmldoc/syntax.html#:highlight
+hi SpellCap NONE
+hi SpellRare NONE
+hi SpellLocal NONE
 hi clear SpellBad
 hi SpellBad cterm=underline
+
+syntax off
