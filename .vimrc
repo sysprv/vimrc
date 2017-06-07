@@ -134,8 +134,8 @@ endif
 " http://vimdoc.sourceforge.net/htmldoc/spell.html
 set spellfile=~/.vimspell.utf-8.add
 " http://vimdoc.sourceforge.net/htmldoc/syntax.html#:highlight
-hi SpellCap NONE
-hi SpellRare NONE
+hi SpellCap   NONE
+hi SpellRare  NONE
 hi SpellLocal NONE
 hi clear SpellBad
 hi SpellBad cterm=underline
