@@ -140,4 +140,18 @@ hi SpellLocal NONE
 hi clear SpellBad
 hi SpellBad cterm=underline
 
+
+" deal with trailing whitespace
+highlight TrailingWhitespace ctermbg=lightgrey guibg=lightgrey
+match TrailingWhitespace /\s\+$/
+
+function s:StripTrailingWhitespace()
+    let l:win = winsaveview()
+    %s/\s\+$//e
+    call winrestview(l:win)
+endfunction
+
+autocmd BufWritePre * call s:StripTrailingWhitespace()
+command Stws call s:StripTrailingWhitespace()
+
 syntax off
