@@ -142,8 +142,22 @@ hi SpellBad cterm=underline
 
 
 " deal with trailing whitespace
-highlight TrailingWhitespace ctermbg=lightgrey guibg=lightgrey
-match TrailingWhitespace /\s\+$/
+highlight TrailingWhitespace NONE
+let s:do_match_trailing_ws=0
+if has("gui_running")
+    highlight TrailingWhitespace guibg=lightmagenta
+    let s:do_match_trailing_ws=1
+elseif &t_Co == 256
+    highlight TrailingWhitespace ctermbg=lightmagenta
+    let s:do_match_trailing_ws=1
+elseif &t_Co == 8
+    highlight TrailingWhitespace ctermbg=lightgrey
+    let s:do_match_trailing_ws=1
+endif
+
+if s:do_match_trailing_ws
+    match TrailingWhitespace /\s\+$/
+endif
 
 function s:StripTrailingWhitespace()
     let l:win = winsaveview()
