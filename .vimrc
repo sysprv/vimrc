@@ -113,13 +113,8 @@ if has("gui_running")
 endif
 
 if has("gui_running") && has("win32")
-    set guifont=PragmataPro:h10
+    set guifont=PragmataPro\ Mono:h10
     set guicursor+=a:blinkon0
-endif
-
-if has("gui_running") && !has("win32")
-    " assuming Linux
-    set guifont=PragmataPro\ 11
 endif
 
 hi clear MatchParen
