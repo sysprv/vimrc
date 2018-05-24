@@ -107,24 +107,10 @@ endfunction
 
 autocmd BufWritePre * call s:UpdateBackupOptions()
 
-if has("gui_running")
-    " Acme background colour
-    highlight Normal guifg=#000000 guibg=#ffffd8
-endif
-
-if has("gui_running") && has("win32")
-    set guifont=PragmataPro\ Mono:h10
-    set guicursor+=a:blinkon0
-endif
-
 hi clear MatchParen
 " show matching parentheses by underlining.
-if has("gui_running")
-    hi MatchParen gui=underline guibg=NONE guifg=NONE
-else
-    " t_us, t_ue - underline start, underline end
-    hi MatchParen cterm=underline ctermbg=none ctermfg=none
-endif
+" t_us, t_ue - underline start, underline end
+hi MatchParen cterm=underline ctermbg=none ctermfg=none gui=underline guibg=NONE guifg=NONE
 
 " http://vimdoc.sourceforge.net/htmldoc/spell.html
 set spellfile=~/.vimspell.utf-8.add
@@ -137,16 +123,14 @@ hi SpellBad cterm=underline
 
 
 " deal with trailing whitespace
+" colours - https://upload.wikimedia.org/wikipedia/commons/1/15/Xterm_256color_chart.svg
 highlight TrailingWhitespace NONE
 let s:do_match_trailing_ws=0
-if has("gui_running")
-    highlight TrailingWhitespace guibg=lightmagenta
-    let s:do_match_trailing_ws=1
-elseif &t_Co == 256
-    highlight TrailingWhitespace ctermbg=lightmagenta
+if has("gui_running") || (&t_Co == 256)
+    highlight TrailingWhitespace ctermbg=250
     let s:do_match_trailing_ws=1
 elseif &t_Co == 8
-    highlight TrailingWhitespace ctermbg=lightgrey
+    highlight TrailingWhitespace ctermbg=7
     let s:do_match_trailing_ws=1
 endif
 
