@@ -11,6 +11,9 @@ set noerrorbells
 set laststatus=2
 set showcmd
 set formatoptions=
+set linebreak
+" by default mksession saves too much for my taste
+set sessionoptions=tabpages
 
 " leave only one space after ./?/! when joining
 set nojoinspaces
@@ -60,6 +63,7 @@ command Basic set syntax=off t_Co=0 t_md= t_Sf= t_Sb= t_us= t_ue= t_ZH= t_ZR=
 command Fmt :%!fmt --width=78
 command Pst set paste
 command Nop set nopaste
+command Sp  set spell
 
 " enable auto reformatting when writing; gqip or vip, gq to format manually.
 command Wr setlocal ff=unix tw=78 fo+=at spell
@@ -71,7 +75,7 @@ autocmd BufNewFile,BufReadPost COMMIT_EDITMSG call setpos('.', [0, 1, 1, 0])
 autocmd BufNewFile,BufReadPost *music-comments.txt :set nospell
 autocmd BufNewFile,BufReadPost *.py         :Lousy
 
-command Nowr setlocal fo-=at
+command Nowr setlocal tw=0 fo-=at nospell
 
 if exists('+colorcolumn')
     set colorcolumn=80
@@ -126,16 +130,28 @@ hi SpellBad cterm=underline
 " colours - https://upload.wikimedia.org/wikipedia/commons/1/15/Xterm_256color_chart.svg
 highlight TrailingWhitespace NONE
 let s:do_match_trailing_ws=0
-if has("gui_running") || (&t_Co == 256)
+if has('gui_running')
+    highlight TrailingWhitespace guibg=#f7d6d6
+    let s:do_match_trailing_ws=1
+elseif &t_Co == 256
     highlight TrailingWhitespace ctermbg=250
     let s:do_match_trailing_ws=1
+elseif &t_Co == 88
+    " TERM=rxvt
+    highlight TrailingWhitespace ctermbg=80
+    let s:do_match_trailing_ws=1
 elseif &t_Co == 8
-    highlight TrailingWhitespace ctermbg=7
+    " when TERM is linux, xterm, ansi
+    highlight TrailingWhitespace ctermbg=6
+    let s:do_match_trailing_ws=1
+elseif $TERM == 'vt100'
+    highlight TrailingWhitespace term=underline
     let s:do_match_trailing_ws=1
 endif
 
 if s:do_match_trailing_ws
-    match TrailingWhitespace /\s\+$/
+    " match is per window, WinEnter does not fire for first window
+    autocmd VimEnter,WinEnter * match TrailingWhitespace /\s\+$/
 endif
 
 function s:StripTrailingWhitespace()
@@ -146,5 +162,25 @@ endfunction
 
 autocmd BufWritePre * call s:StripTrailingWhitespace()
 command Stws call s:StripTrailingWhitespace()
+
+" ergonomics
+
+nnoremap <silent> <C-n> :tabnew<cr>
+nnoremap <silent> <C-x>k :bdelete<cr>
+
+if has('gui_running')
+    " PRIMARY selection - http://vimdoc.sourceforge.net/htmldoc/gui_x11.html#quoteplus
+    inoremap <silent> <S-Insert> <C-r>*
+endif
+
+" load ctrlp if available
+let s:path_ctrlp = s:home . '/.vim/bundle/ctrlp.vim'
+if isdirectory(s:path_ctrlp)
+    execute 'set runtimepath+=' . s:path_ctrlp
+    if exists(':CtrlPMixed')
+        let g:ctrlp_map = '<C-p>'
+        let g:ctrlp_cmd = 'CtrlPMixed'
+    endif
+endif
 
 syntax off
