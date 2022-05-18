@@ -7,7 +7,7 @@ I try to customize as little as possible.
 Bill Joy's Aug-1984 interview for Unix Review: http://web.cecs.pdx.edu/~kirkenda/joy84.html
 
 > REVIEW: What would you do differently?
-> 
+>
 > JOY: I wish we hadn't used all the keys on the keyboard. I think one of the
 > interesting things is that vi is really a mode-based editor. I think as
 > mode-based editors go, it pretty good. One of the good things about EMACS,
