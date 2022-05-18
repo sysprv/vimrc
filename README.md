@@ -1,8 +1,6 @@
 My vimrc.
 
-I try to customize as little as possible.
-
-
+Meant for writing plain text with timestamps and annotations.
 
 Bill Joy's Aug-1984 interview for Unix Review: http://web.cecs.pdx.edu/~kirkenda/joy84.html
 
