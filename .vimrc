@@ -1409,6 +1409,10 @@ nnoremap    s   <C-w>
 " vertical by default. We make do with this:
 nnoremap    <Leader>vf  <C-w>f<C-w>L
 
+" WIP mapping to open files; meant to work under just two windows:
+" one window with a list of filenames.
+nnoremap    <Leader>se  :let f = expand('<cfile>')<CR><C-w>w:execute('edit ' . f)<CR>
+
 
 if !has('gui_running')
     " tty - Ctrl-Backspace sends Ctrl-H.
