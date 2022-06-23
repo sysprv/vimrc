@@ -1536,13 +1536,15 @@ command FoText  setl fo=at
 command FoCode  setl fo=cjoqr nosi cin
 "
 " NB: autoindent affects fo-at
+" spelling: probably better to switch to native aspell and dict-gcide
+"   (GNU Collaborative International Dictionary of English)
 command Wr      setlocal tw=78 fo=at nocin nosi noai spell
 " for transcribing poetry -
 " significant whitespace, auto-indenting, no hard tabs, no auto formatting
 " remember - delete to beginning of line: 0d (V), Ctrl-U (I);
 "   Ctrl-U is readline unix-line-discard.
 " set colorcolumn=16,32,48,64,80,96 might also help.
-command Poetry  setlocal tw=0 formatoptions-=ta sts=4 sw=4 sts=4 ai et spell
+command Poetry  setlocal tw=0 formatoptions-=ta sts=4 sw=4 sts=4 ai et nospell
 command Proper  setlocal softtabstop=8 shiftwidth=8 noexpandtab
 " for Python and common scripting languages
 command Lousy   setlocal softtabstop=4 shiftwidth=4 expandtab
