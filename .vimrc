@@ -476,7 +476,12 @@ endfunction
 
 
 function! UserDateTimeComment()
-    return strftime('-- date %F %T%z (%B, %A)')
+    let l:tm = localtime()
+    " shorten month and day names to fit in iVim on a phone, vertical
+    let l:mon = strftime('%B', l:tm)[0:2]
+    let l:day = strftime('%A', l:tm)[0:2]
+    let l:ts= strftime('-- date %F %T%z', l:tm)
+    return ts . ' (' . l:mon . ', ' . l:day . ')'
 endfunction
 
 
