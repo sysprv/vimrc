@@ -207,7 +207,8 @@ set viminfo='100,<0,s0,h
 
 set browsedir=buffer
 " for C-x C-f; may break plugins but i don't use many plugins.
-set autochdir
+" too cumbersome. specially in iVim (no shell.)
+set noautochdir
 set virtualedit=block
 " perhaps the 2nd best thing about vim - the following options are enabled
 " by default.
