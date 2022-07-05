@@ -1,9 +1,13 @@
-set secure
-set nocompatible
-set encoding=utf-8 fileencoding=utf-8 nobomb
+set secure nocompatible encoding=utf-8 fileencoding=utf-8 nobomb
 scriptencoding utf-8
 
-" Last Modified: 2022-04-02
+" Last Modified: 2022-06-29
+" Normal mode mapping to paste easily in iVim.
+"
+" 2022-06-28: Hashtag prefix sequence changed from a single Greek Cross
+" (🞣, U+1F7A3) to "_#". The Greek Cross isn't visible and causes rendering
+" issues in iVim (iOS.)
+
 "
 " Long, somewhat disorganized, too large a file, my bonsai project. Lots of
 " barnacles from documentation spelunking and trying various options. Tired now,
@@ -17,6 +21,12 @@ scriptencoding utf-8
 " loggingat specific levels, the ability to trace (without a debugger) when
 " options like t_Co change...
 
+" vim settings like backupskip and spelllang should be sets, instead of
+" strings with commas.
+
+" colorschemes should be scoped better, or vim needs a real module system.
+" for more control/better isolation.
+
 " Makes use of: dash(1) par(1) GNU date(1) file(1).
 " $MYVIMRC, $VIMRUNTIME, $VIM
 " termguicolors control env variable: $VIM_SKIP_TGC
@@ -26,6 +36,8 @@ scriptencoding utf-8
 
 " :sball - show all buffers; inverse: :only / C-w o
 "   <F11>
+
+" @% - current filename;
 
 " strtrans() (dep 'display'); 0, 10, ^@, ^J, <Nul>, <NL>, doc :key-notation
 "   https://unix.stackexchange.com/a/247331
@@ -106,6 +118,8 @@ set backup  " http://stackoverflow.com/a/26779916/1183357
 " into the same file. the vi default behaviour is yes, and it's the most
 " natural with vim as $EDITOR.
 set backupcopy=yes
+
+set backupskip+=NOTES-*.txt
 
 " default swap file locations aren't too great; keep them inside our homedir.
 let s:swapdir = g:user_vim_base . '/.vim_swap'
@@ -198,7 +212,12 @@ set hidden
 set lazyredraw
 set matchpairs+=<:>,«:»,｢:｣
 
-set wildmenu wildmode=list:longest,full
+if v:version >= 900
+    " display completion matches in a popup menu
+    set wildoptions=pum
+else
+    set wildmenu wildmode=list:longest,full
+endif
 set wildignorecase
 "set ttymouse=sgr
 " viminfo prev: '100,<50,s10,h
@@ -316,54 +335,8 @@ endfunction
 
 " My syntax rules are in UserSyntax(), with highlights in UserColours().
 
-" mode() can return control codes that can look weird, depending on whether
-" 'display' has 'uhex' or not.
-" when used in the statusline - errors in this function (f.ex. E121, variable
-" typo) can have strange effects. UserStatusLn() won't catch them, because the
-" function's not invoked there; it's vim draw operations that'll execute this.
-" thus, the try/catch.
-" compare using ==# (force match case; '==' uses 'ignorecase')
-if v:false
-function! UserModeMsg() abort
-    let l:mode = mode()
-    " like regular 'showmode', don't display anything for normal mode
-    " and command mode.
-    if l:mode ==# 'n' || l:mode ==# 'c' | return '' | endif
-
-    lockvar l:mode
-
-    let l:desc = l:mode
-    try
-        if l:mode ==# 'i'
-            let l:desc = 'INSERT'
-            if &paste
-		" using an nbsp to hide underlying stl(nc) fcs,
-                " which shows through with a regular space.
-                let l:desc .= "\u00A0(paste)"
-            endif
-        elseif l:mode ==# 'v'
-            let l:desc = 'VISUAL_CHAR'
-        elseif l:mode ==# 'V'
-            let l:desc = 'VISUAL_LINE'
-        elseif l:mode ==# "\<C-v>"
-            let l:desc = 'VISUAL_BLOCK'
-        elseif l:mode ==# 'R'
-            let l:desc = 'REPLACE'
-        elseif l:mode ==# 's'
-            let l:desc = 'SELECT_CHAR'
-        elseif l:mode ==# 'S'
-            let l:desc = 'SELECT_LINE'
-        elseif l:mode ==# "\<C-s>"
-            let l:desc = 'SELECT_BLOCK'
-        endif
-
-        return "\u00A0--\u00A0" . l:desc . "\u00A0--\u00A0"
-    catch /^Vim\%((\a\+)\)\=:E/
-        echom v:exception
-        return '?'
-    endtry
-endfunction
-endif
+" Re-implementing the mode message by decoding mode() seemed fun at one time
+" but it was slow.
 
 "-- doc 'statusline'
 " should allow three vertical splits.
@@ -415,7 +388,9 @@ endfunction
 " declaring defeat - the above worked, though noticeably slower than
 " native 'showmode'. but - though it worked, there's no getting around the fact
 " that there's always only one command window.
-set stl=%f%<\ %n\ %{UserBufModStatus()},%{&paste?'!P':&tw}%R%W%Y%#Normal#%=%{g:user_mark}\ %l:%v
+"
+" note, a space before the ma.
+set stl=%f%<\ %n\ %{UserBufModStatus()},%{&paste?'!P':&tw}%R%W%Y%#Normal#%=\ %{g:user_mark}\ %l:%v
 
 " if g:statusline_winid available, include window number in statusline.
 " this has to be done with a function.
@@ -451,23 +426,25 @@ function! UserFixupUI()
     " default - just ordinary everyday underscores; U+005F LOW LINE
     let l:fcs = ['stl:_', 'stlnc:_']
 
-    if g:user_has_x11 || has('gui_running') || &term =~ 'putty'
-        " default: U+007C - VERTICAL LINE
+    if has('gui_running') || g:user_has_x11 || &term =~ 'putty'
         " U+2504 - BOX DRAWINGS LIGHT TRIPLE DASH HORIZONTAL
         " U+2502 - BOX DRAWINGS LIGHT VERTICAL
-        call extend(l:fcs, ['fold:┄', 'vert:│'])
+        "   (vert default: U+007C    VERTICAL LINE)
+        call extend(l:fcs, ['fold:'.nr2char(0x2504), 'vert:'.nr2char(0x2502)])
         highlight clear VertSplit
 
-        " for the statusline: U+23BD HORIZONTAL SCAN LINE-9
+        " for the statuslines:
+        " U+23BD HORIZONTAL SCAN LINE-9 is nice, but not quite low enough.
+        " Being a multibyte character, causes issues with rxvt-unicode.
+        "
+        " vim patch-8.2.2569 is also required.
+        "
         " ref https://www.kernel.org/doc/html/latest/admin-guide/unicode.html
-        "   U+F804, DEC VT GRAPHICS HORIZONTAL LINE SCAN 9
+        "   (outdated: F804, DEC VT GRAPHICS HORIZONTAL LINE SCAN 9)
         " https://graphemica.com/blocks/miscellaneous-technical/page/3
-        " U+2577, BOX DRAWINGS LIGHT DOWN
-        " with the right font, these look nice.
-        if has("patch-8.2.2569")
-            " now stl(nc) can be multi-byte characters
-            call extend(l:fcs, ['stlnc:⎽', 'stl:⎽'])
-        endif
+        " let l:hrz = nr2char(0x2015)   " HORIZONTAL BAR
+        let l:hrz = nr2char(0x2500) " BOX DRAWINGS LIGHT HORIZONTAL
+        call extend(l:fcs, ['stlnc:'.l:hrz, 'stl:'.l:hrz])
     endif
 
     " set fillchars once we're done with all the if's.
@@ -476,17 +453,74 @@ endfunction
 
 
 function! UserDateTimeComment()
-    let l:tm = localtime()
-    " shorten month and day names to fit in iVim on a phone, vertical
-    let l:mon = strftime('%B', l:tm)[0:2]
-    let l:day = strftime('%A', l:tm)[0:2]
-    let l:ts= strftime('-- date %F %T%z', l:tm)
-    return ts . ' (' . l:mon . ', ' . l:day . ')'
+    " month (%b) and day (%a) should be 3 chars each
+    return strftime('-- date %F %T%z (%b, %a)', localtime())
 endfunction
 
 
 function! UserDate()
     return strftime('%F')
+endfunction
+
+
+" like 2022-07-05T12:57:18.568367478+00:00
+function! UserUtcPython()
+    " https://bugs.python.org/issue15443 - datetime doesn't support nanoseconds.
+    "
+    " 2022-07-05 syntax highlighting can break easily here.
+    " if using an endmarker, the ending endmarker should be at col 0 (beginning
+    " of line.)
+    " if a dot is used to terminate the heredoc, without no endmarkers,
+    " the dot being on a col > 0 doesn't seem to break syn.
+
+    " not using the trim option on a whim.
+
+    python3 << EPY
+import datetime, decimal, time
+
+def rfc3339ns():
+    bln = 1_000_000_000
+    tm_ns = decimal.Decimal(time.time_ns())
+    tm_s = int(tm_ns / bln)
+    tm_frac = int(tm_ns % bln)
+
+    # build datetime with just seconds
+    t = datetime.datetime.fromtimestamp(
+        tm_s,
+        tz=datetime.timezone.utc
+    ).isoformat()
+    # formatted part, without zone info (which should always be +00:00)
+    p = t[0:-6]
+    # just the zone info
+    z = t[-6:]
+    # final value
+    return f'{p}.{tm_frac}{z}'
+
+EPY
+
+    " end of python block
+
+    return py3eval('rfc3339ns()')
+endfunction
+
+
+" like 2022-07-05T12:21:09.900981612+00:00
+function! UserUtcGnuDate()
+    let l:s = systemlist('/usr/bin/date --utc --rfc-3339=ns')[0]
+    " todo fix before year 10000 or other major calendar changes
+    return l:s[0:9] . 'T' . l:s[11:]
+endfunction
+
+function! UserUtcNow()
+    let l:ts = "\<Ignore>"
+    " iVim ships with python3, and it's trivial to get vim and python3
+    " to work together on windows.
+    if has('python3')
+        let l:ts = UserUtcPython()
+    elseif has('linux')
+        let l:ts = UserUtcGnuDate()
+    endif
+    return l:ts
 endfunction
 
 
@@ -616,7 +650,7 @@ function! UserGetInfoLines()
     " reminders, which have to be manually maintained for now
     " damian conway has his own documented mappings; not yet worth the trouble.
     call add(l:lines, '--')
-    call add(l:lines, '<F2><F3> syn onoff <F4><F5> tty/colo <F6> spell')
+    call add(l:lines, '<F2><F3> syn onoff <F4><F5> tty/colo')
     return l:lines
 endfunction
 
@@ -637,6 +671,10 @@ endfunction
 "
 " i like this approach better than patch-8.1.0251.
 "
+" credit:
+" https://www.vim.org/scripts/script.php?script_id=89
+" https://www.vim.org/scripts/script.php?script_id=563
+"
 function! UserUpdateBackupOptions()
     let l:filepath = expand('%:p:h')
     " for microsoft windows
@@ -644,16 +682,24 @@ function! UserUpdateBackupOptions()
         let l:filepath = tr(l:filepath, ':', '_')
     endif
 
-    let l:dir = printf('%s/.backup/%s/%s',
-        \ g:user_vim_base,
-        \ hostname(),
-        \ l:filepath)
+    " maybe getftime(); but there's no way to get the modified time
+    " of an unwritten buffer.
+    let l:tm = localtime()
+
+    " like: ~/.backup/hostname/yyyy-mm-dd/path.../file~hhmmss~
+    " keep related changes within a day together
+    let l:dir = g:user_vim_base
+        \ . '/.backup'
+        \ . '/' . hostname()
+        \ . '/' . strftime('%F', l:tm)
+        \ . '/' . l:filepath
+
     if !isdirectory(l:dir)
         call mkdir(l:dir, 'p', 0700)
     endif
-    let &l:bex = '~' . strftime('%Y%m%d.%H%M%S') . '~'
+    let &l:backupext = '~' . strftime('%H%M%S', l:tm) . '~'
     let &l:backupdir = l:dir
-    " echom 'backup-options' &bex &backupdir
+    " echom 'backup-options' &bex &bdir
 endfunction
 
 
@@ -701,18 +747,17 @@ endfunction
 function! UserCustomSyntaxHighlights()
     highlight UserDateComment term=NONE cterm=italic gui=italic
     highlight UserTrailingWhitespace term=standout cterm=NONE gui=NONE
+    highlight UserHashTag term=NONE cterm=NONE gui=NONE
 
     if &background == 'light'
         highlight UserDateComment ctermfg=8 ctermbg=12 guifg=grey40 guibg=azure2
+        highlight UserHashTag ctermbg=194 guifg=fg guibg=palegreen2
         highlight UserTrailingWhitespace ctermbg=7 guibg=lightgrey
     else
-        highlight UserDateComment ctermfg=252 ctermbg=237
-        highlight UserTrailingWhitespace ctermbg=238
+        highlight UserDateComment ctermfg=240 guifg=fg guibg=grey40
+        highlight UserHashTag ctermbg=240 guifg=fg guibg=grey40
+        highlight UserTrailingWhitespace ctermbg=238 guibg=grey27
     endif
-
-    " green - to not hurt the eyes. implying, it's ok to put in a lot of tags.
-    highlight UserHashTag
-        \ term=reverse ctermfg=15 ctermbg=30 cterm=NONE guifg=#ffffff guibg=#008787 gui=NONE
 
     " for URIs at top level
     highlight! default link UserHttpURI Normal
@@ -793,7 +838,7 @@ function! UserColours256()
         highlight NonText       ctermfg=14
         highlight SpecialKey    ctermfg=1
     endif
-    highlight SpellBad                          ctermbg=224
+    highlight SpellBad                          ctermbg=252
 
     if &background == 'light'
         call UserColours256Light()
@@ -823,7 +868,8 @@ function! UserColoursGui()
     "
     " don't like undercurls. most themes use undercurls.
     highlight clear SpellBad
-    highlight SpellBad          guifg=black     guibg=#ffd8dc
+    " a non-annoying grey to go well with the Normal guibg
+    highlight SpellBad          guibg=#e3e3e3
     "
     if !has('gui_running')
         return
@@ -870,6 +916,15 @@ function! UserColours()
     " and our misc. fixups
     call UserFixupUI()
 endfunction
+
+
+function! UserCanLoadColorscheme()
+    if has('gui_running')
+        return v:true
+    endif
+    return exists('&t_Co') && &t_Co >= 256
+endfunction
+
 
 " turn off most highlights; 'highlight clear' defaults are awful,
 " set highlights to NONE to silence.
@@ -925,7 +980,7 @@ syntax match UserDateComment
 "
 syntax clear UserHashTag
 " simple tag
-syntax match UserHashTag /\v🞣[_[:lower:][:upper:][:digit:]]+/
+syntax match UserHashTag /\v-\#[_[:lower:][:upper:][:digit:]]+/
 \ display oneline containedin=ALLBUT,UserHashTag
 
 " for hashtags with quotes, a region match. this will match too much
@@ -933,7 +988,7 @@ syntax match UserHashTag /\v🞣[_[:lower:][:upper:][:digit:]]+/
 " anyway. The syntax sure is convenient.
 " doc: syn-region
 " NB: additive; not clearing UserHashTag before defining the region.
-syntax region UserHashTag start=/🞣'/ skip=/\\\'/ end=/'/
+syntax region UserHashTag start=/-\#'/ skip=/\\\'/ end=/'/
 \ display oneline containedin=ALLBUT,UserHashTag,UserHttpURI
 
 
@@ -951,7 +1006,7 @@ syntax match UserHttpURI /\v<https?:\/\/\S+>/
 " -
 " for the top level (URIs outside any other syntax group)
 if v:false  " top level test; <F1> syntax display on line below should
-" include UserHttpURI. and not be affected by 'setl spell' (<F6>).
+" include UserHttpURI. and not be affected by 'setl spell'.
 https://web.archive.org/web/20010301154434/http://www.vim.org/
 endif
 syntax match UserHttpURI /\v<https?:\/\/\S+>/ contains=@NoSpell
@@ -1268,7 +1323,8 @@ if &term !~# 'putty' && !g:user_has_x11 && !has('gui_running')
 endif
 
 " quickly toggle spellcheck
-nnoremap <silent> <F6>  :let &l:spell = !&l:spell<CR>
+" used to use F6 to toggle spell, but setl [no]spell is easier to remember.
+
 " show all buffers in windows; was just thinking of fullscreen.
 nnoremap <silent> <F11>  :sball<CR>
 
@@ -1306,13 +1362,15 @@ inoremap    <C-w>   <C-g>u<C-w>
 
 "" insert timestamp
 "" nnoremap        <silent> <Leader>dt :put=UserDateTimeComment()<CR>
-inoremap <expr> <silent> <Leader>dt UserDateTimeComment()
+inoremap <expr> <silent> <Leader>dt     UserDateTimeComment()
 
 "" insert date
 "" nnoremap        <silent> <Leader>dd :put=UserDate()<CR>
-inoremap <expr> <silent> <Leader>dd UserDate()
-inoremap <expr> <silent> <Leader>dU
-    \ systemlist('/usr/bin/date --iso-8601=seconds --utc')[0]
+inoremap <expr> <silent> <Leader>dd     UserDate()
+" so i can do :e f-<,dd> in the vim command window
+cnoremap <expr> <Leader>dd              UserDate()
+
+inoremap <expr> <silent> <Leader>dU     UserUtcNow()
 
 "" see also: insert mode, <C-r>=    doc i_CTRL-R
 
@@ -1349,6 +1407,19 @@ nnoremap <silent> <Leader>J     vipJ
 if g:user_has_x11 && has('unix')
     xnoremap <silent> <Leader>y  <Esc>:silent '<,'>:w !xclip -selection clipboard<CR>
 endif
+if has('gui_running')
+    " for iVim on iOS (has gui but no X11, no gtk) - paste with little ceremony
+    " and kept in .vimrc instead of .gvimrc
+    nnoremap <silent> <Leader>xp    "+p
+    inoremap <silent> <Leader>xp    <C-r>+
+    cnoremap          <Leader>xp    <C-r>+
+else
+    nnoremap <silent> <Leader>xp    <nop>
+    inoremap <silent> <Leader>xp    <nop>
+    cnoremap          <Leader>xp    <nop>
+endif
+
+nnoremap <silent>   <Leader>xs      :update<CR>
 
 " set current window (split) width to 80
 " for use with multiple vertical splits
@@ -1395,8 +1466,8 @@ inoremap <expr> <Leader>dg      Symbols['dagger']
 " U+25BA Black right-pointing pointer
 " U+298B, U+298C - brackets with underbar
 " U+2991, U+2992 brackets with dot
-inoremap <expr> <Leader>#       Symbols['greek cross, medium']
-cnoremap <expr> <Leader>#       Symbols['greek cross, medium']
+inoremap <Leader>#       -#
+cnoremap <Leader>#       -#
 
 " abbreviations aren't so useful in such cases, they expand after whitespace.
 
@@ -1645,9 +1716,10 @@ function! UserAutoSetFtText(fn)
 endfunction
 
 
-" mine own 🞣autogroup
+" mine own -#autogroup
 augroup UserVimRc
     autocmd!
+
     " enable auto reformatting when writing journal entries,
     " not for all text files.
     " format manually: gqip or vip, gq
@@ -1754,7 +1826,14 @@ if &redrawtime > 700
 endif
 "syntax sync minlines=50
 set synmaxcol=200
-set background&     " mysterious, sometimes even works.
+set background&     " sometimes even works.
+" hack upon hack:
+" for terminal emulators, if the $COLORFGBG kludge isn't available...
+if v:false && !has('gui_running') && !exists('$COLORFGBG')
+    \ && v:version < 900
+    \ && &term != 'vt220' && &term !~ 'putty'
+    set background=light
+endif
 syntax on
 
 
@@ -1784,19 +1863,26 @@ if UserRuntimeHas('colors/tty.vim')
     " colorscheme tty
     nnoremap <F4>   :colorscheme tty<CR>
 endif
+
 " 2022-03-09 lucius light and white modes seem to trigger a bug in gvim on
 " Linux. The command window rendering becomes subtly broken, selected text
 " almost invisible.
+"
+" 2022-06-30 gvim command window under lucius looks good now.
+"
 " in any case, the default vim syntax definitions are maybe 60% good anyway.
 " setting non-tty-fg dark colours on "normal" text bothers me a little too.
-if v:false && &t_Co >= 256 && UserRuntimeHas('colors/lucius.vim')
+if UserCanLoadColorscheme() && UserRuntimeHas('colors/lucius.vim')
     let g:lucius_no_term_bg = 1     " perfect, A+; cterm only, not for tgc
     colorscheme lucius
     nnoremap <F5>   :colorscheme lucius<CR>
+    if has('gui_running')
+        LuciusLight
+    endif
 endif
 " call UserLog('t_Co', &t_Co)
-" t_Co might be undefined here for gvim?
-if (has('gui_running') || &t_Co >= 256) && UserRuntimeHas('colors/iceberg-wrapped.vim')
+" t_Co might be undefined here for gvim? definitely undefined in iVim (iOS.)
+if v:false && UserCanLoadColorscheme() && UserRuntimeHas('colors/iceberg-wrapped.vim')
     colorscheme iceberg-wrapped
     nnoremap <F5>   :colorscheme iceberg-wrapped<CR>
 endif
