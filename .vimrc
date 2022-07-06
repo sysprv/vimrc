@@ -1,7 +1,8 @@
-set secure nocompatible encoding=utf-8 fileencoding=utf-8 nobomb
+set nocompatible secure encoding=utf-8 fileencoding=utf-8 nobomb nolangremap
 scriptencoding utf-8
 
-" Last Modified: 2022-06-29
+" Last Modified: 2022-07-06
+"
 " Normal mode mapping to paste easily in iVim.
 "
 " 2022-06-28: Hashtag prefix sequence changed from a single Greek Cross
@@ -15,6 +16,8 @@ scriptencoding utf-8
 " vim9script.
 "
 " notes:
+
+" ! check out $VIMRUNTIME/defaults.vim from time to time.
 
 " wish (x)vile had become popular instead of vim. not going to bother
 " splitting this up into separate files. missing features: proper stacktraces,
@@ -221,8 +224,9 @@ endif
 set wildignorecase
 "set ttymouse=sgr
 " viminfo prev: '100,<50,s10,h
-" now: don't save registers
-set viminfo='100,<0,s0,h
+" now: don't save registers.
+" don't save marks for tmp files
+set viminfo='100,<0,s0,h,r/tmp,r~/tmp
 
 set browsedir=buffer
 " for C-x C-f; may break plugins but i don't use many plugins.
@@ -361,16 +365,14 @@ endfunction
 
 " like %M, but always return at least one char to prevent status line
 " expansion and contraction.
+" 2022-07-06 - no longer; put %M at the end near %Y, live with the wobble
+" for a little less lag.
+if v:false
+" ma - modifiable; mod - modified
 function! UserBufModStatus()
-    let l:result = "'"      " default, no unsaved changes
-    if !&modifiable
-        let l:result = '-'
-    endif
-    if &modified
-        let l:result = '+'
-    endif
-    return l:result
+    return !&ma ? "-" : &mod ? "+" : "'"
 endfunction
+endif
 
 " default statusline, without window number
 " to reduce the jerk in the ux.
@@ -390,7 +392,7 @@ endfunction
 " that there's always only one command window.
 "
 " note, a space before the ma.
-set stl=%f%<\ %n\ %{UserBufModStatus()},%{&paste?'!P':&tw}%R%W%Y%#Normal#%=\ %{g:user_mark}\ %l:%v
+set stl=%f%<\ %n\ %{&paste?'!P':&tw}%R%W%Y%M%#Normal#%=\ %{g:user_mark}\ %l:%v
 
 " if g:statusline_winid available, include window number in statusline.
 " this has to be done with a function.
@@ -1186,6 +1188,24 @@ endfunction
 command MyFunctions     silent call UserShowFunctions()
 
 
+" this is so ubiquitious as to seem like a native feature, but is defined in
+" $VIMRUNTIME/defaults.vim, which isn't included in this vimrc.
+"
+" doc:last-position-jump
+" https://vim.fandom.com/wiki/Restore_cursor_to_file_position_in_previous_editing_session
+function! UserLastPositionJump()
+    " don't restore for vcs commit message files
+    if &filetype =~# 'commit'
+        return
+    endif
+
+    let l:ln = line("'\"")
+    if l:ln > 0 && l:ln <= line("$")
+        normal! g`"zv
+    endif
+endfunction
+
+
 " spelling
 "
 " en_rare doesn't seem to exist anywhere.
@@ -1732,6 +1752,9 @@ augroup UserVimRc
     " for file names without an extension -
     " if file(1) thinks it's a text file, treat it as such.
     autocmd BufReadPost *   call UserAutoSetFtText(expand('<afile>'))
+
+    " last-position-jump
+    autocmd BufReadPost *   call UserLastPositionJump()
 
     autocmd BufNewFile      /etc/*                  Proper
     autocmd BufReadPost     /etc/*                  Proper
