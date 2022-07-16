@@ -1,15 +1,22 @@
 set nocompatible secure encoding=utf-8 fileencoding=utf-8 nobomb nolangremap
 scriptencoding utf-8
 
-" Last Modified: 2022-07-06
+" Last Modified: 2022-07-16
+"
+" 2022-07-13 went away from trying to extend syntax matching with our own rules
+" and struggling to have our rules applied in all desired circumstances.
+" Using matchadd() now, in UserMatchAdd().
+" Lots of syntax-related functions and comments still left lying around.
+"
+" On startup, create ~/.vim/syntax/after/text.vim if necessary, to have
+" our syntax rules applied in a robust and consistent manner.
 "
 " Normal mode mapping to paste easily in iVim.
 "
 " 2022-06-28: Hashtag prefix sequence changed from a single Greek Cross
-" (🞣, U+1F7A3) to "_#". The Greek Cross isn't visible and causes rendering
+" (🞣, U+1F7A3) to "-#". The Greek Cross isn't visible and causes rendering
 " issues in iVim (iOS.)
 
-"
 " Long, somewhat disorganized, too large a file, my bonsai project. Lots of
 " barnacles from documentation spelunking and trying various options. Tired now,
 " don't want to touch it for the next 10 years, when it'll be safe to move to
@@ -17,12 +24,28 @@ scriptencoding utf-8
 "
 " notes:
 
+" Other vimmers:
+" Yasuhiro Matsumoto
+" https://web.archive.org/web/20160130063001/http://howivim.com/2015/mattn/
+"
+" Kana Natsuno
+" https://github.com/kana/config/tree/master/vim/personal
+" https://whileimautomaton.net/
+
 " ! check out $VIMRUNTIME/defaults.vim from time to time.
 
 " wish (x)vile had become popular instead of vim. not going to bother
 " splitting this up into separate files. missing features: proper stacktraces,
 " loggingat specific levels, the ability to trace (without a debugger) when
 " options like t_Co change...
+
+" ---------------------------------------------
+" most insidious: :Next (, :wNext, :cNext etc.)
+" ---------------------------------------------
+" does the same thing as :previous, yet is shaped like the opposite of :prev.
+" light dawns when you notice that :Next is :(<shift>n)ext, "inverted" :next.
+" looks like a user-defined command, isn't.
+" doc: user-cmd-ambiguous
 
 " vim settings like backupskip and spelllang should be sets, instead of
 " strings with commas.
@@ -32,10 +55,6 @@ scriptencoding utf-8
 
 " Makes use of: dash(1) par(1) GNU date(1) file(1).
 " $MYVIMRC, $VIMRUNTIME, $VIM
-" termguicolors control env variable: $VIM_SKIP_TGC
-
-" We enable 'syntax' by default, but it's finally controlled by filetype, per
-" window. Manual overriding: <F2>, <F3>
 
 " :sball - show all buffers; inverse: :only / C-w o
 "   <F11>
@@ -45,34 +64,57 @@ scriptencoding utf-8
 " strtrans() (dep 'display'); 0, 10, ^@, ^J, <Nul>, <NL>, doc :key-notation
 "   https://unix.stackexchange.com/a/247331
 
-" 8g8, g8
+" 8g8   g8  g;  g,  gd
 
 " put line in command line :<C-r><C-l>
 
-" debug log: vim -V12vdbg; block buffered; use echom to add markers.
+" debug log: vim -V16vdbg; block buffered; use echom to add markers.
 "   verbosity level 10: autocommands; 12: function calls.
 "   verbosity can interfere/leak in various places; when redirecting
 "   message output, the command window after system() output in gvim.
 "
 
 " standard plugins in $VIMRUNTIME/plugin:
-" unimaginable functionality.
-" instead of defining g_loaded_<plugin check> = v:true on each startup,
-" just chmod 0 /usr/share/vim/vim82/plugin/
+" unimaginable functionality. would be nice to chmod 0, but often can't.
+" /usr/share/vim/vim*/plugin/
 "   {tohtml,gzip,rrhelper,spellfile,{getscript,tar,vimball,zip}Plugin}.vim
-"   and matchparen.vim - nice, but the autocommands feel yucky.
+"   matchparen.vim - nice, but the autocommands feel yucky.
+"   manpager - vim can be rather nice as a manpager.
 "
-
+" {{{
 let g:loaded_matchparen = 1
+let g:loaded_2html_plugin = 1
+let g:loaded_gzip = 1
+let g:loaded_getscriptPlugin = 1
+let g:loaded_tarPlugin = 1
+let g:loaded_vimballPlugin = 1
+let g:loaded_zipPlugin = 1
+" don't need netrw, i do file management in the shell.
+let g:loaded_netrwPlugin = 1
+" }}}
 
-if has('unix') && !empty(exepath('/bin/dash'))
-    set shell=/bin/dash
-endif
-" use ripgrep
-if has('unix') && executable('rg')
-    set grepprg=rg\ --vimgrep\ --no-heading\ --smart-case
+if has('unix')
+    if !empty(exepath('/bin/dash'))
+        set shell=/bin/dash
+    elseif !empty(exepath('/bin/bash'))
+        set shell=/bin/bash
+    endif
+    " ripgrep
+    if executable('rg')
+        let &grepprg = 'rg --vimgrep --no-heading --smart-case'
+    endif
 endif
 
+" journalled filesystems, SSD/NVMe/SD cards. fsync is complex these days, it's
+" not clear that vim does everything that's needed.
+" https://www.linusakesson.net/programming/vimsuspend/index.php (old)
+" https://twitter.com/marcan42/status/1494213855387734019
+" fsync directory? aio_fsync?
+set nofsync swapsync=
+" how files should be written - whether to rename, or put the new data
+" into the same file. the vi default behaviour is yes, and it's the most
+" natural with vim as $EDITOR.
+set backupcopy=yes
 
 set modeline nomodelineexpr
 " predictable time formats and messages
@@ -87,14 +129,18 @@ filetype indent off
 " filetype off ought to exclude setting ft for the first buffer...
 filetype on
 
+" 2022-07-16 selective syntax highlighting no longer in use
+" {{{
 " by default, syntax highlighting will be enabled for these filetypes
 " using :ownsyntax. for other filetypes, syntax highlighting will be hidden.
 " can be enabled with <F2>.
 " string highlighting - test with:
 " :highlight String ctermbg=252
 " prominently absent: perl, ruby, sh; for vimoutliner, add votl
-let g:user_syn_fts = 'python,text,vim'
-lockvar g:user_syn_fts
+" let g:user_syn_fts = 'python,text,vim'
+" lockvar g:user_syn_fts
+" }}}
+
 let g:user_vim_base = expand('~')
 lockvar g:user_vim_base
 " U+21B3 - downwards arrow with tip rightwards
@@ -102,8 +148,9 @@ let g:user_showbreak_char = '↳'
 lockvar g:user_showbreak_char
 let g:user_has_x11 = exists('$DISPLAY')
 lockvar g:user_has_x11
+" fence, guard; defend; idle time
 let g:user_mark = nr2char(0x95F2)
-if &term == 'linux' | let g:user_mark = 'X' | endif
+if &term == 'linux' | let g:user_mark = '/' | endif
 lockvar g:user_mark
 
 " listchars/lcs: see UserSetListchars()
@@ -115,27 +162,14 @@ if !exists('$PARINIT')
     let $PARINIT = "rTbgqR B=.,?'_A_a_@ Q=_s>|#"
 endif
 
-set backup  " http://stackoverflow.com/a/26779916/1183357
+" http://stackoverflow.com/a/26779916/1183357
+set backup
+set backupskip+=COMMIT_EDITMSG,NOTES-*.txt
 
-" how files should be written - whether to rename, or put the new data
-" into the same file. the vi default behaviour is yes, and it's the most
-" natural with vim as $EDITOR.
-set backupcopy=yes
-
-set backupskip+=NOTES-*.txt
-
-" default swap file locations aren't too great; keep them inside our homedir.
-let s:swapdir = g:user_vim_base . '/.vim_swap'
-if !isdirectory(s:swapdir)
-    call mkdir(s:swapdir, 'p', 0700)
-endif
-" // to have the full file path included in the swap file name, with %'s.
-" long paths, specially on windows, might cause problems.
-" actually, let's see if we can live without that. irl, conflicts should be rare.
-let &g:directory = s:swapdir
-unlet s:swapdir
-set updatecount=10
-set swapfile
+" 'directory' - we used to set the swapfile location to a central place, it
+" seemed like a good idea, but the vim default's better for editing shared
+" files from different hosts.
+set directory& swapfile updatecount=10
 " to see current swap file path: ':sw[apfile]' / swapname('%')
 
 " mapleader is a variable, not a setting; no &-prefix
@@ -150,6 +184,11 @@ set shortmess+=T
 set shortmess+=S
 set shortmess+=F
 
+" a little like :behave mswin, but not all the way. think DOS EDIT.COM.
+" set keymodel=startsel selectmode=mouse,key
+" don't use SELECT mode
+set selectmode=
+
 " laststatus: 0 = never, 1 = show if multiple splits, 2 = always
 set laststatus=2
 " allow lots of space for the ruler, and force right-alignment
@@ -161,13 +200,18 @@ set showmode
 set tabstop=8 shiftwidth=8 softtabstop=8 noexpandtab
 set fileformats=unix,dos
 set smarttab
-set autoread
 set shiftround
 set backspace=indent,eol,start
-" allow <Left> and <Right> to move to new lines in insert mode
-" felt nice, but rarely. i'm used to <left><right> staying on the same line.
-"set whichwrap+=[,]
-set incsearch ignorecase smartcase hlsearch
+
+" move, in normal+visual with <left> and <right>.
+" NB regarding the default (b,s) - we map <bs> to disable hlsearch, and i've never
+" used <space> to go forward. so, instead of +=, here we do =.
+set whichwrap=<,>
+
+" it's fine. incsearch can be an unwelcome surprise over ssh.
+set noincsearch
+
+set ignorecase smartcase hlsearch
 set noshowmatch
 set noerrorbells
 set showcmd
@@ -186,7 +230,7 @@ set nolinebreak
 " showbreak's troublesome in X11 ttys, can't exclude from being copied.
 " highlight group: NonText
 if has('gui_running')
-    let &g:showbreak = g:user_showbreak_char
+    let &showbreak = g:user_showbreak_char
 endif
 " for a noisier status line
 if g:user_has_x11 || has('gui_running')
@@ -202,7 +246,7 @@ endif
 set cpoptions+=n
 set cpoptions-=a
 set cpoptions-=A
-set scrolloff=0
+set scrolloff=2
 set cmdheight=1
 if v:version >= 802
     set cursorlineopt=number,screenline
@@ -210,7 +254,7 @@ if v:version >= 802
 endif
 "set nowrap sidescroll=3
 "set confirm
-set autowrite autowriteall
+set autoread autowriteall
 set hidden
 set lazyredraw
 set matchpairs+=<:>,«:»,｢:｣
@@ -225,7 +269,8 @@ set wildignorecase
 "set ttymouse=sgr
 " viminfo prev: '100,<50,s10,h
 " now: don't save registers.
-" don't save marks for tmp files
+" don't save marks for tmp files - mostly, files created by the shell when
+" editing (C-x C-e).
 set viminfo='100,<0,s0,h,r/tmp,r~/tmp
 
 set browsedir=buffer
@@ -238,17 +283,12 @@ set virtualedit=block
 set endofline fixendofline
 
 " helps with navigating to a line of interest with <no>j and <no>k.
-"set relativenumber
+set number relativenumber
 
 " use NFA regexp engine
 set regexpengine=2
 
 set switchbuf=split splitbelow splitright
-
-" a little like :behave mswin, but not all the way.
-" can't deny the memories of DOS EDIT.COM.
-set keymodel=startsel
-set selectmode=mouse,key
 
 if version >= 801 && has("patch-8.1-360")
     set diffopt+=indent-heuristic
@@ -257,7 +297,7 @@ endif
 
 " initialize persistent undo with some good settings
 if has('persistent_undo')
-    let s:undodir = g:user_vim_base . '/.vim_undo/' . hostname()
+    let s:undodir = g:user_vim_base .. '/.vim_undo/' .. hostname()
 
     if !isdirectory(s:undodir)
         call mkdir(s:undodir, 'p', 0700)
@@ -289,10 +329,14 @@ endif
 
 " echom's untenable for even print debugging.
 function! UserLog(...) abort
-    " NB: to not log, just return
-    return
-
-    let l:fn = expand('~/.vimlog')
+    let l:enabled = v:false
+    if !l:enabled && (&verbose == 0)
+        return
+    endif
+    let l:verbosity = &verbose
+    set verbose=0
+    " above to prevent logging of the body of this function
+    " at high verbose levels.
 
     let l:t = strftime('%FT%T')
 
@@ -315,15 +359,32 @@ function! UserLog(...) abort
     if l:idx_logfn > -1
         let l:stack = strpart(l:stack, 0, l:idx_logfn)
     endif
-    let l:logmsg = l:t . ' ' . l:s . "\t" . l:stack
+    let l:logmsg = l:t .. ' ' .. l:s .. "\t" .. l:stack
 
-    try
-        call writefile([l:logmsg], l:fn, 'a')
-    catch /^Vim\%((\a\+)\)\=:E/
-        " for read-only filesystems, f.ex.
-        " can't do much, don't want to echom
-        return
-    endtry
+    if l:enabled
+        let l:fn = expand('~/.vimlog')
+        try
+            call writefile([l:logmsg], l:fn, 'a')
+        catch /^Vim\%((\a\+)\)\=:E/
+            " for read-only filesystems, f.ex.
+            " can't do much, don't want to echom
+            return
+        endtry
+    endif
+
+    " reset verbosity and return everything, which will be included in the
+    " vim verbosefile when enabled.
+    " the verbosity modification ought to be done in a try/finally block.
+    if l:verbosity > 0
+        " might put this into a finally block
+        let &verbose = l:verbosity
+    endif
+    return l:logmsg
+endfunction
+
+
+function! UserRuntimeHas(pathspec)
+    return !empty(globpath(&runtimepath, a:pathspec, 0, 1))
 endfunction
 
 
@@ -337,7 +398,8 @@ endfunction
 " doc 'background'
 " set t_RB= t_BG=
 
-" My syntax rules are in UserSyntax(), with highlights in UserColours().
+" My syntax rules are in UserSyntax()/UserMatchAdd(), with highlights in
+" UserColours().
 
 " Re-implementing the mode message by decoding mode() seemed fun at one time
 " but it was slow.
@@ -367,12 +429,15 @@ endfunction
 " expansion and contraction.
 " 2022-07-06 - no longer; put %M at the end near %Y, live with the wobble
 " for a little less lag.
+" {{{
 if v:false
 " ma - modifiable; mod - modified
 function! UserBufModStatus()
     return !&ma ? "-" : &mod ? "+" : "'"
 endfunction
 endif
+" }}}
+
 
 " default statusline, without window number
 " to reduce the jerk in the ux.
@@ -392,17 +457,33 @@ endif
 " that there's always only one command window.
 "
 " note, a space before the ma.
-set stl=%f%<\ %n\ %{&paste?'!P':&tw}%R%W%Y%M%#Normal#%=\ %{g:user_mark}\ %l:%v
+" note, %M right after %R, and not at the end of the buffer attribute list.
+" otherwise, for non-modifiable buffers the %M becomes a "-", effectively
+" looking like a part of the stl/stlnc fillchars, which looks bad.
+set stl=%f%</%n\ %{&paste?'!P':&tw}%R%M%W%Y%#Normal#%=\ %{g:user_mark}\ %l:%v
+"        ↑    ↑  ↑                 ↑       ↑        ↑
+" filename    |  |                 |       |        |
+"  buffer number |                 |       |        |
+" indicate paste mode or textwidth |       |        |
+"                       buffer/file flags  |        |
+"                         stop StatusLine highlight |
+"                                                   align right
+"
 
+" yak-shaving.
+" {{{
 " if g:statusline_winid available, include window number in statusline.
-" this has to be done with a function.
-
+" this variable's made available only in statusline functions.
+" 2022-07-07 drop the window number; never needed it.
+" and, with only one level of interpretation (not reinterpreting the return
+" value of the statusline function, the statusline should be faster.
 " doc patches-8
-if has('patch-8.1.1372')
+if v:false && has('patch-8.1.1372')
     " run once on startup:
     if !exists('g:user_stl_nofunc')
         let g:user_stl_nofunc = &stl
-        " split, keeping the separator in the first part
+        " split, keeping the separator in the first part, including
+        " the buffer number
         let s:stl_parts = split(g:user_stl_nofunc, '%n\zs')
         let g:user_stl_head = s:stl_parts[0]
         let g:user_stl_tail = s:stl_parts[1]
@@ -414,21 +495,24 @@ if has('patch-8.1.1372')
     " head (ending with buffer number) ++ / window number ++ tail
     function! UserStatusLn()
         return g:user_stl_head
-            \. '/' . win_id2win(g:statusline_winid)
-            \. g:user_stl_tail
+            \ .. '/' .. win_id2win(g:statusline_winid)
+            \ .. g:user_stl_tail
     endfunction
 
     set stl=%!UserStatusLn()
-endif   " has('patch-8.1.1372')
+endif
 
 "set tabline=%{hostname()} showtabline=2
+" }}}
 
 " this sucks; a confusion of concerns.
 function! UserFixupUI()
     " default - just ordinary everyday underscores; U+005F LOW LINE
-    let l:fcs = ['stl:_', 'stlnc:_']
+    let l:fcs = ['stl:-', 'stlnc:-']
 
-    if has('gui_running') || g:user_has_x11 || &term =~ 'putty'
+    if v:true || has('gui_running') ||
+       \ &term =~ 'xterm' || &term =~ 'rxvt' || &term =~ 'putty' ||
+       \ g:user_has_x11
         " U+2504 - BOX DRAWINGS LIGHT TRIPLE DASH HORIZONTAL
         " U+2502 - BOX DRAWINGS LIGHT VERTICAL
         "   (vert default: U+007C    VERTICAL LINE)
@@ -445,7 +529,7 @@ function! UserFixupUI()
         "   (outdated: F804, DEC VT GRAPHICS HORIZONTAL LINE SCAN 9)
         " https://graphemica.com/blocks/miscellaneous-technical/page/3
         " let l:hrz = nr2char(0x2015)   " HORIZONTAL BAR
-        let l:hrz = nr2char(0x2500) " BOX DRAWINGS LIGHT HORIZONTAL
+        let l:hrz = nr2char(0x2500)     " BOX DRAWINGS LIGHT HORIZONTAL
         call extend(l:fcs, ['stlnc:'.l:hrz, 'stl:'.l:hrz])
     endif
 
@@ -456,7 +540,7 @@ endfunction
 
 function! UserDateTimeComment()
     " month (%b) and day (%a) should be 3 chars each
-    return strftime('-- date %F %T%z (%b, %a)', localtime())
+    return strftime('-- date %F %T%z (%b, %a)')
 endfunction
 
 
@@ -510,7 +594,7 @@ endfunction
 function! UserUtcGnuDate()
     let l:s = systemlist('/usr/bin/date --utc --rfc-3339=ns')[0]
     " todo fix before year 10000 or other major calendar changes
-    return l:s[0:9] . 'T' . l:s[11:]
+    return l:s[0:9] .. 'T' .. l:s[11:]
 endfunction
 
 function! UserUtcNow()
@@ -545,7 +629,7 @@ function! UserRun(cmd)
     finally     " ensure closure; otherwise l:val isn't usable
         redir END
         if l:verbosity != 0
-            let &g:verbose = l:verbosity
+            let &verbose = l:verbosity
         endif
     endtry
     lockvar l:val
@@ -579,7 +663,7 @@ endfunction
 function! UserDictToStr(dct)
     let l:l = []
     for [l:k, l:v] in items(a:dct)
-        call add(l:l, l:k . '=' . string(l:v))
+        call add(l:l, l:k .. '=' .. string(l:v))
     endfor
     let l:sl = sort(copy(l:l))
     return join(l:sl)
@@ -609,26 +693,30 @@ endfunction
 function! UserGetInfoLines()
     let l:lines = []
 
+    function! s:addl(ln) closure
+        call add(l:lines, a:ln)
+    endfunction
+
     " buffer/file properties
     let l:enc = { 'enc': &enc, 'fenc': &fenc }
     let l:bufp_misc = { 'filetype': &ft, 'syntax': &syn }
 
     " window id and size
-    let l:win = 'wnd: ' . winnr()
+    let l:win = 'wnd: ' .. winnr()
     if exists('*win_getid')
-        let l:win .= ', id ' . win_getid()
+        let l:win ..= ', id ' .. win_getid()
     endif
     " &lines and &columns are something else
-    let l:win .= ': ' . winwidth(0) . 'x' . winheight(0)
-    let l:t_co = 't_Co=' . &t_Co
-    let l:syn_cur = 'syn: ' . join(UserSyntaxNamesAtCursor(), ' ')
+    let l:win .= ': ' .. winwidth(0) .. 'x' .. winheight(0)
+    let l:t_co = 't_Co=' .. &t_Co
+    let l:syn_cur = 'syn: ' .. join(UserSyntaxNamesAtCursor(), ' ')
 
-    call add(l:lines, UserBufferInfo())
-    call add(l:lines, UserDictToStr(l:enc))
-    call add(l:lines, UserDictToStr(l:bufp_misc))
-    call add(l:lines, l:t_co)
-    call add(l:lines, l:win)
-    call add(l:lines, l:syn_cur)
+    call s:addl(UserBufferInfo())
+    call s:addl(UserDictToStr(l:enc))
+    call s:addl(UserDictToStr(l:bufp_misc))
+    call s:addl(l:t_co)
+    call s:addl(l:win)
+    call s:addl(l:syn_cur)
 
     " print some info about the char under cursor.
     " with chrisbra/unicode.vim if found.
@@ -645,14 +733,19 @@ function! UserGetInfoLines()
             let l:char_info = strpart(l:char_info, 1)
         endif
 
-        call add(l:lines, '--')
-        call add(l:lines, l:char_info)
+        call s:addl('--')
+        call s:addl(l:char_info)
     endif
 
-    " reminders, which have to be manually maintained for now
+    " reminders, which have to be manually maintained for now.
     " damian conway has his own documented mappings; not yet worth the trouble.
-    call add(l:lines, '--')
-    call add(l:lines, '<F2><F3> syn onoff <F4><F5> tty/colo')
+    call s:addl('--')
+    call s:addl('<F2><F3> syn onoff <F4><F5> tty/colo')
+    call s:addl('guu - lowercase line')
+    call s:addl('g;    g,')
+
+    delfunction s:addl
+
     return l:lines
 endfunction
 
@@ -667,6 +760,29 @@ function! UserShowHelp()
 endfunction
 
 
+" compute backupdir and backupext that should be used for automatic backups.
+function! UserBufferBackupLoc() abort
+    let l:filepath = expand('%:p:h')
+    if has('win32')
+        " for microsoft windows - replace the ':' after drive letters with '$'
+        let l:filepath = l:filepath[0] .. '$' .. l:filepath[2:]
+    endif
+
+    let l:tm = localtime()
+
+    " like: ~/.backup/hostname/yyyy-mm-dd/path.../file~hhmmss~
+    " keep related changes within a day together
+    let l:dir = g:user_vim_base
+        \ .. '/.backup'
+        \ .. '/' .. hostname()
+        \ .. '/' .. strftime('%F', l:tm)
+        \ .. '/' .. l:filepath
+
+    let l:ext = strftime('~%H%M~', l:tm)
+
+    return [l:dir, l:ext]
+endfunction
+
 "
 " update vim's backup-related options so that a full backup of each file will
 " be kept under ~/.backup/<hostname>/ including the absolute path to the file.
@@ -677,30 +793,15 @@ endfunction
 " https://www.vim.org/scripts/script.php?script_id=89
 " https://www.vim.org/scripts/script.php?script_id=563
 "
-function! UserUpdateBackupOptions()
-    let l:filepath = expand('%:p:h')
-    " for microsoft windows
-    if has('win32')
-        let l:filepath = tr(l:filepath, ':', '_')
-    endif
-
-    " maybe getftime(); but there's no way to get the modified time
-    " of an unwritten buffer.
-    let l:tm = localtime()
-
-    " like: ~/.backup/hostname/yyyy-mm-dd/path.../file~hhmmss~
-    " keep related changes within a day together
-    let l:dir = g:user_vim_base
-        \ . '/.backup'
-        \ . '/' . hostname()
-        \ . '/' . strftime('%F', l:tm)
-        \ . '/' . l:filepath
+function! UserUpdateBackupOptions() abort
+    let [l:dir, l:ext] = UserBufferBackupLoc()
 
     if !isdirectory(l:dir)
         call mkdir(l:dir, 'p', 0700)
     endif
-    let &l:backupext = '~' . strftime('%H%M%S', l:tm) . '~'
+
     let &l:backupdir = l:dir
+    let &l:backupext = l:ext
     " echom 'backup-options' &bex &bdir
 endfunction
 
@@ -710,12 +811,15 @@ function! UserStripTrailingWhitespace()
         return
     endif
 
-    " ah well, only handles ascii whitespaces
+    " ah well, only handles ascii whitespace
     let l:regexp = '\s\+$'
     if search(l:regexp, 'cnw')
         let l:win = winsaveview()
-        execute '%substitute/' .. l:regexp .. '//e'
-        call winrestview(l:win)
+        try
+            execute '%substitute/' .. l:regexp .. '//e'
+        finally
+            call winrestview(l:win)
+        endtry
     endif
 endfunction
 
@@ -750,19 +854,24 @@ function! UserCustomSyntaxHighlights()
     highlight UserDateComment term=NONE cterm=italic gui=italic
     highlight UserTrailingWhitespace term=standout cterm=NONE gui=NONE
     highlight UserHashTag term=NONE cterm=NONE gui=NONE
+    highlight UserHttpURI NONE
 
     if &background == 'light'
         highlight UserDateComment ctermfg=8 ctermbg=12 guifg=grey40 guibg=azure2
         highlight UserHashTag ctermbg=194 guifg=fg guibg=palegreen2
         highlight UserTrailingWhitespace ctermbg=7 guibg=lightgrey
+        " define bg colours to hide spell errors; ref UserMatchAdd()
+        highlight UserHttpURI ctermbg=255 guibg=bg
     else
         highlight UserDateComment ctermfg=240 guifg=fg guibg=grey40
-        highlight UserHashTag ctermbg=240 guifg=fg guibg=grey40
+        highlight UserHashTag ctermbg=23 guifg=fg guibg=grey40
         highlight UserTrailingWhitespace ctermbg=238 guibg=grey27
+        " define bg colours to hide spell errors; ref UserMatchAdd()
+        highlight UserHttpURI ctermbg=0 guibg=bg
     endif
 
-    " for URIs at top level
-    highlight! default link UserHttpURI Normal
+    " for URIs at top level, with syntax highlighting and not matchadd()
+    " highlight! default link UserHttpURI Normal
 endfunction
 
 
@@ -809,11 +918,16 @@ function! UserColours256Light()
         highlight StatusLine        ctermfg=0       ctermbg=152
         highlight StatusLineNC      ctermfg=15      ctermbg=237
     endif
+
+    highlight SpellBad                              ctermbg=253
+
     " no point clearing 'Normal' here, vim doesn't seem to reset the background
     " colour to the tty background color. probably mentioned somewhere in
     " `help :hi-normal-cterm'.
     " instead - either choose a colorscheme that can work without modifying
     " Normal-ctermbg like lucius, or wrap it like our own iceberg-wrapper.vim.
+    " 2022-07-09 lucius can be set to not touch ctermbg, but still sets ctermfg.
+    highlight Normal ctermfg=NONE
 endfunction
 
 " dark backgrounds are quite common even if not desired.
@@ -827,6 +941,7 @@ function! UserColours256Dark()
         highlight StatusLine        ctermfg=NONE    ctermbg=238
         highlight StatusLineNC      ctermfg=NONE    ctermbg=243
     endif
+    highlight SpellBad                              ctermbg=238
 endfunction
 
 function! UserColours256()
@@ -840,7 +955,6 @@ function! UserColours256()
         highlight NonText       ctermfg=14
         highlight SpecialKey    ctermfg=1
     endif
-    highlight SpellBad                          ctermbg=252
 
     if &background == 'light'
         call UserColours256Light()
@@ -914,7 +1028,10 @@ function! UserColours()
 
     " since we're handling a colorscheme change: we should in our custom colour and
     " syntax definitions.
-    call UserHS()
+
+    " 2022-07-13 no need for syntax definitions, using matches instead.
+    " so just set up the highlights here.
+    call UserCustomSyntaxHighlights()
     " and our misc. fixups
     call UserFixupUI()
 endfunction
@@ -990,6 +1107,7 @@ syntax match UserHashTag /\v-\#[_[:lower:][:upper:][:digit:]]+/
 " anyway. The syntax sure is convenient.
 " doc: syn-region
 " NB: additive; not clearing UserHashTag before defining the region.
+" canary: -#x -#'x'
 syntax region UserHashTag start=/-\#'/ skip=/\\\'/ end=/'/
 \ display oneline containedin=ALLBUT,UserHashTag,UserHttpURI
 
@@ -1010,9 +1128,131 @@ syntax match UserHttpURI /\v<https?:\/\/\S+>/
 if v:false  " top level test; <F1> syntax display on line below should
 " include UserHttpURI. and not be affected by 'setl spell'.
 https://web.archive.org/web/20010301154434/http://www.vim.org/
+" https://web.archive.org/web/20010301154434/http://www.vim.org/
 endif
 syntax match UserHttpURI /\v<https?:\/\/\S+>/ contains=@NoSpell
 endfunction     " UserSyntax()
+
+
+" cruft warning
+function! UserIsWinRegular()
+    " check for popup/preview/command line
+    if win_gettype() != ''
+        return v:false
+    endif
+    " check for quickfix/terminal
+    let l:wi_lst = getwininfo(win_getid())
+    "" info for current window; l:wi_lst should never be empty.
+    let l:wi = l:wi_lst[0]
+    if get(l:wi, 'loclist') || get(l:wi, 'quickfix') || get(l:wi, 'terminal')
+        return v:false
+    endif
+
+    " nothing more to check
+    return v:true
+endfunction
+
+function! UserHlNames()
+    return [
+        \ 'UserTrailingWhitespace',
+        \ 'UserDateComment',
+        \ 'UserHashTag',
+        \ 'UserHttpURI'
+        \ ]
+endfunction
+
+function! UserGetCurWinMatchHls()
+    let l:hl_exst = []
+    let l:hls = UserHlNames()
+
+    for l:m in getmatches()
+        for l:hl in l:hls
+            if l:m['group'] == l:hl && index(l:hl_exst, l:hl) == -1
+                call add(l:hl_exst, l:hl)
+                break
+            endif
+        endfor
+    endfor
+
+    return l:hl_exst
+endfunction
+
+" try out matchadd() instead of trying to extend the ft/syntax regime.
+" has the advantage of working even with 'syntax off'.
+" https://stackoverflow.com/questions/41083829/how-can-i-apply-custom-syntax-highlighting-in-vim-to-all-file-types
+"
+" disadvantages:
+"   - for excluding URIs from spell check, using a highlight group
+" linked to Normal doesn't seem to work. However, using a highlight group
+" that defines ctermbg and guibg hides the SpellBad highlighting.
+" workable, though it may not make URIs perfectly transparent in terminals.
+" gvim is fine, with guibg=bg.
+" So, not excluded from spell checking, just occluded.
+"
+" it's a great relief to be free of the filetype/syntax rigmarole.
+"
+" On WinEnter:
+" we don't want to highlight things in special buffer types or
+" non-modifiable buffers - but, WinEnter is too early to check anything.
+" win_gettype() is nice, but doesn't cover help windows.
+" https://stackoverflow.com/questions/68001855/vimscript-reliable-way-of-checking-win-and-buf-type-of-a-new-window-with-autoc
+" call UserLog('user match add, buftype', &buftype, winnr())
+function! UserMatchAdd() abort
+    if exists('w:user_matches') && w:user_matches
+        return
+    endif
+    if !UserIsWinRegular()
+        return
+    endif
+
+    " the names of our highlight-groups.
+    let [l:hg_utws, l:hg_udtc, l:hg_uht, l:hg_uhuri] = UserHlNames()
+
+    " matches that have already been defined
+    let l:hl_exst = UserGetCurWinMatchHls()
+
+    " regular expressions
+    let l:re_utws = '\s\+$'
+    let l:re_udtc = '\v-- date \d+-\d{2}-\d{2} \d{2}:\d{2}:\d{2}[+-]\d{4} \(\a+, \a+\)'
+    let l:re_uht_simple = '\v-#[_[:lower:][:upper:][:digit:]]+'
+    " non-greedily ("-1") match anything except
+    "   caret, apostrophe, hash
+    " (too broad but must include unicode) chars between apostrophes.
+    " canary: [-#x] [-#'x'] [-#'x -#'x](pathological, overlap)
+    let l:re_uht_liberal = "-#'[^^'#]\\{-1,76}'"
+    " let l:re_uht_hip = "-#｢[^^#]\\{-1,76}｣"
+    let l:re_uhuri = '\v<https?:\/\/\S+>'
+
+    function! s:needs(s) closure
+        return index(l:hl_exst, a:s) == -1
+    endfunction
+    " let hlsearch (priority 0) override our match highlights
+    let l:prio = -2
+    " trailing whitespace
+    if s:needs(l:hg_utws)
+        call matchadd(l:hg_utws, l:re_utws, l:prio)
+    endif
+    if s:needs(l:hg_udtc)
+        call matchadd(l:hg_udtc, l:re_udtc, l:prio)
+    endif
+    if s:needs(l:hg_uht)
+        call matchadd(l:hg_uht, l:re_uht_simple, l:prio)
+        call matchadd(l:hg_uht, l:re_uht_liberal, l:prio)
+    endif
+    if s:needs(l:hg_uhuri)
+        call matchadd(l:hg_uhuri, l:re_uhuri, l:prio)
+    endif
+
+    delfunction s:needs
+    let w:user_matches = v:true
+endfunction
+
+" helper
+function! UserMatchReset()
+    call clearmatches()
+    let w:user_matches = v:false
+    call UserMatchAdd()
+endfunction
 
 
 function! UserHS(...)
@@ -1025,9 +1265,13 @@ function! UserHS(...)
 
     " don't enable if syntax is globally disabled
     " but do enable if called with arg 1 == 1
+    "
+    " todo - perhaps remove the guard, be independent of syntax highlighting
     if exists('g:syntax_on') || l:forced
         call UserCustomSyntaxHighlights()
-        call UserSyntax()
+        " 2022-07-13 - matches instead of syntax
+        " call UserSyntax()
+        call UserMatchAdd()
     endif
 endfunction
 
@@ -1040,17 +1284,121 @@ if v:false
 function! UserTermBasic()
     syntax off
     highlight clear
-    set t_Co=0 t_md= t_Sf= t_Sb= t_us= t_ue= t_ZH= t_ZR=
-    set notermguicolors nolist showbreak=NONE colorcolumn=0
+set t_Co=0 t_md= t_Sf= t_Sb= t_us= t_ue= t_ZH= t_ZR=
+set notermguicolors nolist showbreak=NONE colorcolumn=0
 endfunction
 endif
 
-function! UserRuntimeHas(pathspec)
-    return len(globpath(&runtimepath, a:pathspec, 0, 1)) > 0
+
+" do all the ui color changes and loading of a color scheme
+function! UserLoadColors()
+" most colorschemes don't pull their own weight. would be great if a colorscheme
+" + reload behaviour would take a closure instead of requiring a file on disk.
+" And seperate user interface component highlights from text content highlights.
+"
+" order's significant here; whether bg& before or after depends on what the
+" scheme does.
+"
+" test tip: COLORFGBG='15;0' xterm -tn xterm-vt220 -fg \#ffb000 -bg grey10
+" desert for dark, shine for light. with modifications to not touch important
+" highlights and not modify 'background'.
+"
+" start by erasing the default highlights, which are very annoying, specially on
+" terminals with few colours.
+call UserSafeHighlights()
+
+if UserRuntimeHas('colors/tty.vim')
+    " colorscheme tty
+    nnoremap <F4>   :colorscheme tty<cr>
+endif
+
+" 2022-03-09 lucius light and white modes seem to trigger a bug in gvim on
+" Linux. The command window rendering becomes subtly broken, selected text
+" almost invisible.
+"
+" 2022-06-30 gvim command window under lucius looks good now.
+"
+" in any case, the default vim syntax definitions are maybe 60% good anyway.
+" setting non-tty-fg dark colours on "normal" text bothers me a little too.
+if UserCanLoadColorscheme() && UserRuntimeHas('colors/lucius.vim')
+    let g:lucius_no_term_bg = 1     " perfect, A+; cterm only, not for tgc
+    colorscheme lucius
+    nnoremap <F5>   :colorscheme lucius<cr>
+    if has('gui_running')
+        LuciusLight
+    endif
+endif
+" call UserLog('t_Co', &t_Co)
+" t_Co might be undefined here for gvim? definitely undefined in iVim (iOS.)
+if v:false && UserCanLoadColorscheme() && UserRuntimeHas('colors/iceberg-wrapped.vim')
+    colorscheme iceberg-wrapped
+    nnoremap <F5>   :colorscheme iceberg-wrapped<cr>
+endif
+
+" if no colorscheme found/loaded, the ColorScheme autocmd won't work.
+" load our UI colour overrides.
+if !exists('g:colors_name') || g:colors_name ==? 'default'
+    call UserColours()
+endif
 endfunction
 
 
-" only need this fancy stuff on home systems, not legacy CentOS or whatever.
+function! UserCreateBuf()
+    " bufadd with empty name always creates a new buffer
+    let l:b = bufadd('')
+    " call setbufvar(l:b, '&buftype', 'nofile')
+    call setbufvar(l:b, '&filetype', 'text')
+    " call setbufvar(l:b, '&swapfile', 0)
+
+    " if the buffer isn't listed, a bare ':b' will switch to the last
+    " listed buffer.
+    call setbufvar(l:b, '&buflisted', 1)
+
+    return l:b
+endfunction
+
+" WIP UI; like :bd, but if there's no alternate file, open a new buffer
+" instead of closing the window.
+"
+" janky alternative: :bprevious | split | bnext | bdelete
+"
+function! UserBufCloseKeepWin()
+    if winnr('$') == 1
+        " just one window (I don't use tab pages)
+        confirm bdelete
+        return
+    endif
+
+    " write changes, but autowriteall should do this anyway
+    update
+    " keep current buffer number, we'll need it later
+    let l:bufnr = bufnr()
+    let l:bufnr_alt = bufnr('#')
+
+    if l:bufnr_alt != -1
+        let l:b = l:bufnr_alt
+        execute 'buffer' l:bufnr_alt
+    else
+        enew
+    endif
+
+    " if the previously displayed buffer (now the alternate) is no longer
+    " loaded, delete it.
+    "
+    " to only visibility:
+    " getbufinfo(l:bufnr) -> <dict>.windows
+    " win_findbuf(l:bufnr)
+    "
+    if !bufloaded(l:bufnr)
+        execute 'confirm bdelete ' l:bufnr
+    endif
+endfunction
+
+command BD  call UserBufCloseKeepWin()
+nnoremap <silent> Q :call UserBufCloseKeepWin()<cr>
+
+
+" only need this fancy stuff on reasonable systems, not legacy CentOS or whatever.
 if v:version >= 802
 " Run a vim command and drop the output into a new window.
 "
@@ -1125,6 +1473,7 @@ endif   " v:version >= 802
 " in .gvimrc won't be visible when queried under tty vim.
 function! UserShowMaps()
     new | setlocal filetype=text buftype=nofile noswapfile
+    call append(0, ['Maps', ''])
     " :map doesn't show mappings for all modes; meh
     " doc map-overview
     put= UserRun('verbose map')
@@ -1143,7 +1492,6 @@ function! UserShowMaps()
     " internal :sort, skipping the first column (mode)
     sort /^.\s\+/
 
-    file Maps
     setlocal readonly nomodifiable
 endfunction
 
@@ -1152,6 +1500,7 @@ command MyMaps      silent call UserShowMaps()
 
 function! UserShowCommands()
     new | setlocal filetype=text buftype=nofile noswapfile
+    call append(0, ['Commands', ''])
     put= UserRun('verbose command')
     global/\n\s\+Last set from/s//\t# src =/
     " select the lines that have an 'src =' but not our config file.
@@ -1165,7 +1514,6 @@ function! UserShowCommands()
     " delete empty lines
     global/^$/d
 
-    file Commands
     setlocal readonly nomodifiable
 endfunction
 
@@ -1174,6 +1522,7 @@ command MyCommands  silent call UserShowCommands()
 
 function! UserShowFunctions()
     new | setlocal filetype=text buftype=nofile noswapfile
+    call append(0, ['Functions', ''])
     put= UserRun('verbose function')
     global/\n\s\+Last set from/s//\t# src =/
     global/src =/g!/src = \~\/\.g\?vimrc/d
@@ -1236,7 +1585,7 @@ let &spelllang = join(UserSpellLangs(), ',')
 " if spellfile unset, with a word is added (zg/zw) vim will set spellfile
 " to somewhere inside ~/.vim/ .
 " also - all words from all spell languages go into the same file.
-let &spellfile = g:user_vim_base . '/.vimspell.utf-8.add'
+let &spellfile = g:user_vim_base .. '/.vimspell.utf-8.add'
 set spellcapcheck=
 
 
@@ -1272,7 +1621,7 @@ function! UserFillChars(...) abort
     " make new string
     let l:result = ''
     for [l:k, l:v] in items(l:kv)
-        let l:result .= ',' . l:k . ':' . l:v
+        let l:result ..= $',{l:k}:{l:v}'
     endfor
     return strpart(l:result, 1)
 endfunction
@@ -1311,42 +1660,55 @@ function! UserSetListchars(incltabs)
     let l:dfl = "nbsp:☺,precedes:‹,extends:›,trail:$"
 
     if a:incltabs
-        let l:result = "tab:>-," . l:dfl
+        let l:result = "tab:>-," .. l:dfl
     else
         " default - use spaces to show tabs with 'set list'
-        let l:result = "tab:\u20\u20," . l:dfl
+        let l:result = "tab:\u20\u20," .. l:dfl
     endif
 
     return l:result
 endfunction
 
-let &g:listchars = UserSetListchars(0)
+let &listchars = UserSetListchars(0)
 
 
 " ---- mappings
 nnoremap        <Up>    gk
-nnoremap        k       gk
 nnoremap        <Down>  gj
+nnoremap        k       gk
 nnoremap        j       gj
+vnoremap        <Up>    gk
+vnoremap        <Down>  gj
+vnoremap        k       gk
+vnoremap        j       gj
+
+" 2022-07-16 - recognition, through vimrc.
+" https://github.com/hotchpotch/dotfiles-vim/blob/master/.vimrc
+" https://secon.dev/entry/20061225/1167032528/
+" for working with gettext code using tpope/vim-surround.
+" nnoremap        g'      cs'g
+" nnoremap        g"      cs"G
 
 " on hitting F1 instead of Esc by accident when sleepy - do something
 " unobtrusive instead of opening help. <expr> is brittle. <Cmd>'s robust, but
 " very new. the quiet alternative: <Nop>
-nnoremap <silent> <F1>      :call UserShowHelp()<CR>
+nnoremap <silent> <F1>      :call UserShowHelp()<cr>
 imap              <F1>      <Esc><F1>
 " for misconfigured virtual serial lines with putty. better to set
 " TERM=putty-256color before starting (above mappings work then), instead of
 " working under 'vt220' or whatever.
-if &term !~# 'putty' && !g:user_has_x11 && !has('gui_running')
-    nnoremap <silent> <Esc>[11~  :call UserShowHelp()<CR>
-    inoremap <silent> <Esc>[11~  <Esc>:call UserShowHelp()<CR>
+if v:false
+    if &term !~# 'putty' && !g:user_has_x11 && !has('gui_running')
+        nnoremap <silent> <Esc>[11~  :call UserShowHelp()<cr>
+        inoremap <silent> <Esc>[11~  <Esc>:call UserShowHelp()<cr>
+    endif
 endif
 
 " quickly toggle spellcheck
 " used to use F6 to toggle spell, but setl [no]spell is easier to remember.
 
 " show all buffers in windows; was just thinking of fullscreen.
-nnoremap <silent> <F11>  :sball<CR>
+nnoremap <silent> <F11>  :sball<cr>
 
 " lots more modes... doc :noremap and doc xterm-function-keys
 
@@ -1355,7 +1717,8 @@ nnoremap <silent> <F11>  :sball<CR>
 " https://github.com/Raimondi/vim-buffalo
 " The <Space> after :b allows wildmenu to come into play easily.
 " NB: can't be a silent mapping.
-nnoremap    +           :ls!<CR>:b<Space>
+" used to use '+', but turns out it's useful. now using 'K'.
+nnoremap    K           :ls!<cr>:b<Space>
 
 " emacs/readline-like mappings for the command line; doc emacs-keys
 cnoremap    <C-a>       <Home>
@@ -1370,7 +1733,7 @@ cnoremap    <C-p>       <Up>
 " doc CTRL-^ (https://vimhelp.org/editing.txt.html#CTRL-%5E)
 
 "" a way to turn hlsearch off quickly; from Damian Conway
-nnoremap <silent> <BS>   :nohlsearch<CR>
+nnoremap <silent> <BS>   :nohlsearch<cr>
 
 xnoremap    <BS>    x
 
@@ -1381,11 +1744,11 @@ inoremap    <C-u>   <C-g>u<C-u>
 inoremap    <C-w>   <C-g>u<C-w>
 
 "" insert timestamp
-"" nnoremap        <silent> <Leader>dt :put=UserDateTimeComment()<CR>
+"" nnoremap        <silent> <Leader>dt :put=UserDateTimeComment()<cr>
 inoremap <expr> <silent> <Leader>dt     UserDateTimeComment()
 
 "" insert date
-"" nnoremap        <silent> <Leader>dd :put=UserDate()<CR>
+"" nnoremap        <silent> <Leader>dd :put=UserDate()<cr>
 inoremap <expr> <silent> <Leader>dd     UserDate()
 " so i can do :e f-<,dd> in the vim command window
 cnoremap <expr> <Leader>dd              UserDate()
@@ -1407,7 +1770,7 @@ inoremap <expr> <silent> <Leader>dU     UserUtcNow()
 ""
 "" http://www.nicemice.net/par/par-doc.var
 ""
-nnoremap <silent> <Leader>j     {!}par 78<CR>}
+nnoremap <silent> <Leader>j     {!}par 78<cr>}
 ""
 "" format paragraph. k's just close to , .
 ""
@@ -1421,25 +1784,62 @@ nnoremap <silent> <Leader>J     vipJ
 
 " øæå as brackets, braces, parentheses - done with xmodmap
 
-" A mapping to copy from tty vim, since when list mode is enabled the usual copy
-" from the terminal will include listchars. pass visual selection to X11
-" CLIPBOARD; doc :write_c
-if g:user_has_x11 && has('unix')
-    xnoremap <silent> <Leader>y  <Esc>:silent '<,'>:w !xclip -selection clipboard<CR>
+" put the visual selection into a register, invoke
+" xclip with the register as the input.
+" not using get/setreginfo() for compatibility.
+"
+" https://stackoverflow.com/a/26125513
+function! UserPutXclipVisual() abort range
+    let l:reg = @u
+    silent normal gv"uy
+    call system('xclip -i -selection clipboard', @u)
+    let @u = l:reg
+    " normal gv -- no, leave visual mode
+endfunction
+
+function! UserGetXclip() abort
+    silent let l:clp = system('xclip -o -selection clipboard')
+    if v:shell_error
+        return
+    endif
+    let l:reg = @u
+    let @u = l:clp
+    setlocal paste
+    normal "ugp
+    setlocal nopaste
+    let @u = l:reg
+endfunction
+
+" mappings to copy/paste using the X clipboard from tty vim.
+" doc :write_c
+if g:user_has_x11 && has('linux') && !has('gui_running')
+    " ttys and bracketed paste cover this well usually
+    nnoremap <silent>   <Leader>xp      :call UserGetXclip()<cr>
+    inoremap <silent>   <Leader>xp      <C-o>:call UserGetXclip()<cr>
+    " no paste for the command window...?
+
+    " define an ex command that takes a range and pipes to xclip
+    command -range XClipPut silent <line1>,<line2>:w !xclip -i -selection clipboard
+    nnoremap <silent>   <Leader>xc      :XClipPut<cr>
+
+    " for the visual selection (not linewise):
+    vnoremap <silent>   <Leader>xc      :call UserPutXclipVisual()<cr>
 endif
 if has('gui_running')
+    set mouse=inv
     " for iVim on iOS (has gui but no X11, no gtk) - paste with little ceremony
     " and kept in .vimrc instead of .gvimrc
     nnoremap <silent> <Leader>xp    "+p
     inoremap <silent> <Leader>xp    <C-r>+
     cnoremap          <Leader>xp    <C-r>+
-else
-    nnoremap <silent> <Leader>xp    <nop>
-    inoremap <silent> <Leader>xp    <nop>
-    cnoremap          <Leader>xp    <nop>
+
+    " normal mode, copy current line
+    nnoremap <silent> <Leader>xc    "+yy
+    " visual mode, copy selection, not linewise; doc: v_zy
+    vnoremap <silent> <Leader>xc    "+zy<Esc>
 endif
 
-nnoremap <silent>   <Leader>xs      :update<CR>
+nnoremap <silent>   <Leader>xs      :update<cr>
 
 " set current window (split) width to 80
 " for use with multiple vertical splits
@@ -1474,20 +1874,27 @@ let Symbols = {
     \ ,'greek cross, medium': nr2char(0x1F7A3)
     \ ,'brkt left corner': nr2char(0xFF62)
     \ ,'brkt right corner': nr2char(0xFF63)
+    \ ,'silcrow':       nr2char(0xA7)
     \ }
 lockvar Symbols
 
-inoremap <expr> <Leader>;       Symbols['interpunct']
+inoremap <expr> <Leader>ip      Symbols['interpunct']
 inoremap <expr> <Leader>lz      Symbols['lozenge']
 inoremap <expr> <Leader>dg      Symbols['dagger']
+inoremap <expr> <Leader>sc      Symbols['silcrow']
+" 2022-07-14
+inoremap <expr> <Leader>(       Symbols['brkt left corner']
+inoremap <expr> <Leader>)       Symbols['brkt right corner']
 
 " pound signs used everywhere, lozenge taken by Pollen...
 " U+25B8 Black right-pointing small triangle
 " U+25BA Black right-pointing pointer
 " U+298B, U+298C - brackets with underbar
 " U+2991, U+2992 brackets with dot
-inoremap <Leader>#       -#
-cnoremap <Leader>#       -#
+"
+" used to use <Leader>#, too cumbersome.
+inoremap <Leader><Leader>   -#
+cnoremap <Leader><Leader>   -#
 
 " abbreviations aren't so useful in such cases, they expand after whitespace.
 
@@ -1502,8 +1909,10 @@ nnoremap    <Leader>vf  <C-w>f<C-w>L
 
 " WIP mapping to open files; meant to work under just two windows:
 " one window with a list of filenames.
-nnoremap    <Leader>se  :let f = expand('<cfile>')<CR><C-w>w:execute('edit ' . f)<CR>
+nnoremap    <Leader>se  :let f = expand('<cfile>')<cr><C-w>w:execute('edit ' .. f)<cr>
 
+" M.G. - guu/gugu - lower line, u - visual, gu{motion}
+nnoremap    <Leader>mg      guip
 
 if !has('gui_running')
     " tty - Ctrl-Backspace sends Ctrl-H.
@@ -1647,45 +2056,52 @@ command NoNumber            set nonumber | set norelativenumber
 command RelativeNumber      set nonumber | set relativenumber
 command Number              set norelativenumber | set number
 
-command ShowBreak       let &l:showbreak = g:user_showbreak_char
-command NoShowBreak     setlocal showbreak=NONE
+command ShowBreak       let &showbreak = g:user_showbreak_char
+command NoShowBreak     set showbreak=NONE
 " turn on our syntax highlighting, without regard for global syntax flags
+"
 command Syn             call UserHS(v:true)
-" sometimes a mess is useful; load a scheme and force our own style
-" command Colour          syn enable | color desert | set bg& | Syn
+command SynSync         syntax sync fromstart
+" also remember: doautocmd Syntax
+
+" mnemonic to open all folds in buffer
+command Unfold          normal zR
+
 command -nargs=1 CH     set cmdheight=<args>
+
 command Colortest       runtime syntax/colortest.vim
 
+" useful when testing in verbose mode
+command -nargs=+ Log    call UserLog(<args>)
 
 " enable/disable paste mode - outdated; vim supports bracketed paste now.
-command Pst     setlocal paste
-command Nopst   setlocal nopaste
-command Spell   setlocal spell
-command NoSpell setlocal nospell
+command Pst         setlocal paste
+command Nopst       setlocal nopaste
+command Spell       setlocal spell
+command NoSpell     setlocal nospell
 
 " to turn the status line on
-command St      set laststatus=2
+command St          set laststatus=2
 " to turn the status line back off
-command Nost    set laststatus=0
+command Nost        set laststatus=0
 
-command B       echom UserBufferInfo()
-command Basic   call UserTermBasic()
+command Info        echom UserBufferInfo()
+command Basic       call UserTermBasic()
 
 command Stws        call UserStripTrailingWhitespace()
-command Lst         let &l:list = !&l:list
 
 " useful when testing :NB and opening many scratch windows.
 command Die windo q
 " new window for scribbling
-command Scratch new | setlocal buftype=nofile noswapfile filetype=text
+command Scratch new | setlocal buftype=nofile noswapfile filetype=text swapfile
 
 " like :Explore
 command Index   call UserOpenIndexFile()
 
 " list default - set listchars to global pref
-command ListDef     let &g:listchars = UserSetListchars(0) <bar> windo set list
+command ListDef     let &listchars = UserSetListchars(0) <bar> windo set list
 " list including tabs
-command ListTab     let &g:listchars = UserSetListchars(1) <bar> windo set list
+command ListTab     let &listchars = UserSetListchars(1) <bar> windo set list
 
 command VeDefault   set virtualedit=block,onemore
 
@@ -1699,10 +2115,10 @@ command Fnbsp            /[\u202f\ua0]
 function! UserDetectTextFile(fn)
     if !has('unix') | return -1 | endif
     let l:fnesc = shellescape(a:fn, 1)
-    "echom 'passing to file: ' . l:fnesc
-    silent let l:out = systemlist('/usr/bin/file -b --mime-type ' . l:fnesc)[0]
+    "echom 'passing to file: ' .. l:fnesc
+    silent let l:out = systemlist('/usr/bin/file -b --mime-type ' .. l:fnesc)[0]
     if v:shell_error
-        echoerr 'file(1) failed, status ' . v:shell_error
+        echoerr 'file(1) failed, status ' .. v:shell_error
         return -2
     endif
     if l:out == 'text/plain'
@@ -1744,31 +2160,31 @@ augroup UserVimRc
     " not for all text files.
     " format manually: gqip or vip, gq
     autocmd BufNewFile,BufReadPost  writing*.txt,NOTES*.txt     Wr
-    " the first line of the commit message should be < 50 chars
-    " to allow for git log --oneline
-    autocmd BufNewFile,BufReadPost COMMIT_EDITMSG   setl tw=78 spell cc=50,80
     autocmd BufReadPost *music-comments.txt     setl nospell
 
     " for file names without an extension -
     " if file(1) thinks it's a text file, treat it as such.
+    " not directly related to syntax highlighting - therefore this directive
+    " is in this autogroup, and not in the UserVimRcSyntax autogroup.
     autocmd BufReadPost *   call UserAutoSetFtText(expand('<afile>'))
 
     " last-position-jump
     autocmd BufReadPost *   call UserLastPositionJump()
 
-    autocmd BufNewFile      /etc/*                  Proper
-    autocmd BufReadPost     /etc/*                  Proper
+    autocmd BufNewFile,BufReadPost  /etc/*          Proper
     autocmd FileType        c,sh,conf               Proper
-    autocmd FileType        perl,python,vim         Lousy
-    autocmd FileType        ruby,eruby              Lousy
+    autocmd FileType        perl,python,vim,ruby,eruby  Lousy
     autocmd FileType        lisp,scheme,clojure     Lisp
+    " the first line of the commit message should be < 50 chars
+    " to allow for git log --oneline
+    " autocmd BufNewFile,BufReadPost COMMIT_EDITMSG   setl tw=78 spell cc=50,80
+    autocmd FileType        *commit     setl tw=78 spell cc=50,80
 
     autocmd BufWritePre *   call UserStripTrailingWhitespace()
     autocmd BufWritePre *   call UserUpdateBackupOptions()
 
     "autocmd TermResponse * echom 'termresponse:' strtrans(v:termresponse)
 augroup end
-
 
 
 " autogroup for my weird syntax dealings
@@ -1793,7 +2209,17 @@ augroup UserVimRcSyntax
     " this is much simpler than what we built up earlier around ownsyntax,
     " but has the downside the syntax highlighting stays enabled by default
     " for all filetypes.
-    autocmd BufWinEnter *  call UserHS()
+    "
+    " 2022-07-13 define highlights once, and then add matches on each window
+    " autocmd BufWinEnter *  call UserHS()
+
+    " matches (matchadd(), not syntax highlighting) are per window.
+    " can be too eager, can set up a window variable later.
+    autocmd BufWinEnter,WinEnter    *  call UserMatchAdd()
+
+    " autocmd BufWinEnter *  call UserSyntax()
+    " to deal with filetype changes leading to syntax rule loading.
+    " f.ex. editing a file without an ft, then setting the ft by hand.
 
     " triggered by 'ownsyntax'; if 'on', append our rules
     " 2022-02-20
@@ -1803,6 +2229,7 @@ augroup UserVimRcSyntax
     " now UserSetWinSynByFt() calls UserAutoSyn() by itself. this path is more
     " deterministic anyway.
     " autocmd Syntax      *   call UserAutoSyn(expand('<amatch>'))
+    "
 
     " on colourscheme load/change, apply our colours, overriding the scheme.
     autocmd ColorScheme *   call UserColours()
@@ -1813,6 +2240,8 @@ if v:false
         autocmd!
 
         autocmd FileType    *   call UserLog('ae FileType')
+        autocmd Syntax      *   call UserLog('ae Syntax')
+        autocmd ColorScheme *   call UserLog('ae ColorScheme')
         autocmd BufEnter    *   call UserLog('ae BufEnter')
         autocmd BufWinEnter *   call UserLog('ae BufWinEnter')
         autocmd WinEnter    *   call UserLog('ae WinEnter')
@@ -1844,77 +2273,26 @@ endif
 
 " syntax handling and redrawing
 " lucius needs some time
-if &redrawtime > 700
-    set redrawtime=700
-endif
+set redrawtime=700
 "syntax sync minlines=50
 set synmaxcol=200
 set background&     " sometimes even works.
-" hack upon hack:
-" for terminal emulators, if the $COLORFGBG kludge isn't available...
-if v:false && !has('gui_running') && !exists('$COLORFGBG')
-    \ && v:version < 900
-    \ && &term != 'vt220' && &term !~ 'putty'
-    set background=light
-endif
-syntax on
+" 2022-07-13 no longer need syntax highlighting.
+syntax off
 
 
 " turn syntax colours on for window
 " :ownsyntax off resets syntax definitions (but not highlight groups);
 " need to reload our rules.
-nnoremap <silent> <F2>      :call UserOwnSyntax('on') <bar> call UserSyntax()<CR>
+" nnoremap <silent> <F2>      :call UserOwnSyntax('on') <bar> call UserSyntax()<cr>
 " turn syntax colours off for window
-nnoremap <silent> <F3>      :call UserOwnSyntax('off')<CR>
+" noremap <silent> <F3>      :call UserOwnSyntax('off')<cr>
+" 2022-07-13 - away from the syntax regime, into the match regime.
+" not the same functionality as before, above.
+nnoremap <silent> <F2>      :syn enable<bar>windo call UserMatchReset()<cr>
+nnoremap <silent> <F3>      :syn off<bar>windo call clearmatches()<cr>
 
-" most colorschemes don't pull their own weight. would be great if a colorscheme
-" + reload behaviour would take a closure instead of requiring a file on disk.
-" And seperate user interface component highlights from text content highlights.
-"
-" order's significant here; whether bg& before or after depends on what the
-" scheme does.
-"
-" test tip: COLORFGBG='15;0' xterm -tn xterm-vt220 -fg \#ffb000 -bg grey10
-" desert for dark, shine for light. with modifications to not touch important
-" highlights and not modify 'background'.
-"
-" start by erasing the default highlights, which are very annoying, specially on
-" terminals with few colours.
-call UserSafeHighlights()
-
-if UserRuntimeHas('colors/tty.vim')
-    " colorscheme tty
-    nnoremap <F4>   :colorscheme tty<CR>
-endif
-
-" 2022-03-09 lucius light and white modes seem to trigger a bug in gvim on
-" Linux. The command window rendering becomes subtly broken, selected text
-" almost invisible.
-"
-" 2022-06-30 gvim command window under lucius looks good now.
-"
-" in any case, the default vim syntax definitions are maybe 60% good anyway.
-" setting non-tty-fg dark colours on "normal" text bothers me a little too.
-if UserCanLoadColorscheme() && UserRuntimeHas('colors/lucius.vim')
-    let g:lucius_no_term_bg = 1     " perfect, A+; cterm only, not for tgc
-    colorscheme lucius
-    nnoremap <F5>   :colorscheme lucius<CR>
-    if has('gui_running')
-        LuciusLight
-    endif
-endif
-" call UserLog('t_Co', &t_Co)
-" t_Co might be undefined here for gvim? definitely undefined in iVim (iOS.)
-if v:false && UserCanLoadColorscheme() && UserRuntimeHas('colors/iceberg-wrapped.vim')
-    colorscheme iceberg-wrapped
-    nnoremap <F5>   :colorscheme iceberg-wrapped<CR>
-endif
-
-" if no colorscheme found/loaded, the ColorScheme autocmd won't work.
-" load our UI colour overrides.
-if !exists('g:colors_name') || g:colors_name ==? 'default'
-    call UserColours()
-endif
+call UserLoadColors()
 
 " ~ fini ~
 

@@ -1,7 +1,20 @@
 set guioptions=acgimpt
-
 set clipboard+=autoselect
-set selectmode+=mouse
+
+" for the popup menu
+set mousemodel=popup
+
+set mouseshape-=v:rightup-arrow
+set mouseshape+=n-v:beam
+
+" disable cursor blinking - a:blinkon0
+let g:user_default_guicursor = &guicursor
+lockvar g:user_default_guicursor
+" default: n-v-c:block,o:hor50,i-ci:hor15,r-cr:hor30,sm:block
+" default blinking: blinkwait700-blinkon400-blinkoff250
+"
+" blink in almost all cases; no blink in normal mode.
+set guicursor=a:blinkwait500-blinkon600-blinkoff971,v-c:block,n:block-blinkon0,o:hor50,r-cr:hor30,sm:block,i-ci:hor15-blinkwait500-blinkon600-blinkoff971
 
 
 if has('unix') && has('gui_gtk')
@@ -22,21 +35,26 @@ if has('unix') && has('gui_gtk')
     " let deffont = 'PrestigeEliMOT'
     " let deffont = 'Inconsolata Light'
     " let g:deffont = 'Source Code Pro'     " large; use size 11
-    let g:deffont = 'Iosevka Term SS08 Light'
-    let &g:guifont = deffont . ' 12'
+    " let g:deffont = 'Iosevka Term SS08 Light'
+    " - iosevka term has ligatures
+    let g:deffont = 'Iosevka Fixed SS04 Light'
+    let &guifont = deffont . ' 12'
 
-    command Big let &g:guifont = deffont . ' 12'
-    command Econ let &g:guifont = 'PragmataPro Mono 10'
-elseif has('win32')
+    command Big let &guifont = deffont . ' 12'
+    command Econ let &guifont = 'PragmataPro Mono 10'
+elseif has('win64')
     " Consolas is missing some reasonable glyphs.
     "let &g:guifont = 'Consolas:h12:cDEFAULT:qCLEARTYPE'
-    let &g:guifont = 'Iosevka_Term_SS08:h12:cDEFAULT:qCLEARTYPE'
+
+    " Iosevka term has ligatures, fixed doesn't.
+    let &guifont = 'Iosevka_Fixed_SS04:h12:cDEFAULT:qCLEARTYPE'
     set renderoptions=type:directx
 endif
 
-" allows three vertical splits at 80+
 command Geometry set lines=50 columns=90
 Geometry
+
+ShowBreak
 
 " PRIMARY selection
 " doc:gui_x11.html#quoteplus
@@ -46,12 +64,12 @@ cnoremap          <C-S-v>       <C-r>*
 
 " adapted http://coganblogs.blogspot.com/2010/09/perfect-cut-copy-paste-with-gvim.html
 " CUA - copy
-"" vnoremap <silent> <C-c>		"+zy<ESC>
+"" vnoremap <silent> <C-c>		"+zy<esc>
 " CUA - cut
-"" vnoremap <silent> <C-x>		"+c<ESC>
+"" vnoremap <silent> <C-x>		"+c<esc>
 " CUA - paste
-" vnoremap <silent> <C-v>		c<ESC>"+p
-" nnoremap <silent> <C-S-v>	c<ESC>"+p
+" vnoremap <silent> <C-v>		c<esc>"+p
+" nnoremap <silent> <C-S-v>	c<esc>"+p
 "" set an undo point, then paste, then another undo point
 "" inoremap <silent> <C-v>		<C-g>u<C-r>+<C-g>u
 "" inoremap <silent> <C-S-v>	<C-g>u<C-r>+<C-g>u
@@ -61,44 +79,38 @@ cnoremap          <C-S-v>       <C-r>*
 " hp's fucked the Insert key, fn-e too. ergo the duplicate
 " mappings for kInsert - the Insert key on the numpad.
 " using Insert - copy
-vnoremap <silent> <C-Insert>	"+zy<ESC>
-vnoremap <silent> <C-kInsert>	"+zy<ESC>
+vnoremap <silent> <C-Insert>	"+zy<esc>
+vnoremap <silent> <C-kInsert>	"+zy<esc>
 " using Insert - cut
-vnoremap <silent> <S-Del>	"+c<ESC>
-vnoremap <silent> <S-kDel>	"+c<ESC>
+vnoremap <silent> <S-Del>	"+c<esc>
+vnoremap <silent> <S-kDel>	"+c<esc>
 " using Insert - paste - insert mode, with undo points
 inoremap <silent><S-Insert>	<C-g>u<C-r>+<C-g>u
 inoremap <silent><S-kInsert>	<C-g>u<C-r>+<C-g>u
 " using Insert - paste
-vnoremap <silent> <S-Insert>	c<ESC>"+p
-vnoremap <silent> <S-kInsert>	c<ESC>"+p
-nnoremap <silent> <S-Insert>	c<ESC>"+p
-nnoremap <silent> <S-kInsert>	c<ESC>"+p
+vnoremap <silent> <S-Insert>	c<esc>"+p
+vnoremap <silent> <S-kInsert>	c<esc>"+p
+nnoremap <silent> <S-Insert>	c<esc>"+p
+nnoremap <silent> <S-kInsert>	c<esc>"+p
 " using Insert - paste command mode
 cnoremap <S-Insert>		<C-r>+
 cnoremap <S-kInsert>		<C-r>+
-
-" emacs - copy/kill-ring-save
-vnoremap <silent> <M-w> "+y<ESC>
-" emacs - cut/kill-region
-" vnoremap <silent> <C-w> "+c
-" emacs - paste/yank
-vnoremap <silent> <C-y> c<ESC>"+p
-inoremap <silent> <C-y> <C-r>+
 
 inoremap <C-BS> <C-w>
 
 
 " ctrl-z - don't suspend, spawn a terminal instead
 " vim terminal sucks.
-nnoremap <silent> <C-z> :call system('xterm &')<CR>
+if has('linux')
+    nnoremap <silent> <C-z> :call system('xterm &')<cr>
+endif
 vnoremap <silent> <C-z> <Esc>
 
 
 " doc:windows.txt.html#%3Asball
-amenu &Misc.&Buffers\ to\ tabs	:tab sball<CR>
-" amenu &Misc.&Make\ session	:mksession!<CR>
-amenu &Misc.&Tab\ page		:tabnew<CR>
+amenu &Misc.&Buffers\ to\ tabs	:tab sball<cr>g
+" amenu &Misc.&Make\ session	:mksession!<cr>g
+amenu &Misc.&Tab\ page		:tabnew<cr>g
 
 " delete the autocmd that does the lazy loading -
 " otherwise the autocmd will cause Edit and Tools menus to reappear.
@@ -115,24 +127,30 @@ aunmenu Syntax
 aunmenu Help
 " even when the gui toolbar's hidden, the definition stays
 aunmenu ToolBar
+
+" clear out trash added for the 'terminal' feature.
+"
 " "menu entries for all modes at once, except for Terminal mode."
 " pretty ad-hoc. might need to be adjusted for new vim versions.
-if has('terminal')
+"
+" 2022-07-04 - it seems menus can be added to terminal mode even
+" when vim hasn't been built with the terminal feature. so doing
+" 'tlunmenu' under has('terminal') won't clear these up.
+try
     tlunmenu Edit
     if has('win32')
         tlunmenu Tools
         tlunmenu Syntax
     endif
     tlunmenu Help
-endif
+catch /^Vim\%((\a\+)\)\=:E329:/
+    " ignore
+endtry
 
 " doc:gui.txt.html#menu-priority
 " default File menu has prio 10;
 " add a new File menu before everything we've defined above.
-1amenu &File.&Exit		:confirm qa<CR>
-
-" for the popup menu
-set mousemodel=popup
+1amenu &File.&Exit		:confirm qa<cr>g
 
 " if we loaded a session, save it when focus lost
 " autocmd SessionLoadPost * autocmd! FocusLost * :mksession!
@@ -210,16 +228,6 @@ function! UserGitCommitAdapter(...)
     call UserAutoGitCommitJob()
 endfunction
 
-
-" disable cursor blinking - a:blinkon0
-let g:user_default_guicursor = &guicursor
-lockvar g:user_default_guicursor
-" default: n-v-c:block,o:hor50,i-ci:hor15,r-cr:hor30,sm:block
-" default blinking: blinkwait700-blinkon400-blinkoff250
-"
-" blink in almost all cases; no blink in normal mode.
-set guicursor=a:blinkwait500-blinkon600-blinkoff971,v-c:block,n:block-blinkon0,o:hor50,r-cr:hor30,sm:block,i-ci:hor15-blinkwait500-blinkon600-blinkoff971
-
 augroup UserGvimRc
     autocmd!
 augroup end
@@ -228,17 +236,16 @@ if has('unix')
     autocmd UserGvimRc BufWritePost /stuff/notes/* call UserGitCommitAdapter()
 endif
 
-" don't enter SELECT mode with the mouse
-set selectmode=
-set mouse=inv
-
-set mouseshape-=v:rightup-arrow
-set mouseshape+=n-v:beam
-
 " .vimrc has a 'set backgroundg&', which works well in linux. but gvim on
 " windows still starts with bg == 'dark'. manually doing 'set bg&' does the
 " correct thing. not spending more time on debugging this, given the obscurity
 " and state of the platform. https://github.com/vim/vim/issues/869
+"
+" tangential comment: https://vimhelp.org/syntax.txt.html#%3Ahighlight-normal
+"   When using reverse video ("gvim -fg white -bg black"), the default value
+"   of 'background' will not be set until the GUI window is opened, which is after
+"   reading the gvimrc.
+"   Use :gui, which has its own caveats (-f).
 if has('win32') && &background == 'dark'
     set background=light
 endif
