@@ -16,6 +16,8 @@ lockvar g:user_default_guicursor
 " blink in almost all cases; no blink in normal mode.
 set guicursor=a:blinkwait500-blinkon600-blinkoff971,v-c:block,n:block-blinkon0,o:hor50,r-cr:hor30,sm:block,i-ci:hor15-blinkwait500-blinkon600-blinkoff971
 
+" ligatures bad
+set guiligatures=
 
 if has('unix') && has('gui_gtk')
     "set guifont=Source\ Code\ Pro\ Light\ 12
@@ -54,47 +56,7 @@ endif
 command Geometry set lines=50 columns=90
 Geometry
 
-ShowBreak
-
-" PRIMARY selection
-" doc:gui_x11.html#quoteplus
-inoremap <silent> <S-Insert>    <C-r>*
-inoremap <silent> <C-S-v>       <C-r>*
-cnoremap          <C-S-v>       <C-r>*
-
-" adapted http://coganblogs.blogspot.com/2010/09/perfect-cut-copy-paste-with-gvim.html
-" CUA - copy
-"" vnoremap <silent> <C-c>		"+zy<esc>
-" CUA - cut
-"" vnoremap <silent> <C-x>		"+c<esc>
-" CUA - paste
-" vnoremap <silent> <C-v>		c<esc>"+p
-" nnoremap <silent> <C-S-v>	c<esc>"+p
-"" set an undo point, then paste, then another undo point
-"" inoremap <silent> <C-v>		<C-g>u<C-r>+<C-g>u
-"" inoremap <silent> <C-S-v>	<C-g>u<C-r>+<C-g>u
-"" command window; <silent> is bad in command mode
-"" cnoremap <C-v> <C-r>+
-
-" hp's fucked the Insert key, fn-e too. ergo the duplicate
-" mappings for kInsert - the Insert key on the numpad.
-" using Insert - copy
-vnoremap <silent> <C-Insert>	"+zy<esc>
-vnoremap <silent> <C-kInsert>	"+zy<esc>
-" using Insert - cut
-vnoremap <silent> <S-Del>	"+c<esc>
-vnoremap <silent> <S-kDel>	"+c<esc>
-" using Insert - paste - insert mode, with undo points
-inoremap <silent><S-Insert>	<C-g>u<C-r>+<C-g>u
-inoremap <silent><S-kInsert>	<C-g>u<C-r>+<C-g>u
-" using Insert - paste
-vnoremap <silent> <S-Insert>	c<esc>"+p
-vnoremap <silent> <S-kInsert>	c<esc>"+p
-nnoremap <silent> <S-Insert>	c<esc>"+p
-nnoremap <silent> <S-kInsert>	c<esc>"+p
-" using Insert - paste command mode
-cnoremap <S-Insert>		<C-r>+
-cnoremap <S-kInsert>		<C-r>+
+" mappings for clipboard - see .vimrc
 
 inoremap <C-BS> <C-w>
 
