@@ -1,13 +1,20 @@
-set nocompatible secure encoding=utf-8 fileencoding=utf-8 nobomb nolangremap
+set nocompatible secure encoding=utf-8 fileencoding=utf-8 nobomb
 scriptencoding utf-8
 
-" Last Modified: 2022-07-28
+" Last Modified: 2022-07-29
+"
+" 2022-07-29 Usable with vim 7.x now (uses classic forms of bufnr(),
+" bufname(), system(), globpath() etc.), but quite a bit of extras won't work
+" or will print error messages. Added more checks for nanosecond routines.
+" :language C and :language time C would be nice to do, to get predictable
+" messages and time formatting. but these commands don't work in iVim. and
+" current features like UserDateComment() don't depend on these.
 "
 " 2022-07-28 Added colour overrides for dark backgrounds. For using iVim at
 " night.
 "
-" 2022-07-25 Bring back syntax rule-based custom highlights. I missed the
-" old URL syntax behaviour.
+" 2022-07-25 Bring back syntax rule-based custom highlights. I missed the old
+" URL syntax behaviour.
 "
 " 2022-07-22 Fixes to the mapping (,1) that joins a paragraph into one line.
 " Disabled 'q' (recording, as well as q[:/?]) in normal mode.
@@ -17,32 +24,32 @@ scriptencoding utf-8
 " creating directory hierarchies under ~/.backup. Also keep 'ignorecase' off.
 "
 " 2022-07-20 Clean up the functions that manage fillchars and listchars.
-" Command-line window: always enable line numbers and 'list'.
-" vim 8.1 or thereabouts seems to have trouble parsing trimmed heredocs;
-" so such code blocks are now left ugly for compatibility.
-" 'lazyredraw' also seems to delay the initial screen painting, maybe depending
-" on other factors. 'lazyredraw' removed. also went back to strinc concatenation
-" with a single dot instead of '..'.
+" Command-line window: always enable line numbers and 'list'. vim 8.1 or
+" thereabouts seems to have trouble parsing trimmed heredocs; so such code
+" blocks are now left ugly for compatibility. 'lazyredraw' also seems to delay
+" the initial screen painting, maybe depending on other factors. 'lazyredraw'
+" removed. also went back to strinc concatenation with a single dot instead of
+" '..'.
 "
-" 2022-07-13 went away from trying to extend syntax matching with our own rules
-" and struggling to have our rules applied in all desired circumstances.
-" Using matchadd() now, in UserMatchAdd().
-" Lots of syntax-related functions and comments still left lying around.
+" 2022-07-13 went away from trying to extend syntax matching with our own
+" rules and struggling to have our rules applied in all desired circumstances.
+" Using matchadd() now, in UserMatchAdd().  Lots of syntax-related functions
+" and comments still left lying around.
 "
-" On startup, create ~/.vim/syntax/after/text.vim if necessary, to have
-" our syntax rules applied in a robust and consistent manner.
+" On startup, create ~/.vim/syntax/after/text.vim if necessary, to have our
+" syntax rules applied in a robust and consistent manner.
 "
 " Normal mode mapping to paste easily in iVim.
 "
-" 2022-06-28: Hashtag prefix sequence changed from a single Greek Cross
-" (🞣, U+1F7A3) to "-#". The Greek Cross isn't visible and causes rendering
-" issues in iVim (iOS.)
+" 2022-06-28: Hashtag prefix sequence changed from a single Greek Cross (🞣,
+" U+1F7A3) to "-#". The Greek Cross isn't visible and causes rendering issues
+" in iVim (iOS.)
 
 " Long, somewhat disorganized, too large a file, my bonsai project. Lots of
 " barnacles from documentation spelunking and trying various options. Tired now,
 " don't want to touch it for the next 10 years, when it'll be safe to move to
 " vim9script.
-"
+
 " notes:
 
 " Other vimmers:
@@ -136,7 +143,6 @@ scriptencoding utf-8
 "   matchparen.vim - nice, but the autocommands feel yucky.
 "   manpager - vim can be a rather nice manpager.
 "
-let g:did_load_filetypes = 1
 let g:loaded_matchparen = 1
 let g:loaded_2html_plugin = 1
 let g:loaded_gzip = 1
@@ -149,6 +155,15 @@ let g:loaded_netrwPlugin = 1
 " instead try :cexpr system( grep ) ...
 let g:loaded_logiPat = 1
 "}}}
+
+" 2022-07-30 let g:did_load_filetypes = 1 does prevent filetype detection with
+" the filetypedetect augroup. except when /etc/vimrc does a 'syntax on'. then
+" it's too late to set did_load_filetypes in the user vimrc. the user would
+" have to also delete the filetypedetect group. anyway, we do want filetypes
+" setup, the FileType event is convenient sometimes. it's just that, that
+" autogroup has too many things - ugly. 700+ autocmds.
+
+"let g:did_load_filetypes = 1
 
 " 2022-07-28 clear out autocommands of other people.
 " {{{
@@ -176,16 +191,16 @@ if exists('#redhat')
 endif
 " }}}
 
-if has('unix')
+if has('unix') && exists('*exepath')
     if !empty(exepath('/bin/dash'))
         set shell=/bin/dash
     elseif !empty(exepath('/bin/bash'))
         set shell=/bin/bash
     endif
-    " ripgrep
-    if executable('rg')
-        let &grepprg = 'rg --vimgrep --no-heading --smart-case'
-    endif
+endif
+" ripgrep
+if executable('rg')
+    let &grepprg = 'rg --vimgrep --no-heading --smart-case'
 endif
 
 " journalled filesystems, SSD/NVMe/SD cards. fsync is complex these days, it's
@@ -277,7 +292,9 @@ set shortmess+=x
 set shortmess+=o    " since we use 'autowriteall'
 set shortmess+=W    " don't show "written"/"[w]"
 set shortmess+=I    " hide intro
-set shortmess+=c    " hide ins-complete-menu messages
+if has('patch-7.4-314')
+    set shortmess+=c    " hide ins-complete-menu messages
+endif
 
 " a little like :behave mswin, but not all the way. think DOS EDIT.COM.
 " set keymodel=startsel selectmode=mouse,key
@@ -285,7 +302,7 @@ set shortmess+=c    " hide ins-complete-menu messages
 set selectmode=
 
 " laststatus: 0 = never, 1 = show if multiple splits, 2 = always.
-set laststatus=0
+set laststatus=2
 
 " disabling 'ruler' makes 3<C-g> print more info.
 set ruler rulerformat=%=%M\ %{g:user_mark}
@@ -340,18 +357,17 @@ set matchpairs+=<:>,«:»,｢:｣
 " ttyfast - seems to be about terminal capabilities and less about line speed.
 " can disable if exists('$SSH_CONNECTION') && !g:user_has_x11
 
-if v:version >= 900
-    " display completion matches in a popup menu
-    set wildoptions=pum
-
-    " new-ish options, lumped under '900'.
-    set nomodelineexpr
-    " use NFA regexp engine?
-    set regexpengine=2
-    " predictable time formats and messages
-    language time C
-    language messages C
+set endofline
+if has('patch-7.4-794')
+    set fixendofline
 endif
+if has('patch-7.4-2236')
+    set nolangremap
+endif
+if has('patch-8.1-1366')
+    set nomodelineexpr
+endif
+
 set wildmenu
 " don't complete until unique
 set wildmode=list:longest,list
@@ -368,9 +384,6 @@ endif
 set browsedir=buffer
 "set autochdir - too cumbersome
 set virtualedit=block
-" perhaps the 2nd best thing about vim - the following options are enabled
-" by default.
-set endofline fixendofline
 
 " helps with navigating to a line of interest with <no>j and <no>k,
 " but also takes up a lot of space.
@@ -399,10 +412,18 @@ if has('folding')
     set foldclose=
 endif
 
+" contemporary
+if v:version >= 900
+    " display completion matches in a popup menu
+    set wildoptions=pum
+
+    " use NFA regexp engine?
+    "set regexpengine=2
+endif
 
 " echom's untenable for even print debugging.
 function! UserLog(...) abort
-    let l:enabled = v:false
+    let l:enabled = 0
     if !l:enabled && (&verbose == 0)
         return
     endif
@@ -420,7 +441,7 @@ function! UserLog(...) abort
         let l:s = a:000
     endif
     " stringify and make any control chars visible
-    let l:s = strtrans(string(l:s))
+    let l:msg = strtrans(string(l:s))
     " get stack trace
     let l:stack = expand('<stack>')
     " remove ourselves from the stack trace
@@ -432,7 +453,7 @@ function! UserLog(...) abort
     if l:idx_logfn > -1
         let l:stack = strpart(l:stack, 0, l:idx_logfn)
     endif
-    let l:logmsg = l:t . ' ' . l:s . "\t" . l:stack
+    let l:logmsg = l:t . ' ' . l:msg . "\t" . l:stack
 
     if l:enabled
         let l:fn = expand('~/.vimlog')
@@ -457,7 +478,7 @@ endfunction
 
 
 function! UserRuntimeHas(pathspec)
-    return !empty(globpath(&runtimepath, a:pathspec, 0, 1))
+    return globpath(&runtimepath, a:pathspec) != ''
 endfunction
 
 
@@ -606,7 +627,7 @@ function! UserSetupFillchars()
         " https://graphemica.com/blocks/miscellaneous-technical/page/3
 
         " 2022-07-26 using StatusLineNC more instead of fillchars.
-        if v:false && has('patch-8.2.2569')
+        if 0 && has('patch-8.2.2569')
             " BOX DRAWINGS LIGHT HORIZONTAL
             let l:hrz = nr2char(0x2500)
             let l:fcs.stl = l:hrz
@@ -758,35 +779,45 @@ endfunction
 
 
 " like 2022-07-05T12:57:18.568367478+00:00
-function! UserUtcPython()
-    " https://bugs.python.org/issue15443 - datetime doesn't support nanoseconds.
-    "
-    " 2022-07-05 syntax highlighting can break easily here.
-    " if using an endmarker, the ending endmarker should be at col 0 (beginning
-    " of line.)
-    " if a dot is used to terminate the heredoc, without no endmarkers,
-    " the dot being on a col > 0 doesn't seem to break syn.
+"
+" https://bugs.python.org/issue15443 - datetime doesn't support nanoseconds.
+"
+" 2022-07-05 syntax highlighting can break easily here. if using an endmarker,
+" the ending endmarker should be at col 0 (beginning of line.) if a dot is
+" used to terminate the heredoc, without no endmarkers, the dot being on a col
+" > 0 doesn't seem to break syn.
+"
+" some old vim versions built with python3 < 3.7 can fail with missing
+" time_ns().
+
+function! UserNsUtcPy()
+    if !has('python3')
+        return -1
+    endif
 
 python3 << PYEOF
 import datetime, decimal, time
 
 def rfc3339ns():
-	bln = 1_000_000_000
-	tm_ns = decimal.Decimal(time.time_ns())
-	tm_s = int(tm_ns / bln)
-	tm_frac = int(tm_ns % bln)
+    if not hasattr(time, 'time_ns'):
+        return -2
 
-	# build datetime with just seconds
-	t = datetime.datetime.fromtimestamp(
-	tm_s,
-	tz=datetime.timezone.utc
-	).isoformat()
-	# formatted part, without zone info (which should always be +00:00)
-	p = t[0:-6]
-	# just the zone info
-	z = t[-6:]
-	# final value
-	return f'{p}.{tm_frac}{z}'
+    bln = 1_000_000_000
+    tm_ns = decimal.Decimal(time.time_ns())
+    tm_s = int(tm_ns / bln)
+    tm_frac = int(tm_ns % bln)
+
+    # build datetime with just seconds
+    t = datetime.datetime.fromtimestamp(
+        tm_s,
+        tz=datetime.timezone.utc
+    ).isoformat()
+    # formatted part, without zone info (which should always be +00:00)
+    p = t[0:-6]
+    # just the zone info
+    z = t[-6:]
+    # final value
+    return f'{p}.{tm_frac}{z}'
 
 PYEOF
 
@@ -797,22 +828,43 @@ endfunction
 
 
 " like 2022-07-05T12:21:09.900981612+00:00
-function! UserUtcGnuDate()
-    let l:s = systemlist('/usr/bin/date --utc --rfc-3339=ns')[0]
-    " todo fix before year 10000 or other major calendar changes
-    return l:s[0:9] . 'T' . l:s[11:]
+"
+" date commands on various platforms can do basically check anything. make
+" sure we have GNU date.
+function! UserNsUtcGnuDate()
+    silent let l:ver = system('/usr/bin/date --version')
+    if v:shell_error
+        return -1
+    endif
+    if l:ver !~# '^date (GNU coreutils)'
+        return -2
+    endif
+    let l:s = system('/usr/bin/date --utc --rfc-3339=ns')
+    if v:shell_error
+        return -3
+    endif
+    " todo fix before year 10000 or other major calendar changes.
+    " len()-2 -- exclude the last ^@ from system()
+    return l:s[0:9] . 'T' . l:s[11:len(l:s)-2]
 endfunction
 
 function! UserUtcNow()
-    let l:ts = "(null)"
+    let l:ts = -10
     " iVim ships with python3, and it's trivial to get vim and python3
     " to work together on windows.
-    if has('python3')
-        let l:ts = UserUtcPython()
-    elseif has('linux')
-        let l:ts = UserUtcGnuDate()
+    let l:ts = UserNsUtcPy()
+    if l:ts > 0
+        return l:ts
     endif
-    return l:ts
+    " old vims don't support 'linux', though date(1) on such systems
+    " might be fine.
+    if has('unix')
+        let l:ts = UserNsUtcGnuDate()
+    endif
+    if l:ts > 0
+        return l:ts
+    endif
+    return "<no nano>"
 endfunction
 
 
@@ -944,7 +996,7 @@ function! UserGetInfoLines()
     endif
     " window size: getwininfo(win_getid())
 
-    call s:addl('bufnr: ' . bufnr())
+    call s:addl('bufnr: ' . bufnr('%'))
     call s:addl(UserBufferInfo())
 
     let l:enc = { 'enc': &enc, 'fenc': &fenc }
@@ -991,7 +1043,7 @@ endfunction
 " return some info about the buffer and the current location,
 " a little like 3<C-g>
 function! UserLoc()
-    let l:name = bufname()
+    let l:name = bufname('%')
     if l:name == ''
         " don't bother to duplicate "No name", "Scratch" etc.
         let l:name = '[]'
@@ -1000,7 +1052,7 @@ function! UserLoc()
     let l:lno_end = line('$')
     let l:perc = l:lno_cur * 100 / l:lno_end
     return printf('buf %d: %s %d:%d $ %d --%d%%--',
-        \ bufnr(), l:name, l:lno_cur, col('.'), l:lno_end, l:perc)
+        \ bufnr('%'), l:name, l:lno_cur, col('.'), l:lno_end, l:perc)
 endfunction
 
 
@@ -1255,7 +1307,7 @@ endfunction
 " status line colours than my choices, for example. so far this has not been the
 " case, including both iceberg and lucius.
 function! UserOverrideUiColours()
-    return v:true
+    return 1
 endfunction
 
 "
@@ -1582,7 +1634,7 @@ function! UserApplySyntaxRules()
     " see hl definition of UserHttpURI.
     " canary:
     "https://web.archive.org/web/20010301154434/http://www.vim.org/"
-    if v:false
+    if 0
         https://web.archive.org/web/20010301154434/http://www.vim.org/
     endif
     syntax clear UserHttpURI
@@ -1595,7 +1647,7 @@ endfunction
 
 
 function! UserHS(...)
-    let l:forced = a:0 > 0 && a:1 == v:true
+    let l:forced = a:0 > 0 && a:1 == 1
 
     call UserLog(printf('UserHS winnr=%d forced=%d syn_on=%d'
         \, winnr()
@@ -1718,7 +1770,7 @@ function! UserBufCloseKeepWin()
     " write changes, but autowriteall should do this anyway
     update
     " keep current buffer number, we'll need it later
-    let l:bufnr = bufnr()
+    let l:bufnr = bufnr('%')
     let l:bufnr_alt = bufnr('#')
 
     if l:bufnr_alt != -1
@@ -1767,7 +1819,7 @@ nnoremap Q :call UserBufCloseKeepWin()<cr>
 " prior: https://github.com/AmaiSaeta/capture.vim/blob/master/plugin/capture.vim
 "
 function! UserSpoolEx(cmd)
-    if v:false
+    if 0
         if (&l:readonly || !&l:modifiable)
             echom 'unmodifiable'
             return
@@ -1778,7 +1830,7 @@ function! UserSpoolEx(cmd)
     let l:winid = win_getid()
     let l:winnr = win_id2win(l:winid)
     "echom 'opened' l:winid
-    let l:close = v:true
+    let l:close = 1
     try
         let l:v = UserRun(a:cmd)
         if empty(l:v)
@@ -1790,7 +1842,7 @@ function! UserSpoolEx(cmd)
             " nice to play around/test editing commands.
 
             " everything seems fine, leave window open.
-            let l:close = v:false
+            let l:close = 0
         endif
     catch /^Vim\%((\a\+)\)\=:E21:/
         echom v:exception
@@ -1891,7 +1943,7 @@ function! UserShowSyntaxItems() abort
         echoerr 'need execute()'
         return -1
     endif
-    let l:bufnr = bufnr()
+    let l:bufnr = bufnr('%')
     " execute in current buffer
     let l:syn = execute('syntax list')
     Scratch
@@ -1993,7 +2045,7 @@ imap              <F1>      <Esc><F1>
 " for misconfigured virtual serial lines with putty. better to set
 " TERM=putty-256color before starting (above mappings work then), instead of
 " working under 'vt220' or whatever.
-if v:false
+if 0
     if &term !~# 'putty' && !g:user_has_x11 && !has('gui_running')
         nnoremap <silent> <Esc>[11~  :call UserShowHelp()<cr>
         inoremap <silent> <Esc>[11~  <Esc>:call UserShowHelp()<cr>
@@ -2069,8 +2121,10 @@ inoremap <expr> <silent> <Leader>dU     UserUtcNow()
 "" } - move to end of paragraph
 "" http://www.softpanorama.org/Editors/Vimorama/vim_piping.shtml#Using_vi_as_a_simple_program_generator
 "" http://www.nicemice.net/par/par-doc.var
-""
-nnoremap        <Leader>j     {!}par 78<cr>}
+
+if executable('par')
+    nnoremap        <Leader>j     {!}par 78<cr>}
+endif
 
 " join paragraphs to one line, for sharing.
 " to join paragraph into one line with tr(1) rather than fmt(1) -
@@ -2143,7 +2197,7 @@ endfunction
 " mappings to copy/paste using the X clipboard from tty vim, without resorting
 " to +X11 (vim feature).
 " doc :write_c
-if g:user_has_x11 && has('linux') && !has('gui_running')
+if g:user_has_x11 && has('unix') && !has('gui_running')
     " ttys and bracketed paste cover this well usually
     nnoremap <silent>   <Leader>xp      :call UserReadFromX11Clipboard()<cr>
     " doc i_CTRL-G_u - break undo sequence, start new change
@@ -2323,6 +2377,10 @@ endif
 " trying out insert mode autocomplete with C-X C-U
 " doc i_CTRL-X_CTRL-U
 " doc complete-functions
+function! UserSymCompr(l1, l2)
+    return a:l1[1] == a:l2[1] ? 0 : a:l1[1] > a:l2[1] ? 1 : -1
+endfunction
+
 function! UserSymComplFn(findstart, base) abort
     if a:findstart == 1
         " completion starts at cursor column
@@ -2330,10 +2388,7 @@ function! UserSymComplFn(findstart, base) abort
     elseif a:findstart == 0
         let l:compl = []
         " sort by unicode value (not hash key) of symbol, ascending
-        let l:sorted_pairs = sort(
-            \ items(g:Symbols),
-            \ { l1, l2 -> l1[1]==l2[1]?0:l1[1]>l2[1]?1:-1 }
-            \ )
+        let l:sorted_pairs = sort(items(g:Symbols), 'UserSymCompr')
         for [l:name, l:sym] in l:sorted_pairs
             " 'word': Symbol value, 'menu', Symbol key (description)
             let l:entry = { 'menu': l:name, 'word': l:sym }
@@ -2419,8 +2474,6 @@ command -bar Unfold         normal! zR
 
 command -bar Number         setlocal number relativenumber
 
-"command Patch               setlocal patchmode
-
 command -nargs=1 Ch         set cmdheight=<args>
 
 command -bar -nargs=1 Tw    setlocal textwidth=<args>
@@ -2466,7 +2519,7 @@ command Fnbsp            /[\u202f\ua0]
 
 " WIP/demo; pipe the buffer into some shell command seq, get output into qf.
 " use as: :Ce grep f        [no quoting in the command line]
-command -nargs=+ CexprSystem     :cexpr system(<q-args>, bufnr())
+command -nargs=+ CexprSystem     :cexpr system(<q-args>, bufnr('%'))
 
 
 " use file(1) to determine if fn is a text file
@@ -2474,7 +2527,7 @@ function! UserDetectTextFile(fn)
     if !has('unix') | return -1 | endif
     let l:fnesc = shellescape(a:fn, 1)
     "echom 'passing to file:' l:fnesc
-    silent let l:out = systemlist('/usr/bin/file -b --mime ' . l:fnesc)[0]
+    silent let l:out = system('/usr/bin/file -b --mime ' . l:fnesc)
     if v:shell_error
         echoerr 'file(1) failed, status ' . v:shell_error
         return -2
@@ -2583,7 +2636,7 @@ augroup UserVimRcSyntax
 augroup end
 
 
-if v:false
+if 0
     augroup UserLogAutoEvents
         autocmd!
 
@@ -2623,7 +2676,7 @@ syntax off
 set redrawtime=700 synmaxcol=200
 
 
-if &term ==# 'xterm-direct'
+if &term ==# 'xterm-direct' && has('termguicolors')
     " cterm colour codes shouldn't be used in direct colour mode.
     " use gui colours instead.
     set termguicolors

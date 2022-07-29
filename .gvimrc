@@ -16,9 +16,6 @@ lockvar g:user_default_guicursor
 " blink in almost all cases; no blink in normal mode.
 set guicursor=a:blinkwait500-blinkon600-blinkoff971,v-c:block,n:block-blinkon0,o:hor50,r-cr:hor30,sm:block,i-ci:hor15-blinkwait500-blinkon600-blinkoff971
 
-" ligatures bad
-set guiligatures=
-
 if has('unix') && has('gui_gtk')
     "set guifont=Source\ Code\ Pro\ Light\ 12
     "set guifont=Go\ Mono\ 11
@@ -48,7 +45,8 @@ elseif has('win64')
     " Consolas is missing some reasonable glyphs.
     "let &g:guifont = 'Consolas:h12:cDEFAULT:qCLEARTYPE'
 
-    " Iosevka term has ligatures, fixed doesn't.
+    " Iosevka _term_ has ligatures, _fixed_ doesn't. there's a new
+    " 'guiligatures' option, but gtk-only so far.
     let &guifont = 'Iosevka_Fixed_SS04:h12:cDEFAULT:qCLEARTYPE'
     set renderoptions=type:directx
 endif
@@ -204,12 +202,12 @@ endif
 " and state of the platform. https://github.com/vim/vim/issues/869
 "
 " tangential comment: https://vimhelp.org/syntax.txt.html#%3Ahighlight-normal
-"   When using reverse video ("gvim -fg white -bg black"), the default value
-"   of 'background' will not be set until the GUI window is opened, which is after
-"   reading the gvimrc.
-"   Use :gui, which has its own caveats (-f).
+" When using reverse video ("gvim -fg white -bg black"), the default value of
+" 'background' will not be set until the GUI window is opened, which is after
+" reading the gvimrc.  Use :gui, which has its own caveats (-f).
+
 if has('win32') && &background == 'dark'
     set background=light
 endif
 
-" vim:sts=4:sw=4:et:ai:
+" vim:tw=80 fo=croq:
