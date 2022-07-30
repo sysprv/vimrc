@@ -2086,7 +2086,7 @@ if has('patch-7.4-079')
                                     \ endif<cr>
                                     \<BS>
 else
-    nnoremap    <silent>    :nohlsearch<cr><BS>
+    nnoremap    <silent>    <BS>    :nohlsearch<cr><BS>
 endif
 
 xnoremap    <BS>    x
