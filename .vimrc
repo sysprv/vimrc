@@ -1,14 +1,36 @@
-set nocompatible secure encoding=utf-8 fileencoding=utf-8 nobomb
+set nocompatible
+if version < 704
+    nnoremap    s   <C-w>
+    set list
+    finish
+endif
+set secure encoding=utf-8 fileencoding=utf-8 nobomb
 scriptencoding utf-8
 
-" Last Modified: 2022-07-29
+" Last Modified: 2022-08-31
+"
+" 2022-08-31 fixes to clipboard handling mappings.
+"
+" 2022-08-30 normal mode paste - support both put before and put after.
+" Function + command for running :mkspell! conveniently.
+"
+" 2022-08-26 filetype removed from statusline, added to on-demand buffer info.
+" refactor statusline function.
+"
+" 2022-08-17 indicate on statusline if no swapfile, ref. iVim and iCloud Drive.
+" command (StatusLevel) to easily control how much info the status line shows.
+"
+" 2022-08-16 bring back window size in the statusline.
+"
+" 2022-08-15 disable use of xterm modifyOtherKeys. clean up feature checks and
+" has-patch. (Again) keep swap and undo files in a central directory under
+" ~/.vim.
+"
+" 2022-08-03 color and listchars changes to deal with non-home systems
 "
 " 2022-07-29 Usable with vim 7.x now (uses classic forms of bufnr(),
 " bufname(), system(), globpath() etc.), but quite a bit of extras won't work
 " or will print error messages. Added more checks for nanosecond routines.
-" :language C and :language time C would be nice to do, to get predictable
-" messages and time formatting. but these commands don't work in iVim. and
-" current features like UserDateComment() don't depend on these.
 "
 " 2022-07-28 Added colour overrides for dark backgrounds. For using iVim at
 " night.
@@ -45,10 +67,10 @@ scriptencoding utf-8
 " U+1F7A3) to "-#". The Greek Cross isn't visible and causes rendering issues
 " in iVim (iOS.)
 
-" Long, somewhat disorganized, too large a file, my bonsai project. Lots of
-" barnacles from documentation spelunking and trying various options. Tired now,
-" don't want to touch it for the next 10 years, when it'll be safe to move to
-" vim9script.
+" Long, somewhat disorganized, too large a file, my bonsai project. Includes
+" an unnamed colorscheme. Lots of barnacles from documentation spelunking and
+" trying various options. Tired now, don't want to touch it for the next 10
+" years, when it'll be safe to move to vim9script.
 
 " notes:
 
@@ -63,6 +85,9 @@ scriptencoding utf-8
 " aereal - https://github.com/aereal/dotfiles/tree/main/.vim
 "
 " Akkana - https://github.com/akkana/dotfiles/tree/master/.vim
+"
+" tpope - uses v:vim_did_enter and has('vim_starting')
+" https://github.com/tpope/dotfiles/blob/master/.vimrc
 
 " ! check out $VIMRUNTIME/defaults.vim from time to time.
 
@@ -75,12 +100,12 @@ scriptencoding utf-8
 " that can be remapped. though the vi/vim way is more immediate for the common
 " case.
 
-" ---------------------------------------------
+" ----------------------------------------------------------------------------
 " most insidious: :Next (, :wNext, :cNext etc.)
-" ---------------------------------------------
+" ----------------------------------------------------------------------------
 " does the same thing as :previous, yet is shaped like the opposite of :prev.
 " light dawns when you notice that :Next is :(<shift>n)ext, "inverted" :next.
-" looks like a user-defined command, isn't.
+" looks like a user-defined command, isn't. and poor :Print can be overridden.
 " doc: user-cmd-ambiguous
 
 " vim settings like backupskip and spelllang should be sets, instead of
@@ -129,6 +154,10 @@ scriptencoding utf-8
 
 " list all augroups - :augroup<cr>
 
+" insert a null ("^@"): <C-v>10 ; doc: i_CTRL-V_digit. f.ex. [i] a<C-v>10z.
+
+" from visual mode go to insert mode: I
+
 " debug log: vim -V16vdbg; block buffered; use echom to add markers.
 "   verbosity level 10: autocommands; 12: function calls.
 "   verbosity can interfere/leak in various places; when redirecting
@@ -172,24 +201,35 @@ let g:loaded_logiPat = 1
 " are meant to be pulled in only when the user has no .vimrc. this seems to
 " interfere with jumping to the last location on some files.
 "
-" at least the worst is in a named augroup. viml parsing is extra picky
-" with au/aug. autocmd_delete() isn't available on deathrow rhel boxen.
-" distributions use various augroup names. debian doesn't add augroups,
-" thankfully. augroup listing is inconvenient.
+" at least the worst is in a named augroup. viml parsing is extra picky with
+" au/aug (re-opening an augroup just to do autocmd! and then having <aug>
+" END). autocmd_delete() isn't available on deathrow rhel boxen. distributions
+" use various augroup names. debian doesn't add augroups, thankfully. augroup
+" listing in viml is incomplete (:verbose augroup is no different from
+" :augroup).
+"
+" even a single-line execute combining auto! with augr! with a bar doesn't work
+" in some old vim versions.
 
-if exists('#fedora')
-    augroup fedora
-    autocmd!
-    augroup END
-    augroup! fedora
-endif
-if exists('#redhat')
-    augroup redhat
-    autocmd!
-    augroup END
-    augroup! redhat
-endif
+function! UserRemoveVendorAugroups()
+    for l:vnd_aug in ['fedora', 'redhat']
+        if exists('#'.l:vnd_aug)
+            " defang
+            execute 'autocmd!' l:vnd_aug
+            " delete empty group
+            execute 'augroup!' l:vnd_aug
+        endif
+    endfor
+endfunction
+
+call UserRemoveVendorAugroups()
+
 " }}}
+
+" for mbbill/undotree - wide diff window
+let g:undotree_WindowLayout = 2
+let g:undotree_ShortIndicators = 1
+let g:undotree_HelpLine = 0
 
 if has('unix') && exists('*exepath')
     if !empty(exepath('/bin/dash'))
@@ -202,6 +242,13 @@ endif
 if executable('rg')
     let &grepprg = 'rg --vimgrep --no-heading --smart-case'
 endif
+
+
+" important for UserDateComment (language ctime)
+if has('win64')
+    language en_US.UTF-8
+endif
+
 
 " journalled filesystems, SSD/NVMe/SD cards. fsync is complex these days, it's
 " not clear that vim does everything that's needed.
@@ -227,6 +274,15 @@ filetype on
 
 " 2022-07-16 selective syntax highlighting no longer in use
 
+" ----
+
+
+function! UserTermPrimitive()
+    let l:term = &term
+    return l:term ==# 'linux' || l:term ==# 'win32'
+endfunction
+
+
 " U+21B3 - DOWNWARDS ARROW WITH TIP RIGHTWARDS
 let g:user_showbreak_char = '↳'
 lockvar g:user_showbreak_char
@@ -234,10 +290,26 @@ lockvar g:user_showbreak_char
 let g:user_has_x11 = exists('$DISPLAY')
 lockvar g:user_has_x11
 
-" fence, guard; defend; idle time
-let g:user_mark = nr2char(0x95F2)
-if &term ==# 'linux' | let g:user_mark = '0' | endif
+let g:user_mark = '_'
+if !UserTermPrimitive()
+    " fence, guard; defend; idle time
+    let g:user_mark = nr2char(0x95F2)
+endif
 lockvar g:user_mark
+
+" would like to stick to the default behaviour of keeping undo files in the
+" same dir; but breaks badly on iOS when editing files on iCloud Drive.
+"
+" with centralised undo files, vim will automaticall use the fill filename
+" with % as separators as the undofile name - does not need trailing slashes
+" the way 'directory' does.
+let g:user_undo_dir = expand('~/.vim/var/un')
+lockvar g:user_undo_dir
+
+" ditto; shouldn't have any trailing slashes.
+let g:user_swap_dir = expand('~/.vim/var/swap')
+lockvar g:user_swap_dir
+
 
 if !exists('$PARINIT')
     let $PARINIT = "rTbgqR B=.,?'_A_a_@ Q=_s>|#"
@@ -245,6 +317,8 @@ endif
 
 
 " it's fine. incsearch can be an unwelcome surprise over ssh.
+" it's a nice aid when writing regex, but doesn't compose well the way
+" :global does.
 set noincsearch
 
 " setting 'ignorecase' can be surprising.
@@ -253,8 +327,21 @@ set noincsearch
 set noignorecase
 set hlsearch
 set noshowmatch
-set noerrorbells
+
+" curse god and walk backwards to 1976; speechless at the number of bells
+" they've stuck in here. a side effect of audio not working on linux?
+set noerrorbells novisualbell
+if exists('&belloff')
+    set belloff=all
+endif
+
+" would be nice to see only partial commands, but 'showcmd' is too overloaded,
+" for example visual mode selected char count display switching without
+" indication to selected line count. the jumping cursor and redrawing is
+" noticeable on slow Windows environments (VMware, large screen, underpowered
+" graphics.)
 set showcmd
+
 " doc fo-table
 set formatoptions=t
 " leave only one space after ./?/! when joining
@@ -267,22 +354,39 @@ set backup backupdir=~/.backup
 " backupskip is a list of patterns - beware of ignorecase.
 set backupskip+=COMMIT_EDITMSG,NOTES-*.txt
 
-" 'directory' - we used to set the swapfile location to a central place, it
-" seemed like a good idea, but keeping it near the file being edited is better
-" when editing from different hosts.
-set directory=. swapfile updatecount=10
-" to see current swap file path: ':sw[apfile]' / swapname('%')
+
+function! UserMkdirOnce(dir)
+    if !isdirectory(a:dir)
+        call mkdir(a:dir, 'p', 0700)
+    endif
+endfunction
+
+
+" setup 'directory'.
+"
+" trailing '//' -> '%' as path separators has been possible since vim 5.4:
+" version5.txt:3726 /New variation for naming swap files:/
+"
+if has('unix') || has('win32')
+    call UserMkdirOnce(g:user_swap_dir)
+    let &directory = g:user_swap_dir . '//'
+endif
+set swapfile updatecount=10
+" to see current swap file path: ':sw[apname]' / swapname('%')
+
 if has('persistent_undo')
-    " we used to keep all undo files under ~/.vim_undo; fill path with the
-    " % thing in filenames.
-    " now we keep undo files in the same directory as the file, as .<file>.un~
-    set undofile undodir=. undolevels=200
+    call UserMkdirOnce(g:user_undo_dir)
+    let &undodir = g:user_undo_dir
+    set undofile undolevels=1000
 endif
 
 " mapleader is a variable, not a setting; no &-prefix
 let g:mapleader = ','
-" hide search wrap and file written messages
-" shortmess "f", "w" are nice, so not adding "a"
+
+" "f", "w" are nice, so not adding "a". "s" ('terse') and "S" are also useful.
+"
+" vim's generally helpless in the face of long file names. important to maintain
+" a good cwd, to not get the noisy hit ENTER prompts.
 set shortmess+=i
 set shortmess+=l
 set shortmess+=m
@@ -292,7 +396,7 @@ set shortmess+=x
 set shortmess+=o    " since we use 'autowriteall'
 set shortmess+=W    " don't show "written"/"[w]"
 set shortmess+=I    " hide intro
-if has('patch-7.4-314')
+if has('patch-7.4.314')
     set shortmess+=c    " hide ins-complete-menu messages
 endif
 
@@ -305,7 +409,7 @@ set selectmode=
 set laststatus=2
 
 " disabling 'ruler' makes 3<C-g> print more info.
-set ruler rulerformat=%=%M\ %{g:user_mark}
+set noruler rulerformat=%=%M\ %{g:user_mark}
 set showmode
 " never changing tabstop again
 set tabstop=8 shiftwidth=8 softtabstop=8 noexpandtab
@@ -325,7 +429,7 @@ set whichwrap=<,>
 " annoying. have seen 'undeletable' (x doesn't work) tabs.
 set autoindent
 set colorcolumn=+1
-set nolinebreak
+
 " showbreak's troublesome in X11 ttys, when selecting purely with the mouse.
 " will be fine using visual mode/line numbers and the xsel(1) integration
 " mappings and commands further below.
@@ -346,11 +450,11 @@ set cpoptions+=n
 set cpoptions-=a
 set cpoptions-=A
 
-set scrolloff=2
+set scrolloff=2 scrolljump=5
 set cmdheight=1
 "set cursorlineopt=number,screenline cursorline
 "set confirm
-set autoread autowriteall
+set autoread autowrite autowriteall
 set hidden
 set matchpairs+=<:>,«:»,｢:｣
 
@@ -358,13 +462,13 @@ set matchpairs+=<:>,«:»,｢:｣
 " can disable if exists('$SSH_CONNECTION') && !g:user_has_x11
 
 set endofline
-if has('patch-7.4-794')
+if exists('+fixendofline')
     set fixendofline
 endif
-if has('patch-7.4-2236')
+if exists('&langremap')
     set nolangremap
 endif
-if has('patch-8.1-1366')
+if exists('&modelineexpr')
     set nomodelineexpr
 endif
 
@@ -373,11 +477,12 @@ set wildmenu
 set wildmode=list:longest,list
 set wildignorecase
 " don't complete swap, undo files and others.
-set wildignore=.*.swp,.*.un~,*.pyc
+set wildignore+=.*.swp,.*.un~,*.pyc
+set suffixes+=.pyc
 
 " viminfo: don't save registers.
 set viminfo='100,<0,s0,h,r/tmp
-if exists('$TMPDIR') && $TMPDIR !=# '/tmp'
+if exists('$TMPDIR') && ($TMPDIR !=# '/tmp')
     execute 'set viminfo+=r' . $TMPDIR
 endif
 
@@ -389,12 +494,12 @@ set virtualedit=block
 " but also takes up a lot of space.
 "set number relativenumber
 
-set switchbuf=split splitbelow splitright
-
-if version >= 801 && has('patch-8.1-360')
-    set diffopt+=indent-heuristic
-    set diffopt+=algorithm:patience
-endif
+" but never newtab; maybe split.
+set switchbuf=useopen,usetab
+set splitbelow splitright
+" 'equalalways' is default on; that's nice for vertical splits, don't want
+" it with horizontal splits.
+set eadirection=hor
 
 " if not gvim, do not connect to X; can slow down startup.
 " doesn't seem to be a problem on fedora, vim-enhanced doesn't have +X11
@@ -419,11 +524,22 @@ if v:version >= 900
 
     " use NFA regexp engine?
     "set regexpengine=2
+
+    set diffopt+=indent-heuristic
+    set diffopt+=algorithm:patience
 endif
 
+
 " echom's untenable for even print debugging.
+" do log if file exists; touch file == enable logging
+let g:user_log_file = expand('~/.vimlog')
+lockvar g:user_log_file
+let g:user_log_enabled = filewritable(g:user_log_file)
+lockvar g:user_log_enabled
+
 function! UserLog(...) abort
-    let l:enabled = 0
+    " log when either our own file exists, or if verbose is enabled
+    let l:enabled = g:user_log_enabled
     if !l:enabled && (&verbose == 0)
         return
     endif
@@ -456,7 +572,7 @@ function! UserLog(...) abort
     let l:logmsg = l:t . ' ' . l:msg . "\t" . l:stack
 
     if l:enabled
-        let l:fn = expand('~/.vimlog')
+        let l:fn = g:user_log_file
         try
             call writefile([l:logmsg], l:fn, 'a')
         catch /^Vim\%((\a\+)\)\=:E/
@@ -479,6 +595,21 @@ endfunction
 
 function! UserRuntimeHas(pathspec)
     return globpath(&runtimepath, a:pathspec) != ''
+endfunction
+
+
+" termguicolors - accept only if turned on.
+function! UserCanUseGuiColours()
+    return has('gui_running') || (has('termguicolors') && &termguicolors)
+endfunction
+
+" t_Co might be undefined sometimes
+function! User256()
+    return exists('&t_Co') && &t_Co >= 256
+endfunction
+
+function! UserCanLoadColorscheme()
+    return UserCanUseGuiColours() || User256()
 endfunction
 
 
@@ -522,60 +653,30 @@ endfunction
 " doc 'listchars'
 " By default listchars has eol:$ ; this case and trail: are covered by
 " the trailing whitespace highlighting.
-" These don't show up on the linux console of course, sometimes
-" not even with Windows/PuTTY. But the replacement/fallback characters
-" serve well enough.
+"
 " Test nbsp with AltGr+Space.
-" 'list' can be cumbersome depending on the choice for tabs.
 "
 " tab: U+00BB and a space; if 2nd char isn't space, cumbersome/ugly.
 "   hl: SpecialKey
-" precedes: U+2039 single left-pointing angle quotation mark
-"   hl: NonText
-" extends: U+203A single right-pointing angle quotation mark
-"   hl: NonText
-" nbsp: ordinary underscore
-"   hl: SpecialKey
-"   'list' nbsp catches both U+00A0 and U+202F.
 "
 " not being able to exclude 'tabs' from listchars really seems to
 " favour 'expandtabs' ... ?
 "
-" i'd like special highlighting for nbsp and Normal highlight for tab, but
-" both use SpecialKey.
-"
-" U+263A WHITE SMILING FACE / cp437 char 0x1
-
-function! UserListchars(incltabs) abort
-    let l:lcs = UserCoCoToDict(&listchars)
-    " our defaults
-    let l:lcs.nbsp = '☺'
-    let l:lcs.precedes = '<'
-    let l:lcs.extends = '>'
-
-    " unicode control pictures - never very legible, but enough to indicate
-    " that something's there.
-
-    " trail:
-    " trailing spaces will be shown by the pattern in UserMatchAdd().
-    " U+2420 SYMBOL FOR SPACE
-    " let l:lcs.trail = '␠'
-
-    " eol:
-    " U+2424 SYMBOL FOR NEWLINE
-    " U+21B2 DOWNWARDS ARROW WITH TIP LEFTWARDS - parity with g:user_showbreak_char
-    let l:lcs.eol = '↲'
-
-    " tab:
-    " by default, show (effectively hide) tabs using plain spaces.
-    " the default "^I" is horrendous.
-    " highlighting (SpecialKey) is still applied.
-    let l:lcs.tab = "\u20\u20"
-    if a:incltabs
-        " U+2409 SYMBOL FOR HORIZONTAL TABULATION
-        " U+2192 RIGHTWARDS ARROW
-        let l:lcs.tab = '→·'
+function! UserListchars(lcs_idx, exst) abort
+    let l:lcs = {}
+    if type(a:exst) == 4        " a dict
+        let l:lcs = a:exst
+    elseif type(a:exst) == 1    " a string
+        let l:lcs = UserCoCoToDict(a:exst)
     endif
+
+    let l:lcs_choice = g:user_lcs[a:lcs_idx]
+
+    call extend(l:lcs, l:lcs_choice)
+
+    " cool new functionality: remove lcs attributes that have been
+    " set to 'NONE'.
+    call filter(l:lcs, "v:val !=# 'NONE'")
 
     return UserDictToCoCo(l:lcs)
 endfunction
@@ -626,9 +727,14 @@ function! UserSetupFillchars()
         "   (outdated: F804, DEC VT GRAPHICS HORIZONTAL LINE SCAN 9)
         " https://graphemica.com/blocks/miscellaneous-technical/page/3
 
-        " 2022-07-26 using StatusLineNC more instead of fillchars.
-        if 0 && has('patch-8.2.2569')
+        " touchy; use pretty fancy chars only if we're reasonably free to.
+        " but really, it's important - fully coloured statuslines seem bloated.
+        "
+        " 2022-09-04 on ultrawide monitors with slow VMware graphics, stl/stlnc
+        " can cause windows gvim to crash.
+        if 0 && has('patch-8.2.2569') && UserCanLoadColorscheme()
             " BOX DRAWINGS LIGHT HORIZONTAL
+            " maybe em dash instead?
             let l:hrz = nr2char(0x2500)
             let l:fcs.stl = l:hrz
             let l:fcs.stlnc = l:hrz
@@ -645,7 +751,48 @@ endfunction
 " overrides.
 let &fillchars = UserSetupFillchars()
 
-let &listchars = UserListchars(0)
+
+" keep listchars in top-level data structures so that i can mess with them
+" easily.
+"
+" for win32 and X11 with a good font:
+" eol: U+21B2 DOWNWARDS ARROW WITH TIP LEFTWARDS
+"   parity with g:user_showbreak_char
+" nbsp: U+263A WHITE SMILING FACE (mocking)
+" tab: U+2192 RIGHTWARDS ARROW  + U+2014 EM DASH
+"   other: interpunct
+"   other: U+2409 SYMBOL FOR HORIZONTAL TABULATION
+"   tabs can be hidden by setting value to "\u20\u20", but showing is more
+"   useful.
+" trail: trailing spaces
+"   other: ␠  U+2420 SYMBOL FOR SPACE
+
+" bug/inconsistency in vim - it's possible to set showbreak=NONE, but not set
+" listchars=eol:NONE etc.; here we use NONE, because UserListchars() knows how
+" to deal with it. this has the effect of unsetting eol even if the previous
+" listchars defined it.
+"
+" these are most troublesome chars, displaying eol is usually just an immense
+" amount of clutter.
+
+"let user_lcs_p = UserCoCoToDict('eol:NONE,nbsp:☺,tab:→ ,trail:_')
+" U+21E5 RIGHTWARDS ARROW TO BAR
+"let user_lcs_p = UserCoCoToDict('eol:NONE,nbsp:☺,tab:⇥ ,trail:_')
+" guiellemet right - awkward but legible
+"let user_lcs_p = UserCoCoToDict('eol:NONE,nbsp:☺,tab:»>,trail:_')
+" it's important to make the whole tab visible, without using spaces,
+" to clearly separate it from actual spaces.
+let user_lcs_p = UserCoCoToDict('eol:NONE,nbsp:☺,tab:/>,trail:_')
+
+let user_lcs_def = UserCoCoToDict('eol:↲,extends:>,nbsp:☺,precedes:<,tab:/>,trail:_')
+
+" for the linux console or old X bitmap fonts:
+let user_lcs_ascii = UserCoCoToDict('eol:$,extends:>,nbsp:^,precedes:<,tab:/>,trail:_')
+let user_lcs = [user_lcs_def, user_lcs_p, user_lcs_ascii]
+
+" set initial value, starting with nothing (the empty dict parameter)
+let &listchars = UserListchars( UserTermPrimitive() ? 2 : 1, {} )
+set list
 
 "-- doc 'statusline'
 " should allow three vertical splits.
@@ -699,16 +846,41 @@ let &listchars = UserListchars(0)
 function! UserStLnBufModStatus()
     let l:m = ''
     " NB attribute check order
-    if &modified    | let l:m .= '+'    | endif
-    if !&modifiable | let l:m .= '-'    | endif
+    if &modified    | let l:m .= '+'        | endif
+    if !&modifiable | let l:m .= '-'        | endif
+
     " if neither modified nor unmodifiable:
-    if empty(l:m)   | let l:m .= 'f'    | endif
-    if &readonly    | let l:m .= '.ro'  | endif
+    if empty(l:m)   | let l:m .= '_'        | endif
+
+    if &readonly    | let l:m .= '.ro'      | endif
+
+    " normal buffer without a swapfile - warn
+    if &buftype == '' && (!&swapfile || (&updatecount == 0))
+        let l:m .= '.!swf'
+    endif
     return l:m
 endfunction
 
+" if in paste mode, indicate that and not just the fact that paste mode
+" temporarily forces textwidth to 0.
 function! UserStLnTextWidth()
     return &paste ? '!P' : &textwidth
+endfunction
+
+function! UserStLnFenc()
+    let l:s = ''
+    if &fileencoding !=# 'utf-8'
+        let l:s = 'fenc:' . &fileencoding
+    endif
+    return l:s
+endfunction
+
+function! UserStLnFf()
+    let l:s = ''
+    if &fileformat !=# 'unix'
+        let l:s = 'ff:' . &fileformat
+    endif
+    return l:s
 endfunction
 
 " tried prev: if fillchars has 'stl', use hl Normal between the buffer
@@ -732,17 +904,125 @@ endfunction
 "   d[f] == quiescent, no unwritten changes, finalised -> delta? false.
 "
 
-" gather up buffer info into one function - to execute in a single %{}.
-" Using printf for chit-chat.
+" gather up buffer info into one function - to execute in a single %{}. should
+" usually go inside a matching pair of separators like []. other statusline
+" flags like %W should go after this.
 function! UserStLnBufFlags()
-    return printf('tw%s d[%s] ft[%s]',
-        \ UserStLnTextWidth(),
-        \ UserStLnBufModStatus(),
-        \ &filetype)
+    let l:l = [ UserStLnBufModStatus() ]
+    call add(l:l, UserStLnTextWidth())
+    call add(l:l, UserStLnFenc())
+    call add(l:l, UserStLnFf())
+
+    " erase numbers that are 0, erase empty strings
+    call filter(l:l, "v:val != 0 || v:val !=# ''")
+    return join(l:l, ',')
 endfunction
 
-" use :execute to evaluate g:user_mark once, instead of in another %{}.
-execute 'set statusline=%<%f\ b%n%#StatusLineNC#\ %{UserStLnBufFlags()}%w%=\ '.g:user_mark.'\ '
+" NB last double quote starts a comment and preserves the trailing space.
+" vim indicates truncated names with a leading '<', so using something else
+" around %f/%t.
+set statusline=%n%<\ [%{UserStLnBufFlags()}%W%H]\ [%5l:%4c]%#StatusLineNC#\ %.30f%=\ %{g:user_mark}\ "
+
+" it's nice to see the the window size. or, the width.
+"
+" info display levels:
+"   > 1     buffer flags
+"   > 2     filename (tail)
+"   > 3     line:columns
+"   > 4     window width
+"   > 5     window height
+"
+" touching a myriad bits of state with disdain. non-trivial to cache.
+"
+if has('patch-8.1.1372')
+    function! UserStatusLine()
+        if !exists('g:user_statusline_level')
+            let g:user_statusline_level = 3
+        endif
+
+        " 2022-09-05 we can bump up the level depending on the window count
+        " or buffer count. but really, the buffer name becomes necessary very
+        " often.
+
+        let l:lvl = g:user_statusline_level
+
+        let l:stlparts = {}
+        " * buffer number
+        let l:stlparts[0] = "%n%<"
+
+        " if more than one window, show bufname regardless of level
+        if l:lvl > 1
+            " *** buffer flags
+            let l:stlparts[20] = " [%{UserStLnBufFlags()}%W%H]"
+
+            if l:lvl > 2
+                " ****** buffer name - after everything else
+                let l:stlparts[900] = " %.30f"
+
+                if l:lvl > 3
+                    " **** line:column
+                    " padded to reduce jank; virtual/screen column can be seen
+                    " by UserLoc() / C-g; %V is extreme jank. whether %c can be
+                    " replaced by %v - depends, i guess.
+
+                    let l:stlparts[30] = " [%5l:%4c]"
+
+                    if l:lvl > 4
+                        " ***** current window width
+                        let l:w = g:statusline_winid
+                        let l:stlparts[40] = " ｢" . winwidth(l:w)
+
+                        if l:lvl > 5
+                            " ***** current window height
+                            let l:stlparts[40] .= "x" . winheight(l:w) . "｣"
+                        endif
+                    endif
+                endif
+            endif
+        endif
+
+        "let l:stlparts[70] = " r%{v:register}"
+
+        " if fillchars has stl/stlnc, make the rest effectively invisible
+        let l:stlparts[80] = &fillchars =~# 'stl' ? "%#Normal#" : "%#StatusLineNC#"
+
+        let l:stlparts[1000] = "%= " . g:user_mark . " "
+
+        let l:s = ''
+        for l:key in sort(keys(l:stlparts), 'N')
+            let l:s .= l:stlparts[l:key]
+        endfor
+
+        return l:s
+    endfunction
+    set statusline=%!UserStatusLine()
+
+    " UI support for easily setting info level
+    function! UserStatusLevel(lvl)
+        let l:lvl = 3
+        if exists('g:user_statusline_level')
+            let l:lvl = g:user_statusline_level
+        endif
+
+        if type(a:lvl) == 1     " string
+            if a:lvl ==# '+'
+                let l:lvl = l:lvl + 1
+            elseif a:lvl ==# '-'
+                let l:lvl = l:lvl - 1
+            else
+                let l:lvl = str2nr(a:lvl)
+            endif
+        elseif type(a:lvl) == 0 " number
+            let l:lvl = a:lvl
+        endif
+
+        let g:user_statusline_level = l:lvl
+        redrawstatus!
+    endfunction
+
+    command -bar -nargs=1 StatusLevel   call UserStatusLevel(<f-args>)
+    command -bar -nargs=1 SL            call UserStatusLevel(<f-args>)
+endif   " has patch-8.1.1372
 
 " -- enough now.
 
@@ -752,19 +1032,16 @@ execute 'set statusline=%<%f\ b%n%#StatusLineNC#\ %{UserStLnBufFlags()}%w%=\ '.g
 "   preview: :pedit <file>
 "   :setl modified nomodifiable readonly
 
-" the tabline doesn't update itself in the same way the statusline does.
+" 2022-08-17 tried using the tabline as an extension of the statusline a few
+" times now, still hasn't felt right.
+"
+" the tabline doesn't update itself in the same way the statusline does. i
+" don't use tab pages, but the tabline can be useful with long filenames.
+" this way, the statusline can contain just window-specific info, with
+" buffer-specifics in the tabline.
 
-" old yak-shaving: if g:statusline_winid available (has('patch-8.1.1372')),
-" include window number in statusline. this variable's made available only in
-" statusline functions.
-"
-" winnr = win_id2win(g:statusline_winid)
-"
-" 2022-07-07 drop the window number; never needed it. and, with only one level
-" of interpretation (not reinterpreting the return value of the statusline
-" function, the statusline should be faster.
-"
-" doc patches-8
+"set tabline=%n\ '%.50f'\ %{UserStLnBufFlags()}%W%H\ %=\ %{g:user_mark}\ "
+"set showtabline=0
 
 
 function! UserDateTimeComment()
@@ -868,17 +1145,17 @@ function! UserUtcNow()
 endfunction
 
 
-" Run a vim command with output redireced to a variable.
-" Compatible with vim versions that don't have the execute() function.
+" Run a vim command with output redireced to a variable.  Compatible with vim
+" versions that don't have the execute() function.
 "
-" Modifies verbosity temporarily - otherwise the verbose log messages
-" leak into the redirection.
-" prepending 0verbose to cmd or setting verbosefile doesn't seem to prevent
-" verbose messages ending up in l:val.
-" running commands like 'verbose map' still works.
+" Modifies verbosity temporarily - otherwise the verbose log messages leak
+" into the redirection. prepending 0verbose to cmd or setting verbosefile
+" doesn't seem to prevent verbose messages ending up in l:val. running
+" commands like 'verbose map' still works.
 "
-" sandbox is too strict, prevents useful commands like 'au'.
-" hard to get side effects right with destructive commands. caveat emptor.
+" sandbox is too strict, prevents useful commands like 'au'. hard to get side
+" effects right with destructive commands. caveat emptor.
+
 function! UserRun(cmd)
     let l:verbosity = &verbose
     if l:verbosity != 0
@@ -910,11 +1187,6 @@ function! UserAlert(lines)
     if has('popupwin')
         let l:opts = UserPopupNotfOpts()
         call popup_notification(a:lines, l:opts)
-    else
-        " put all the info into a new scratch buffer that can be dismissed
-        " easily
-        Scratch
-        call append(0, a:lines)
     endif
 endfunction
 
@@ -931,9 +1203,10 @@ endfunction
 
 
 function! UserBufferInfo()
-    let l:bufp = { 'ai': &ai, 'et': &et, 'fo': &fo, 'sts': &sts, 'sw': &sw,
-        \ 'ts': &ts, 'tw': &tw, 'lbr': &lbr }
-    return UserDictToStr(l:bufp)
+    let l:bufp = { 'ai': &ai, 'et': &et, 'fo': &fo, 'ft': &ft,
+        \ 'sts': &sts, 'sw': &sw,
+        \ 'ts': &ts, 'tw': &tw }
+    return bufnr('%').': '.UserDictToStr(l:bufp)
 endfunction
 
 
@@ -945,6 +1218,8 @@ endfunction
 " unicode name lookup.
 " previously, lookup via https://ucdapi.org/unicode/10.0.0/codepoint/hex/
 " now, python3 has more recent UCD data.
+"
+" unicodedata doesn't have names for control characters.
 function! UserScreenCharLookup() abort
     let l:screen_char = UserGetScreenChar()
     if l:screen_char ==# ''
@@ -955,14 +1230,104 @@ python3 << PYEOF
 import unicodedata
 import vim
 
+# the curses.ascii module is often missing on non-unix platforms, for
+# no good reason. included inline here.
+
+# begine most of python 3.10 curses.ascii
+
+"""Constants and membership tests for ASCII characters"""
+
+controlnames = [
+    "NUL", "SOH", "STX", "ETX", "EOT", "ENQ", "ACK", "BEL",
+    "BS",  "HT",  "LF",  "VT",  "FF",  "CR",  "SO",  "SI",
+    "DLE", "DC1", "DC2", "DC3", "DC4", "NAK", "SYN", "ETB",
+    "CAN", "EM",  "SUB", "ESC", "FS",  "GS",  "RS",  "US",
+    "SP"
+]
+
+def _ctoi(c):
+    if type(c) == type(""):
+        return ord(c)
+    else:
+        return c
+
+def isalnum(c): return isalpha(c) or isdigit(c)
+def isalpha(c): return isupper(c) or islower(c)
+def isascii(c): return 0 <= _ctoi(c) <= 127          # ?
+def isblank(c): return _ctoi(c) in (9, 32)
+def iscntrl(c): return 0 <= _ctoi(c) <= 31 or _ctoi(c) == 127
+def isdigit(c): return 48 <= _ctoi(c) <= 57
+def isgraph(c): return 33 <= _ctoi(c) <= 126
+def islower(c): return 97 <= _ctoi(c) <= 122
+def isprint(c): return 32 <= _ctoi(c) <= 126
+def ispunct(c): return isgraph(c) and not isalnum(c)
+def isspace(c): return _ctoi(c) in (9, 10, 11, 12, 13, 32)
+def isupper(c): return 65 <= _ctoi(c) <= 90
+def isxdigit(c): return isdigit(c) or \
+    (65 <= _ctoi(c) <= 70) or (97 <= _ctoi(c) <= 102)
+def isctrl(c): return 0 <= _ctoi(c) < 32
+def ismeta(c): return _ctoi(c) > 127
+
+def ascii(c):
+    if type(c) == type(""):
+        return chr(_ctoi(c) & 0x7f)
+    else:
+        return _ctoi(c) & 0x7f
+
+def ctrl(c):
+    if type(c) == type(""):
+        return chr(_ctoi(c) & 0x1f)
+    else:
+        return _ctoi(c) & 0x1f
+
+def alt(c):
+    if type(c) == type(""):
+        return chr(_ctoi(c) | 0x80)
+    else:
+        return _ctoi(c) | 0x80
+
+def unctrl(c):
+    bits = _ctoi(c)
+    if bits == 0x7f:
+        rep = "^?"
+    elif isprint(bits & 0x7f):
+        rep = chr(bits & 0x7f)
+    else:
+        rep = "^" + chr(((bits & 0x7f) | 0x20) + 0x20)
+    if bits & 0x80:
+        return "!" + rep
+    return rep
+
+# end python 3.10 curses.ascii
+
 screen_char = vim.eval('screen_char')
-u_name = unicodedata.name(screen_char)
+
+if len(screen_char) == 1 and \
+    unicodedata.category(screen_char) == 'Cc' and \
+    isctrl(screen_char) and \
+    ord(screen_char) < len(controlnames):
+    u_name = controlnames[ord(screen_char)] + \
+        ' (' + unctrl(screen_char) + ')'
+elif screen_char == "\x7f":
+    u_name = 'DEL (' + unctrl(screen_char) + ')'
+else:
+    try:
+        u_name = unicodedata.name(screen_char)
+    except ValueError:
+        # exception just says "no such name"
+        u_name = '(UNKNOWN)'
+
+b = screen_char.encode('utf8')
+# utf8_hex = b.hex()
+utf8_hex = ' '.join([ '%x' % x for x in b ])
 
 PYEOF
 
     let l:u_name = py3eval('u_name')
-    let l:fmt = printf('''%s'' U+%04X %s',
-        \ l:screen_char, char2nr(l:screen_char), l:u_name)
+    " like g8
+    let l:utf8_hex = py3eval('utf8_hex')
+    let l:fmt = printf('''%s'' U+%04X %s; UTF-8: %s',
+        \ strtrans(l:screen_char), char2nr(l:screen_char), l:u_name, l:utf8_hex)
     return l:fmt
 endfunction
 
@@ -982,38 +1347,38 @@ function! UserSyntaxNamesAtCursor() abort
 endfunction
 
 
+function! UserCurWinSz()
+    if !exists('*win_getid')
+        return []
+    endif
+    " also getwininfo()
+    let l:winid = win_getid()
+    if l:winid == 0
+        return []
+    endif
+    return [ l:winid, winwidth(l:winid), winheight(l:winid) ]
+endfunction
+
+command WinSize     echo UserCurWinSz()
+
+
 function! UserGetInfoLines()
     let l:lines = []
 
-    function! s:addl(ln) closure
-        call add(l:lines, a:ln)
-    endfunction
+    call add(l:lines, UserBufferInfo())
 
     " window info
-    let l:win = 'wnd: ' . winnr()
-    if exists('*win_getid')
-        let l:win .= ', id ' . win_getid()
-    endif
-    " window size: getwininfo(win_getid())
+    let l:win = 'wnd: ' . winnr() . ' ' . string(UserCurWinSz())
+    call add(l:lines, l:win)
 
-    call s:addl('bufnr: ' . bufnr('%'))
-    call s:addl(UserBufferInfo())
-
-    let l:enc = { 'enc': &enc, 'fenc': &fenc }
-    call s:addl(UserDictToStr(l:enc))
-
-    " let l:bufp_misc = { 'filetype': &ft, 'syntax': &syn }
-    " call s:addl(UserDictToStr(l:bufp_misc))
-
-    " this was nice while debugging colour/term issues
-    " let l:t_co = 't_Co=' . &t_Co
-    " call s:addl(l:t_co)
+    let l:enc = { 'enc': &enc, 'fenc': &fenc, 'tenc': &termencoding }
+    call add(l:lines, UserDictToStr(l:enc))
 
     " syntax groups under the cursor, if any
     let l:syn_cur = 'syn: ' . join(UserSyntaxNamesAtCursor(), ' ')
-    call s:addl(l:syn_cur)
+    call add(l:lines, l:syn_cur)
 
-    call s:addl('matches (pat. hl.): ' . len(getmatches()))
+    call add(l:lines, 'matches (pat. hl.): ' . len(getmatches()))
 
     " include some info about the char under the cursor.
     " don't need chrisbra/unicode.vim any longer.
@@ -1027,15 +1392,14 @@ function! UserGetInfoLines()
             let l:char_info = strpart(l:char_info, 1)
         endif
     endif
-    call s:addl('--')
-    call s:addl(l:char_info)
+    call add(l:lines, '--')
+    call add(l:lines, l:char_info)
 
     " reminders, which have to be manually maintained for now.
     " damian conway has his own documented mappings; not yet worth the trouble.
-    call s:addl('--')
-    call s:addl('g;    g,')
+    call add(l:lines, '--')
+    call add(l:lines, 'g;    g,')
 
-    delfunction s:addl
     return l:lines
 endfunction
 
@@ -1044,15 +1408,11 @@ endfunction
 " a little like 3<C-g>
 function! UserLoc()
     let l:name = bufname('%')
-    if l:name == ''
-        " don't bother to duplicate "No name", "Scratch" etc.
-        let l:name = '[]'
-    endif
     let l:lno_cur = line('.')
     let l:lno_end = line('$')
     let l:perc = l:lno_cur * 100 / l:lno_end
-    return printf('buf %d: %s %d:%d $ %d --%d%%--',
-        \ bufnr('%'), l:name, l:lno_cur, col('.'), l:lno_end, l:perc)
+    return printf('buf %d: "%s" %d:%d (%d) $ %d --%d%%--',
+        \ bufnr('%'), l:name, l:lno_cur, col('.'), virtcol('.'), l:lno_end, l:perc)
 endfunction
 
 
@@ -1060,10 +1420,18 @@ endfunction
 " otherwise, function return value will be appended to the buffer.
 " doc :map-expression
 function! UserShowHelp()
-    let l:lines = UserGetInfoLines()
-    call UserAlert(l:lines)
+    if has('popupwin')
+        let l:lines = UserGetInfoLines()
+        call UserAlert(l:lines)
+    else
+        " can't make a big fuss and interrupt the flow.
+        " just echo one line.
+        let l:info = UserBufferInfo()
+        echo l:info
+    endif
     return "\<Ignore>"
 endfunction
+
 
 
 " compute backupdir and backupext that should be used for automatic backups.
@@ -1149,9 +1517,7 @@ function! UserUpdateBackupOptions() abort
 
     let [l:dir, l:ext] = UserBufferBackupLoc(l:fn)
 
-    if !isdirectory(l:dir)
-        call mkdir(l:dir, 'p', 0700)
-    endif
+    call UserMkdirOnce(l:dir)
 
     let &l:backupdir = l:dir
     let &l:backupext = l:ext
@@ -1191,21 +1557,6 @@ function! UserOpenIndexFile()
 endfunction
 
 
-" termguicolors - accept only if turned on.
-function! UserCanUseGuiColours()
-    return has('gui_running') || (has('termguicolors') && &termguicolors)
-endfunction
-
-" t_Co might be undefined sometimes
-function! User256()
-    return exists('&t_Co') && &t_Co >= 256
-endfunction
-
-function! UserCanLoadColorscheme()
-    return UserCanUseGuiColours() || User256()
-endfunction
-
-
 " ---- highlight (colour) definitions
 " Overrides for builtin highlights:
 " doc highlight-default
@@ -1230,17 +1581,19 @@ function! UserCustomSyntaxHighlights()
     highlight! default link UserHttpURI Normal
 
     if !UserCanUseGuiColours() && !User256()
+        " no colours, but the highlights are defined above, so it's safe to
+        " return. syntax items will work.
         return
     endif
 
     if &background ==# 'light'
         highlight UserDateComment ctermfg=8 ctermbg=12 guifg=grey40 guibg=azure2
         "highlight UserHashTag ctermbg=194 guibg=#b9ebc4
-        " like the status line:
+        " like the status line
         highlight UserHashTag ctermbg=152 guibg=#b0e0e6
         highlight UserTrailingWhitespace ctermbg=7 guibg=grey88
     else
-        highlight UserDateComment   ctermfg=246 guifg=grey58
+        highlight UserDateComment   ctermfg=246 ctermbg=238 guifg=grey58 guibg=NONE
         highlight UserHashTag       ctermbg=240 guibg=grey35
         highlight UserTrailingWhitespace    ctermbg=238 guibg=grey23
     endif
@@ -1251,9 +1604,11 @@ function! UserCustomSyntaxHighlights()
 endfunction
 
 
-" bring some sanity to vim UI element colours
+" bring some sanity to vim UI element colours.
+" remember; TERM(vt100, vt220) -> term, TERM(ansi, linux, xterm) -> cterm
 function! UserSafeUIHighlights()
     "highlight ErrorMsg      term=standout
+    highlight ColorColumn   term=reverse ctermbg=7
     highlight Ignore        NONE
     "highlight LineNr        NONE
     highlight MatchParen    NONE
@@ -1266,18 +1621,20 @@ function! UserSafeUIHighlights()
     highlight SpellLocal    NONE
     " decriminalise rare words
     highlight SpellRare     NONE
+    " for cterm with 8/16/88 colours
+    highlight Visual        term=reverse cterm=reverse ctermbg=NONE
+
     " we want to be safe for monochrome ttys, and at the same time
     " clear cterm and gui attributes that can be bad in 256 color and gui modes.
     " since the attributes here are initial values and get inherited later.
     " and bearable with screen(1) defaults, where t_Co == 8.
 
     " NonText - by default used, among others, for the end-of-buffer tildes.
-    " a none-NONE ctermbg would be ugly here.
+    " here, with low-color ttys in mind, we don't want to set a ctermbg.
     " listchars: eol, extends, precedes
-    highlight NonText       term=NONE ctermfg=green ctermbg=NONE cterm=NONE gui=NONE
-
+    highlight NonText       term=NONE ctermfg=NONE ctermbg=NONE cterm=NONE gui=NONE
     " listchars: tab, nbsp, trail (+ space, multispace, lead)
-    highlight SpecialKey    term=NONE ctermfg=blue ctermbg=NONE cterm=NONE gui=NONE
+    highlight SpecialKey    ctermfg=blue ctermbg=NONE cterm=NONE gui=NONE
 
     highlight SpellBad      ctermfg=NONE    ctermbg=cyan    cterm=NONE  gui=NONE
 
@@ -1299,7 +1656,7 @@ function! UserClearContentHighlights()
         silent execute 'highlight' l:group 'NONE'
     endfor
     " is this universally safe?
-    highlight String term=bold cterm=bold gui=bold
+    highlight Constant term=bold cterm=bold gui=bold
 endfunction
 
 
@@ -1313,23 +1670,36 @@ endfunction
 "
 " Tip: set tty (xterm, rxvt-unicode, VTE) colour 12 to azure2/#e0eeee.
 " For mlterm: ~/.mlterm/color, 12 = #e0eeee;
-"       manpage section "Color Configuration File"
+"   manpage section "Color Configuration File"
+"
 " For ROXTerm: ~/.config/roxterm.sourceforge.net/Colours/<custom profile>:
 "   [roxterm colour scheme]
 "       12=#e0e0eeeeeeee
 "
-" There are no close soft blues within the common 16 colours, and it's
-" not straightforward to override a blue within the 88/256 colours.
+" For xterm/rxvt-unicode: XResources
+"   *color12: azure2
 "
+
+" There are no close soft blues within the common 16 colours, and it's not
+" straightforward to override a blue within the 88/256 colours.
+"
+" NonText and SpecialKey bg should match UserTrailingWhitespace. now that we
+" can use background colors, we clear ctermfg.
+"
+" Old vims don't know EndOfBuffer, just NonText. So NonText shouldn't use the
+" same ctermbg as StatusLineNC.
+
 function! UserColours256Light()
     if UserOverrideUiColours()
         "highlight LineNr            ctermbg=253
-        " NonText and SpecialKey should match UserTrailingWhitespace
-        highlight NonText           ctermbg=7
-        highlight SpecialKey        ctermbg=7
+
+        highlight NonText           ctermfg=NONE    ctermbg=7
+        "highlight SpecialKey        ctermfg=NONE    ctermbg=7
+        highlight SpecialKey        ctermfg=161     ctermbg=NONE
         highlight ColorColumn                       ctermbg=12
-        highlight StatusLine        ctermfg=NONE    ctermbg=152
-        highlight StatusLineNC      ctermfg=NONE    ctermbg=252
+        highlight StatusLine        ctermfg=0       ctermbg=152
+        highlight StatusLineNC      ctermfg=236     ctermbg=252
+        highlight Visual                            ctermbg=153 cterm=NONE
     endif
 
     highlight SpellBad                              ctermbg=253
@@ -1351,11 +1721,12 @@ endfunction
 function! UserColours256Dark()
     if UserOverrideUiColours()
         "highlight LineNr            ctermbg=237
-        highlight NonText           ctermbg=238
-        highlight SpecialKey        ctermbg=238
-        highlight ColorColumn                       ctermbg=237
-        highlight StatusLine        ctermfg=NONE    ctermbg=243
+        highlight NonText           ctermfg=NONE    ctermbg=238
+        highlight SpecialKey        ctermfg=NONE    ctermbg=238
+        highlight ColorColumn                       ctermbg=238
+        highlight StatusLine        ctermfg=15      ctermbg=6
         highlight StatusLineNC      ctermfg=NONE    ctermbg=238
+        highlight Visual                            ctermbg=24  cterm=NONE
     endif
     highlight SpellBad                              ctermbg=237
 endfunction
@@ -1367,11 +1738,6 @@ function! UserColours256()
 
     " high visibility - works well everywhere
     highlight ModeMsg term=reverse ctermfg=0 ctermbg=214 guifg=#000000 guibg=#ffaf00
-
-    if UserOverrideUiColours()
-        highlight NonText       ctermfg=14
-        highlight SpecialKey    ctermfg=1
-    endif
 
     if &background ==# 'light'
         call UserColours256Light()
@@ -1399,45 +1765,56 @@ function! UserColoursGui()
     if &background ==# 'light'
         " my precious...
         highlight ColorColumn               guibg=azure2
-        highlight NonText                   guibg=grey88
-        highlight SpecialKey                guibg=grey88
+        highlight NonText       ctermfg=NONE ctermbg=NONE guifg=NONE guibg=grey88
+        highlight SpecialKey    ctermfg=NONE ctermbg=NONE guifg=#d7005f guibg=NONE
         highlight SpellBad      guifg=fg    guibg=grey91    gui=NONE
         highlight StatusLine    guifg=fg    guibg=#b0e0e6   gui=NONE
         highlight StatusLineNC  guifg=fg    guibg=#d8d8d8   gui=NONE
+        highlight Visual        cterm=NONE  guifg=NONE      guibg=#afd7ff
+
+        " if we're using lucius, let it set the Normal colours and don't override.
+        if !exists('g:colors_name') || g:colors_name !=# 'lucius'
+            " default gui forground/background
+            " was: whitesmoke; current - anti-flash white; see also #f2f3f4
+            highlight Normal            guifg=black     guibg=#f3f3f3
+        endif
+
+        " a little monkeypatching. the regular lucius light gui background
+        " colour is a little too dark. match that case and override.
+        "
+        " 2022-08-24 hlget() is too new.
+        if exists('g:colors_name') && (g:colors_name ==# 'lucius') && exists('*execute')
+            let l:norm = execute('highlight Normal')
+            if match(l:norm, 'guibg=#eeeeee') > -1
+                highlight Normal                        guibg=#f3f3f3
+            endif
+        endif
     else
         highlight NonText                   guibg=grey25
         highlight SpecialKey                guibg=grey25
         highlight SpellBad      guifg=fg    guibg=grey25    gui=NONE
         highlight StatusLine    guifg=black guibg=#b0e0e6   gui=NONE
         highlight StatusLineNC  guifg=fg    guibg=grey40    gui=NONE
+        highlight Visual        cterm=NONE  guifg=NONE      guibg=#005f87
+        if !exists('g:colors_name') || g:colors_name !=# 'lucius'
+            " for emergencies only
+            highlight Normal            guifg=#d7d7d7   guibg=darkslategrey
+        endif
     endif
 
     " regardless of bg light/dark
     highlight EndOfBuffer       guifg=grey50    guibg=NONE
     highlight ModeMsg           guifg=black     guibg=#ffaf00
     highlight MatchParen                        guibg=#ff8c00
-
-    " cursor - only set for true gui, not under termguicolors
-    if has('gui_running')
-        highlight clear Cursor
-        highlight Cursor gui=reverse
-    endif
-
-    " if we're using lucius, let it set the Normal colours and don't override.
-    if exists('g:colors_name') && g:colors_name ==# 'lucius'
-        return
-    endif
-    " default gui forground/background
-    " was: whitesmoke; current - anti-flash white; see also #f2f3f4
-    highlight Normal            guifg=black     guibg=#f3f3f3
 endfunction
 
-" t_Co can be ambiguous.
+
+" Meant to run after a colorscheme we like is loaded. Overrides highlights
+" we don't agree with (StatusLine(NC), NonText, SpecialKeys), defines good
+" highlights in case the colorscheme file might not be available (Visual).
+"
 " mlterm starts with t_Co 8, later changes to 256.
-"
-" NB: this is usually meant to run after a colorscheme we largely like.
-" so this function should _not_ call UserClearContentHighlights().
-"
+
 function! UserColours()
     call UserLog('UserColours enter win', winnr())
     " clean up UI colours
@@ -1447,7 +1824,7 @@ function! UserColours()
     highlight clear UserHighVis
     highlight! default link ModeMsg UserHighVis
 
-    " NB don't run 256-color code for gui.
+    " NB don't run 256-color code for gui. and, no support for 88 colors.
     if User256()
         call UserColours256()
     endif
@@ -1456,13 +1833,17 @@ function! UserColours()
         call UserColoursGui()
     endif
 
-    " if we've defined a 'vert' in fillchars, remove the highlight group
+    " if we've defined a 'vert' in fillchars, remove the corresponding
+    " highlight group.
     if &fillchars =~# 'vert:'
         highlight clear VertSplit
     endif
 
+    " WIP
+    highlight! default link TabLineFill StatusLine
+
     " since we're handling a colorscheme change: pull in our custom colour and
-    " syntax definitions.
+    " syntax definitions. these are original highlights, not overrides.
 
     call UserCustomSyntaxHighlights()
 endfunction
@@ -1680,6 +2061,35 @@ function! UserTermBad()
 endfunction
 
 
+" doc slow-terminal
+function! UserTermSlow()
+    set noruler noshowcmd nottyfast
+endfunction
+
+
+function! UserColoursPrelude()
+    " sometimes even works.
+    set background&
+    if has('gui_running')
+        return
+    endif
+
+    if &term ==# 'xterm-direct' && has('termguicolors')
+        " cterm colour codes shouldn't be used in direct colour mode.
+        " use gui colours instead.
+        set termguicolors
+    elseif &term =~# '^xterm' && exists('$VTE_VERSION') && has('termguicolors')
+        " living with bad decisions
+        set termguicolors
+        set t_Co=16777216
+    elseif exists('&t_Co') && &t_Co == 8 && $TERM !~# '^Eterm'
+        " good idea from tpope/sensible; bright without bold.
+        " will take effect under screen(1) ($TERM == 'screen').
+        set t_Co=16
+    endif
+endfunction
+
+
 " do all the ui/content color changes and loading of a color scheme
 function! UserLoadColors()
 
@@ -1761,39 +2171,38 @@ endfunction
 " janky alternative: :bprevious | split | bnext | bdelete
 "
 function! UserBufCloseKeepWin()
+    update
+
     if winnr('$') == 1
-        " just one window (I don't use tab pages)
+        " just one window (i don't use tab pages)
         confirm bdelete
         return
     endif
 
-    " write changes, but autowriteall should do this anyway
-    update
     " keep current buffer number, we'll need it later
     let l:bufnr = bufnr('%')
-    let l:bufnr_alt = bufnr('#')
 
-    if l:bufnr_alt != -1
-        let l:b = l:bufnr_alt
-        execute 'buffer' l:bufnr_alt
+    if bufnr('#') != -1
+        " has alternate buffer, switch to it
+        buffer \#
+
+        " try to delete the original buffer, if it's not in any other window
+        if !bufloaded(l:bufnr)
+            execute 'confirm bdelete' l:bufnr
+        endif
+
+        " other new-fangled ways to see if a buffer's visible in any windows:
+        " getbufinfo(l:bufnr) -> <dict>.windows
+        " win_findbuf(l:bufnr)
     else
+        " no alternate buffer - new empty buffer
+        " to keep the window from closing
         enew
-    endif
-
-    " if the previously displayed buffer (now the alternate) is no longer
-    " loaded, delete it.
-    "
-    " to only visibility:
-    " getbufinfo(l:bufnr) -> <dict>.windows
-    " win_findbuf(l:bufnr)
-    "
-    if !bufloaded(l:bufnr)
-        execute 'confirm bdelete ' l:bufnr
     endif
 endfunction
 
-command XB  call UserBufCloseKeepWin()
-nnoremap Q :call UserBufCloseKeepWin()<cr>
+command XB                  call UserBufCloseKeepWin()
+nnoremap    <Leader>q       :call UserBufCloseKeepWin()<cr>
 
 
 " Run a vim command and drop the output into a new window.
@@ -1812,24 +2221,25 @@ nnoremap Q :call UserBufCloseKeepWin()<cr>
 " it.
 "
 " Same for `NB w' - new window opens and closes, :w tries to act on original
-" window, fails since the buffer's unmodifiable.
-"" Since the command runs in a new buffer, some things like
-" :syntax (listing syntax definitions) won't work.
+"window, fails since the buffer's unmodifiable. " Since the command runs in a
+"new buffer, some things like :syntax (listing syntax definitions) won't work.
 "
-" prior: https://github.com/AmaiSaeta/capture.vim/blob/master/plugin/capture.vim
-"
+" prior:
+" https://github.com/AmaiSaeta/capture.vim/blob/master/plugin/capture.vim
+
 function! UserSpoolEx(cmd)
-    if 0
-        if (&l:readonly || !&l:modifiable)
-            echom 'unmodifiable'
-            return
-        endif
+    if 0 && (&l:readonly || !&l:modifiable)
+        echom 'unmodifiable'
+        return
     endif
 
     Scratch
-    let l:winid = win_getid()
-    let l:winnr = win_id2win(l:winid)
-    "echom 'opened' l:winid
+    if exists('*win_getid')
+        let l:winid = win_getid()
+        "echom 'opened' l:winid
+    else
+        let l:winid = -1
+    endif
     let l:close = 1
     try
         let l:v = UserRun(a:cmd)
@@ -1853,10 +2263,15 @@ function! UserSpoolEx(cmd)
         echom v:exception
     finally
         if l:close
-            " something went wrong before l:close could be set to zero
-            "echom 'closing' l:winid
-            execute l:winnr . 'wincmd c'
-            " leaves the actual buffer lying around
+            " something went wrong before l:close could be set to zero,
+            " close the window if possible
+            if l:winid != -1
+                "echom 'closing' l:winid
+                " get win number only when needed.
+                let l:winnr = win_id2win(l:winid)
+                execute l:winnr . 'wincmd c'
+                " leaves the actual buffer lying around
+            endif
         endif
     endtry
 
@@ -1881,8 +2296,9 @@ function! UserShowMaps()
     " get rid of the line breaks in the 'verbose' output
     " conceptually cleaner: :g/^\sLast set from/-1j    [join with line above]
     global/\n\s\+Last set from/s//\t# src =/
-    " delete lines that don't refer to our vim configuration files
-    global/src =/g!/src = \~\/\.g\?vimrc/d
+    " delete lines that don't refer to a vimrc/gvimrc at home.
+    " 2022-08-22 actually it's useful to see all mappings.
+    "global/src =/g!/src = \~\S\+vimrc\>/d
     " replace <file> line <lineno> with something gF can jump to
     global/ line \(\d\+\)$/s//:\1/
 
@@ -1904,7 +2320,10 @@ function! UserShowCommands()
     global/\n\s\+Last set from/s//\t# src =/
     " select the lines that have an 'src =' but not our config file.
     " this preserves the header row (that's been generated by ':command'.)
-    global/src =/g!/src = \~\/\.g\?vimrc/d
+    " our config = any line with "src = ~" + "vimrc" + word boundary.
+    " should work with windows/vimfiles too.
+    " this deletes commands from plugins/colorschemes under ~/.vim.
+    global/src =/g!/src = \~\S\+vimrc\>/d
     " enable going to location - replace "<file> line <lineno>" in the
     " 'verbose' output with <file>:<lineno>
     global/ line \(\d\+\)$/s//:\1/
@@ -1924,7 +2343,7 @@ function! UserShowFunctions()
     call append(0, ['Functions', ''])
     put= UserRun('verbose function')
     global/\n\s\+Last set from/s//\t# src =/
-    global/src =/g!/src = \~\/\.g\?vimrc/d
+    global/src =/g!/src = \~\S\+vimrc\>/d
     global/ line \(\d\+\)$/s//:\1/
     global/^$/d
     sort
@@ -1984,7 +2403,11 @@ function! UserLastPositionJump()
 endfunction
 
 
-" spelling
+" -- spelling
+
+" NB vim automatically creates ~/.vim/spell/ when necessary. no need to ensure
+" that it's present.
+
 "
 " en_rare doesn't seem to exist anywhere.
 " Lang cjk only prevents checking CJK characters.
@@ -1995,12 +2418,13 @@ endfunction
 " curl -o f
 " then, :mkspell en_gb f
 "
-function! UserSpellLangs()
+function! UserSpellLangs() abort
     let l:spls = []
     if UserRuntimeHas('spell/enlocal.utf-8.spl')
         call add(l:spls, 'enlocal')
     else
-        " should default to 'en'
+        " vim default would be 'en'; start with that since we'll add other
+        " languages (at least 'cjk') later.
         call add(l:spls, 'en')
     endif
     if UserRuntimeHas('spell/ru.utf-8.spl') | call add(l:spls, 'ru') | endif
@@ -2015,11 +2439,75 @@ let &spelllang = UserSpellLangs()
 " if spellfile unset, with a word is added (zg/zw) vim will set spellfile
 " to somewhere inside ~/.vim/ .
 " also - all words from all spell languages go into the same file.
-set spellfile=~/.vimspell.utf-8.add
+"set spellfile=~/.vimspell.utf-8.add
+" 2022-08-29 leave spellfile at vim default.
+" clean default for english: ~/.vim/spell/en.utf-8.add
+" default for enlocal: ~/.vim/spell/enlocal.utf-8.add
+
+" for easily updating spell files from modified .add files.
+" https://vi.stackexchange.com/a/5052
+"
+" :mkspell prints; can call this function with :silent to suppress that.
+function! UserMkspell() abort
+    " might also use &spelllang and skip 'cjk';
+    let l:globres = glob('~/.vim/spell/*.add', 1)
+    if l:globres == ''
+        " no .add files
+        return
+    endif
+    let l:addfs = split(l:globres, "\n")
+    let l:modified = []
+    for l:addf in l:addfs
+        if !filereadable(l:addf)
+            continue
+        endif
+        let l:splf = l:addf . '.spl'
+        if !filereadable(l:splf) || (getftime(l:addf) > getftime(l:splf))
+            execute 'mkspell!' fnameescape(l:addf)
+            call add(l:modified, l:addf)
+        endif
+    endfor
+    return l:modified
+endfunction
+
+command -bar Mkspell    call UserMkspell()
+
+
 set spellcapcheck=
+
+" -- end spelling configuration
+
+set sessionoptions-=curdir
+set sessionoptions-=globals
+set sessionoptions-=options
+set sessionoptions-=resize
+set sessionoptions-=terminal
+set sessionoptions-=winpos
+" sesdir - only way to get vim to not save absolute paths to buffers;
+" does save/do a "cd"; yucky.
+set sessionoptions+=sesdir
+
+set viewoptions-=curdir
+set viewoptions-=options
 
 
 " ---- mappings
+
+" 2022-08-15 disable modifyOtherKeys usage; we haven't needed such mappings
+" yet. with this enabled (default), vim swallows Control-3 and turns it into
+" a simple 3, for example. the default ctrl-3 -> esc equivalance is nice to
+" keep. doc modifyOtherKeys (https://vimhelp.org/map.txt.html#modifyOtherKeys)
+"
+" https://vt100.net/docs/vt220-rm/chapter3.html#T3-5
+"
+" also applies to gvim, term == builtin_gui.
+
+" checking with &option-name and not +option-name;
+" disabling only for unix, both tty and gui.
+if exists('&t_TI') && exists('&t_TE') && has('unix')
+    set t_TI= t_TE=
+endif
+
 nnoremap        <Up>    gk
 nnoremap        <Down>  gj
 nnoremap        k       gk
@@ -2039,8 +2527,18 @@ vnoremap        j       gj
 " on hitting F1 instead of Esc by accident when sleepy - do something
 " unobtrusive instead of opening help. <expr> is brittle. <Cmd>'s robust, but
 " very new. the quiet alternative: <Nop>
-nnoremap          <F1>      :call UserShowHelp()<cr>
-imap              <F1>      <Esc><F1>
+nnoremap        <F1>      :call UserShowHelp()<cr>
+" insert mode <F1> - don't change mode
+inoremap        <F1>      <C-\><C-o>:call UserShowHelp()<cr>
+
+command -bar B      echo UserBufferInfo()
+
+" mnemonic: show buffer info
+nnoremap        <Leader>i   :echo UserBufferInfo()<cr>
+
+" show some info in a new scratch buffer (and not a popup window)
+command -bar BB     Scratch | call append(0, UserGetInfoLines())
+
 
 " for misconfigured virtual serial lines with putty. better to set
 " TERM=putty-256color before starting (above mappings work then), instead of
@@ -2060,13 +2558,23 @@ nnoremap        <F11>  :sball<cr>
 
 " lots more modes... doc :noremap and doc xterm-function-keys
 
+" buffer switching
+"
 " Trying out a mapping to show buffers quickly and unobtrusively.
-" https://stackoverflow.com/a/16084326
-" https://github.com/Raimondi/vim-buffalo
-" The <Space> after :b allows wildmenu to come into play easily.
-" NB: can't be a silent mapping.
-" used to use '+', but turns out it's useful. now using 'K'.
-nnoremap    K           :ls!<cr>:b<Space>
+" https://stackoverflow.com/a/16084326 https://github.com/Raimondi/vim-buffalo
+" The <space> after :b allows wildmenu to come into play easily.  NB: can't be
+" a silent mapping. used to use '+', but turns out it's useful. now using 'K'.
+
+nnoremap    K           :ls!<cr>:b<space>
+
+" alt, the remote protocol:
+"
+" gvim --servername PQR --remote-expr "execute('ls!')"
+"
+" on win32, console vim supports the same protocol; under X11 better stick to
+" gvim.
+
+" --
 
 " emacs/readline-like mappings for the command line; doc emacs-keys
 " don't mess with C-f, the default 'cedit' value.
@@ -2080,7 +2588,7 @@ cnoremap    <C-e>       <End>
 " map backspace to turn hlsearch off; from Damian Conway.
 "nnoremap    <BS>   :nohlsearch<cr>
 " can also set v:hlsearch = 0
-if has('patch-7.4-079')
+if exists('v:hlsearch')
     nnoremap    <silent>    <BS>    :if v:hlsearch <bar>
                                     \ nohlsearch <bar>
                                     \ endif<cr>
@@ -2127,6 +2635,7 @@ if executable('par')
 endif
 
 " join paragraphs to one line, for sharing.
+"
 " to join paragraph into one line with tr(1) rather than fmt(1) -
 " (tr doesn't have the low line/goal limits of GNU fmt.)
 " https://utcc.utoronto.ca/~cks/space/blog/unix/FmtTwoUses
@@ -2137,35 +2646,39 @@ endif
 " J's work seems to be undone when auto formatting is enabled.
 " nnoremap <silent> <Leader>O     vipJ
 " the :join ex command isn't undone by autoformatting.
-nnoremap        <Leader>1     vip:join<cr>
+"nnoremap        <Leader>1       vip:join<cr>
+" alternative, repurposing !{motion} to pass to :join ex command and not an
+" external (shell) command. visual mode unnecessary.
+" https://vi.stackexchange.com/a/37142
+nnoremap        <Leader>1       {!}<bs>join<cr>
 
 " format paragraph without formatprg/formatexpr. k's just close to , .
 nnoremap <silent> <Leader>k     gwip
 vnoremap <silent> <Leader>k     gw
 
 
-" øæå as brackets, braces, parentheses - done with xmodmap
+" øæå as brackets, braces, parentheses - done with xmodmap.
 
 function! s:xclipbrd_write(txt)
     silent call system('xsel -b -i', a:txt)
     if v:shell_error
-        echoerr 'xclip invocation failed, code' v:shell_error
+        echoerr 'xsel invocation failed, code' v:shell_error
     endif
 endfunction
 
 " put the visual selection (line-wise or not) into a register, invoke
-" xclip with the register as the input.
-" not using get/setreginfo() for compatibility.
+" xsel with the register as the input. not using get/setreginfo() for
+" compatibility.
 "
 " https://stackoverflow.com/a/26125513, adapted
 function! UserWriteVisualToX11Clipboard() abort
     let l:reg = @u
     " yank to register 'u'
-    norma!l gv"uy
+    normal! gv"uy
     call s:xclipbrd_write(@u)
     " restore 'u' somewhat
     let @u = l:reg
-    " normal! gv -- no, leave visual mode
+    normal! gv
 endfunction
 
 " for normal mode
@@ -2178,58 +2691,160 @@ function! UserWriteLinesToX11Clipboard() abort range
     let @u = l:reg
 endfunction
 
-function! UserReadFromX11Clipboard() abort
-    silent let l:clp = system('xsel -b -o')
-    if v:shell_error
-        echoerr 'xclip invocation failed, code' v:shell_error
-        return
+function! UserRdX11Cb()
+    " clobber x
+    call setreg('x', '', 'c')
+
+    " win32 - reg:+ exists and works even in console vim, but has('unnamedplus')
+    " is false.
+    if (has('unix') && has('gui_running')) || has('win32')
+        let l:clp = @+
+    elseif executable('xsel')
+        silent let l:clp = system('xsel -b -o')
+        if v:shell_error
+            echoerr 'xsel invocation failed, code' v:shell_error
+            return ''
+        endif
+    else
+        echohl Error
+        echo 'do not know how to access clipboard'
+        echohl None
+        return ''
     endif
-    if l:clp ==# ''
-        return
-    endif
-    let l:reg = @u
-    let @u = l:clp
-    normal! "ugP
-    let @u = l:reg
+
+    " dump into register, always characterwise.
+    " can't use '+' register in tty mode without dragging in too much.
+    call setreg('x', l:clp, 'c')
+    return l:clp
 endfunction
 
+" a little like paste#Paste(); back to using ["]gP instead of i<C-r><C-r>
+" because of autoindent.
+"
+" 2022-09-03 paste.vim does a lot of un-commented acrobatics, perhaps to deal
+" with corner cases.
+"
+" why does paste.vim use virtualedit for normal mode, and not for insert
+" mode? looking at menu.vim, normal mode paste actually only seems to do
+" "+gP - the paste_cmd['n'] definition's misleading, it's only used by
+" paste_cmd['v'], not the nnoremenu definition. so, virtualedit comes into
+" play only for visual mode paste. and cnoremenu uses just <C-r>+, not the
+" safer <C-r><C-r>+.
+
+" mnemonic: register x, put to buf, visual mode
+function! UserRegXPutBufV() abort
+    let l:clp = UserRdX11Cb()
+    if l:clp == ''
+        return
+    endif
+    let l:orig_virtualedit = &virtualedit
+    set virtualedit=all
+
+    try
+        normal! `^
+    catch /^Vim\%((\a\+)\)\=:E20:/
+    endtry
+
+    normal! "xgP
+
+    let l:col = col('.')
+    " instead of the normal i^[ in paste.vim with the literal escape:
+    execute "normal! i\<Esc>"
+    if col('.') < l:col
+        normal! l
+    endif
+    let &virtualedit = l:orig_virtualedit
+endfunction
+
+" mnemonic: register x, put to buf, normal mode
+function! UserRegXPutBufN() abort
+    let l:clp = UserRdX11Cb()
+    if l:clp == ''
+        return
+    endif
+
+    normal! "xgP
+endfunction
 
 " mappings to copy/paste using the X clipboard from tty vim, without resorting
 " to +X11 (vim feature).
 " doc :write_c
-if g:user_has_x11 && has('unix') && !has('gui_running')
-    " ttys and bracketed paste cover this well usually
-    nnoremap <silent>   <Leader>xp      :call UserReadFromX11Clipboard()<cr>
-    " doc i_CTRL-G_u - break undo sequence, start new change
-    inoremap <silent>   <Leader>xp      <C-g>u<C-o>:call UserReadFromX11Clipboard()<cr><C-g>u
-    " no paste for command-line mode; instead paste into command window and run.
-    "   or paste into any regular window and :<C-R><C-L>
 
-    " define an ex command that takes a range and pipes to xclip
+" pasting
+
+" when a piece of text has newlines, <C-r><C-r>= (expression register) use
+" in tty vim doesn't break lines, but inserts all keys in one line and
+" shows the linebreaks as ^@. but when the text is put into a register and
+" <C-r><C-r><reg, no=> is done, the newlines seem interpreted, escaping other
+" control codes as <C-r><C-r> should do.
+
+" -- paste mappings - common to tty and gui.
+
+" ttys and bracketed paste cover this well
+nnoremap <Leader>xp     :call UserRegXPutBufN()<cr>
+" visual mode: cut selection to small delete register. this leaves vim in insert
+" mode. Escape to normal mode, then paste (using virtualedit).
+vnoremap <Leader>xp     "-c<Esc>:call UserRegXPutBufV()<cr>
+
+" insert mode: with undo branching.
+"inoremap    <Leader>xp  <C-g>u<C-\><C-o>:call UserRegXPutBufN()<cr><C-g>u
+"inoremap    <Leader>xp  <C-g>u<C-o>:call UserRegXPutBufN()<cr><C-g>u
+"
+" insert->normal->paste->[insert] does weird things with the cursor location.
+" insert->normal->read clipboard->[insert]->normal->put reg does the right
+" thing with regard to the cursor. but the register value better not be stale.
+"
+inoremap    <Leader>xp  <C-\><C-o>:call UserRdX11Cb()<cr><C-g>u<C-\><C-o>"xgP<C-g>u
+if (has('unix') && has('gui_running')) || has('win32')
+    inoremap <Leader>xp <C-g>u<C-\><C-o>"+gP<C-g>u
+endif
+
+" dangerous, but tty mappings and <C-r>+ etc. work anyway.
+" defined for completeness and consistency.
+cnoremap    <Leader>xp  <C-r><C-r>=UserRdX11Cb()<cr>
+
+" paste in gui mode with <C-[S-]v>.
+if has('gui_running') || has('win32')
+    " pretty indispensable; unix: sadly the shift seems to depend on
+    " modifyOtherKeys even for builtin_gui? test and make sure that C-v keeps
+    " working to insert literally and for visual block select - not paste.
+    "
+    " win32, gvim: seems gvim can't see the shift anyway it seems. the
+    " following maps breaks C-v.
+    "
+    " win32 console: C-S-v seems to be handled outside vim; forces a paste,
+    " doing the wrong thing in normal mode.
+    "
+    " win32 gvim seems to map S-Insert by itself. but the Insert key is no
+    " longer in vogue. SharpKeys can't map combinations (to do C-S-v ->
+    " S-Insert).
+    "
+    " just have to stick with ,xp, get used to C-q, keep xon/xoff in mind.
+
+    nmap    <C-S-v>     <Leader>xp
+    imap    <C-S-v>     <Leader>xp
+    vmap    <C-S-v>     <Leader>xp
+    cmap    <C-S-v>     <Leader>xp
+endif
+
+" -- copying; separate definitions for tty vs. gui - write to the
+" clipboard in whatever way works best.
+if g:user_has_x11 && has('unix') && !has('gui_running')
+    " define an ex command that takes a range and pipes to xsel
     nnoremap <silent>   <Leader>xc      :call UserWriteLinesToX11Clipboard()<cr>
     " for the visual selection (not necessarily linewise):
     vnoremap <silent>   <Leader>xc      :call UserWriteVisualToX11Clipboard()<cr>
-
     " doc :write_c
     " use: :.,+10WX11
     command -range WX11     silent <line1>,<line2>:w !xsel -i -b
-elseif has('gui_running')
+endif
+if has('gui_running') || has('win32')
     set mouse=inv
-    " for iVim on iOS (has gui but no X11, no gtk) - paste with little ceremony.
-    " kept in .vimrc instead of .gvimrc
-    nnoremap <silent> <Leader>xp    "+gP
-    nnoremap <silent> <C-S-v>       "+gP
-    " just like the right-click popup menu
-    " see menu.vim Edit -> Paste, autoload/paste.vim
-    inoremap <silent> <Leader>xp    <C-g>u<C-o>:call paste#Paste()<cr><C-g>u
-    inoremap <silent> <C-S-v>       <C-g>u<C-o>:call paste#Paste()<cr><C-g>u
-    vnoremap <silent> <Leader>xp    "-c<Esc>:call paste#Paste()<cr>
-    vnoremap <silent> <C-S-v>       "-c<Esc>:call paste#Paste()<cr>
 
     " normal mode, copy current line
     nnoremap <silent> <Leader>xc    "+yy
     " visual mode, copy selection, not linewise; doc: v_zy
-    vnoremap <silent> <Leader>xc    "+zy<Esc>
+    vnoremap <silent> <Leader>xc    "+zy
 
     command -range WX11     <line1>,<line2>y +
 endif
@@ -2266,6 +2881,8 @@ endif
 let Symbols = {
     \ 'lozenge':        nr2char(0x25CA)
     \ ,'interpunct':    nr2char(0xB7)
+    \ ,'em dash':       nr2char(0x2014)
+    \ ,'en dash':       nr2char(0x2013)
     \ ,'dagger':        nr2char(0x2020)
     \ ,'greek cross, heavy': nr2char(0x271A)
     \ ,'brkt left corner': nr2char(0xFF62)
@@ -2281,6 +2898,9 @@ inoremap <expr> <Leader>sc      Symbols['silcrow']
 " 2022-07-14
 inoremap <expr> <Leader>(       Symbols['brkt left corner']
 inoremap <expr> <Leader>)       Symbols['brkt right corner']
+" 2022-08-26
+inoremap <expr> <Leader>m       Symbols['em dash']
+inoremap <expr> <Leader>n       Symbols['en dash']
 
 " pound signs used everywhere, lozenge taken by Pollen...
 " U+25B8 Black right-pointing small triangle
@@ -2310,11 +2930,12 @@ nnoremap    <Leader>se  :let f = expand('<cfile>')<cr><C-w>w:execute('edit ' . f
 " M.G. - guu/gugu - lower line, u - visual, gu{motion}
 nnoremap    <Leader>mg      guip
 
-" mainly for iVim
-nnoremap    <Leader>;;      :update<cr>
+" mainly for iVim. the changing of the modified flag in the statusline is
+" indication enough.
+nnoremap    <silent> <Leader>;;      :silent update<cr>
+
 " open the command window with ,f in the command line
 cnoremap    <expr>  <Leader>f    &cedit
-nnoremap    <Leader>f       q:
 
 " doc CTRL-G
 " alt: let l = execute("normal! 3\<C-g>")
@@ -2351,13 +2972,14 @@ nnoremap    g<C-h>  <nop>
 "
 " vile's 'q' (quoted motion) is interesting.
 "nnoremap    q   <nop>
-nnoremap    q   :echo 'You hit me! Picard never hit me!'<cr>
+nnoremap    q   :echo 'Temper, temper, mon capitaine.'<cr>
 
 " end q-mappings adventure.
 
 " verymagic
 nnoremap    /       /\v
 nnoremap    ?       ?\v
+
 
 " -- ~ eof-map ~ end of most mapping definitions
 
@@ -2440,8 +3062,8 @@ command -bar FoCode  setl fo=cjoqr nosi cin
 "   (GNU Collaborative International Dictionary of English)
 command -bar Wr      setlocal tw=78 fo=at nocin nosi noai spell
 
-" for small screens (iVim)
-command -bar Mobile  Wr | setl tw=46 nonu nornu nospell
+" for small screens (iVim) - iPhone 13 Pro, Menlo:h11.0
+command -bar Mobile  Wr | setl tw=60 nonu nornu
 
 " for transcribing poetry -
 " significant whitespace, auto-indenting, no hard tabs, no auto formatting
@@ -2480,6 +3102,11 @@ command -bar -nargs=1 Tw    setlocal textwidth=<args>
 
 command Colortest       runtime syntax/colortest.vim
 
+" kludge for 256 colour dark terminals; background detection will probably
+" never work 100%.
+" useful in a pinch for the gui too, when lucius is not around.
+command -bar Dark       set bg=dark | call UserColours()
+
 " useful when testing in verbose mode
 command -bar -nargs=+ Log    call UserLog(<args>)
 
@@ -2494,20 +3121,21 @@ command -nargs=1    St          set laststatus=<args>
 
 command Info        call UserShowHelp()
 command TermBad     call UserTermBad()
+command TermSlow    call UserTermSlow()
 
 command -bar Stws        call UserStripTrailingWhitespace()
 
 " new window for scribbling
 " possible alternative - preview windows (:pedit); seems more limited.
 " doc scratch-buffer
-command Scratch     new | setlocal buftype=nofile noswapfile | setfiletype text
+command -bar Scratch new | setlocal buftype=nofile noswapfile | setfiletype text
 
 " like :Explore
 command Index       call UserOpenIndexFile()
 
 " enable 'list' in all windows, with or without tab visibility.
 " use as :List 1 or :List 0
-command -bar -nargs=1 List  let &lcs = UserListchars(<f-args>) | windo setl list
+command -bar -nargs=1 List  let &lcs = UserListchars(<f-args>, &listchars) | windo set list
 command -bar Nolist     windo setl nolist
 
 command -bar VeDefault   set virtualedit=block,onemore
@@ -2588,7 +3216,10 @@ augroup UserVimRc
 
     autocmd BufNewFile,BufReadPost  /etc/*          Proper
     autocmd FileType        c,sh,conf               Proper
-    autocmd FileType        perl,python,vim,ruby,eruby  Lousy
+    autocmd FileType        perl,python,vim         Lousy
+    autocmd FileType        ruby,eruby              Lousy
+    autocmd FileType        js,json,yaml            Lousy
+    autocmd FileType        jproperties             Lousy | setl fenc=latin1
     autocmd FileType        lisp,scheme,clojure     Lisp
     " the first line of the commit message should be < 50 chars
     " to allow for git log --oneline
@@ -2606,8 +3237,22 @@ augroup UserVimRc
     " when editing the ex command line, enable listchars and numbers.
     " the idea is to not paste right into the command line, but do paste from
     " the clipboard into the command window - and inspect before running.
+    "
+    " listchars is set to something that includes eol (g:user_lcs_def), which
+    " is useful in the command window.
+    "
     " doc cmdwin-char
-    autocmd CmdWinEnter : let &l:lcs = UserListchars(1) | setl list nu nornu
+    autocmd CmdWinEnter :
+                    \ let &l:lcs = UserListchars(0, {})
+                    \ | setlocal list number norelativenumber
+
+    " for iVim on iOS; by default, swap seems to be automatically disabled
+    " for files loaded from iCloud Drive. we keep swap files at home (appdir),
+    " there will not be an attempt to create swap files on iCloud Drive.
+    "
+    " autocmd-pattern - * includes path separators.
+    autocmd BufReadPost /private/var/mobile/Library/Mobile\ Documents/com~apple~CloudDocs/*.txt
+                    \ setlocal swapfile
 
     "autocmd TermResponse * echom 'termresponse:' strtrans(v:termresponse)
 augroup end
@@ -2675,28 +3320,36 @@ syntax off
 " 2-300 can easily be insufficient.
 set redrawtime=700 synmaxcol=200
 
+" some key gui things:
 
-if &term ==# 'xterm-direct' && has('termguicolors')
-    " cterm colour codes shouldn't be used in direct colour mode.
-    " use gui colours instead.
-    set termguicolors
-else
-    " good idea from tpope/sensible; bright without bold.
-    " will take effect under screen(1) ($TERM == 'screen').
-    if exists('&t_Co') && &t_Co == 8 && $TERM !~# '^Eterm'
-        set t_Co=16
-    endif
+" someone's really gone on a wild ride with the guicursor possibilities.
+set guicursor=a:block-blinkon0
+
+" guifont
+if has('linux')
+    " assuming gtk
+    let &guifont = 'Iosevka Fixed SS04 Light 12'
+elseif has('win64')
+    set guifont=Iosevka_Fixed_SS04_Light:h12:W300:cDEFAULT:qCLEARTYPE
+    set guifont+=Consolas:h12:cDEFAULT:qCLEARTYPE
+    set renderoptions=type:directx
+elseif has('ios')
+    " iVim, iPhone
+    set guifont=Menlo:h11.0
+    " versionlong 8012110 seems buggy, blinkon0 makes the cursor blink
+    " as fast as possible.
+    set guicursor=a:block-blinkwait7000-blinkon1000-blinkoff300
 endif
 
+call UserColoursPrelude()
+" syntax for text isn't worth the trouble but we like good UI colours.
 " for non-xterm-direct terminals (VTE, kitty) it might be necessary to
 " call UserColours() again after enabling termguicolors.
-
-" sometimes even works.
-set background&
-
-" syntax for text isn't worth the trouble but we like good UI colours.
 call UserLoadColors()
 
 " ~ fini ~
+
+" maybe warn if &encoding / &termencoding are not utf-8; but are other
+" encodings even tested.
 
 " vim:tw=80 fo=croq:

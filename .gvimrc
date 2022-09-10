@@ -7,20 +7,15 @@ set mousemodel=popup
 set mouseshape-=v:rightup-arrow
 set mouseshape+=n-v:beam
 
-" disable cursor blinking - a:blinkon0
-let g:user_default_guicursor = &guicursor
-lockvar g:user_default_guicursor
-" default: n-v-c:block,o:hor50,i-ci:hor15,r-cr:hor30,sm:block
-" default blinking: blinkwait700-blinkon400-blinkoff250
-"
-" blink in almost all cases; no blink in normal mode.
-set guicursor=a:blinkwait500-blinkon600-blinkoff971,v-c:block,n:block-blinkon0,o:hor50,r-cr:hor30,sm:block,i-ci:hor15-blinkwait500-blinkon600-blinkoff971
+" 2022-09-07 this is mostly a log of what's been tried. .vimrc defines
+" guifont and guicorsor now.
 
-if has('unix') && has('gui_gtk')
+if 0
+if has('linux') && has('gui_gtk')
     "set guifont=Source\ Code\ Pro\ Light\ 12
     "set guifont=Go\ Mono\ 11
     "set guifont=Operator\ Mono\ Light\ 12
-    "set guifont=Letter\ Gothic\ Std\ 11	" macrons don't look good
+    "set guifont=Letter\ Gothic\ Std\ 11        " macrons don't look good
     "set guifont=PragmataPro\ Mono\ 12
     "let &guifont = 'PragmataPro Mono 14'
     "let &guifont = 'Fairfax HD Medium 14'
@@ -47,8 +42,13 @@ elseif has('win64')
 
     " Iosevka _term_ has ligatures, _fixed_ doesn't. there's a new
     " 'guiligatures' option, but gtk-only so far.
-    let &guifont = 'Iosevka_Fixed_SS04:h12:cDEFAULT:qCLEARTYPE'
+
+    set guifont=Iosevka_Fixed_SS04:h12:cDEFAULT:qCLEARTYPE
+    set guifont+=Go_Mono:h12:cDEFAULT:qCLEARTYPE
+    set guifont+=Consolas:h12:cDEFAULT:qCLEARTYPE
+
     set renderoptions=type:directx
+endif
 endif
 
 command Geometry set lines=50 columns=90
@@ -68,9 +68,10 @@ vnoremap <silent> <C-z> <Esc>
 
 
 " doc:windows.txt.html#%3Asball
-amenu &Misc.&Buffers\ to\ tabs	:tab sball<cr>g
-" amenu &Misc.&Make\ session	:mksession!<cr>g
-amenu &Misc.&Tab\ page		:tabnew<cr>g
+amenu &Misc.&Buffers\ to\ tabs  :tab sball<cr>g
+" amenu &Misc.&Make\ session    :mksession!<cr>g
+amenu &Misc.&Tab\ page          :tabnew<cr>g
+amenu &Misc.Copy\ &all          :%WX11<cr>g
 
 " delete the autocmd that does the lazy loading -
 " otherwise the autocmd will cause Edit and Tools menus to reappear.
@@ -110,7 +111,7 @@ endtry
 " doc:gui.txt.html#menu-priority
 " default File menu has prio 10;
 " add a new File menu before everything we've defined above.
-1amenu &File.&Exit		:confirm qa<cr>g
+1amenu &File.&Exit              :confirm qa<cr>g
 
 " if we loaded a session, save it when focus lost
 " autocmd SessionLoadPost * autocmd! FocusLost * :mksession!
@@ -206,7 +207,7 @@ endif
 " 'background' will not be set until the GUI window is opened, which is after
 " reading the gvimrc.  Use :gui, which has its own caveats (-f).
 
-if has('win32') && &background == 'dark'
+if has('win32') && &background ==# 'dark'
     set background=light
 endif
 
