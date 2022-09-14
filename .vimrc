@@ -5,9 +5,12 @@ if version < 704
     finish
 endif
 set secure encoding=utf-8 fileencoding=utf-8 nobomb
-scriptencoding utf-8
+scriptencoding utf-8        " must go after 'encoding'
 
-" Last Modified: 2022-08-31
+" Last Modified: 2022-09-13
+"
+" 2022-09-13 listchars/SpecialKey tinkering. Introspection commands (My*) -
+" use :g//d _ - delete to black hole register.
 "
 " 2022-08-31 fixes to clipboard handling mappings.
 "
@@ -137,11 +140,13 @@ scriptencoding utf-8
 " Re-implementing the mode message by decoding mode() seemed fun at one time
 " but it was slow.
 
+"
+" -- tips
 
 " :sball - show all buffers; inverse: :only / C-w o
 "   <F11>
 
-" @% - current filename;
+" @% - current filename; @/ - last search pattern;
 
 " :0file - remove name from buffer
 
@@ -158,10 +163,15 @@ scriptencoding utf-8
 
 " from visual mode go to insert mode: I
 
+" 'incsearch' short name: 'is'
+
 " debug log: vim -V16vdbg; block buffered; use echom to add markers.
 "   verbosity level 10: autocommands; 12: function calls.
 "   verbosity can interfere/leak in various places; when redirecting
 "   message output, the command window after system() output in gvim.
+"
+
+" -- end tips
 "
 
 " standard plugins in $VIMRUNTIME/plugin - disable.
@@ -316,9 +326,12 @@ if !exists('$PARINIT')
 endif
 
 
-" it's fine. incsearch can be an unwelcome surprise over ssh.
-" it's a nice aid when writing regex, but doesn't compose well the way
-" :global does.
+" it's fine usually. incsearch can be an unwelcome surprise over ssh.
+" doesn't handle chained :g/:v.
+"
+" doc 'is'
+"
+" to put the last match into the command line: <C-r>/
 set noincsearch
 
 " setting 'ignorecase' can be surprising.
@@ -651,34 +664,49 @@ endfunction
 
 
 " doc 'listchars'
-" By default listchars has eol:$ ; this case and trail: are covered by
-" the trailing whitespace highlighting.
+"
+" By default listchars has eol:$ ; this case and trail: are covered by the
+" trailing whitespace highlighting.
 "
 " Test nbsp with AltGr+Space.
 "
 " tab: U+00BB and a space; if 2nd char isn't space, cumbersome/ugly.
-"   hl: SpecialKey
+" hl: SpecialKey
 "
-" not being able to exclude 'tabs' from listchars really seems to
-" favour 'expandtabs' ... ?
+" not being able to exclude 'tab' from listchars really seems to favour
+" 'expandtabs' ... ?
 "
-function! UserListchars(lcs_idx, exst) abort
-    let l:lcs = {}
-    if type(a:exst) == 4        " a dict
-        let l:lcs = a:exst
-    elseif type(a:exst) == 1    " a string
-        let l:lcs = UserCoCoToDict(a:exst)
-    endif
 
-    let l:lcs_choice = g:user_lcs[a:lcs_idx]
-
-    call extend(l:lcs, l:lcs_choice)
+function! UserListcharsDictMerge(lcs, lcs_exst) abort
+    let l:lcs_new = copy(a:lcs_exst)
+    call extend(l:lcs_new, a:lcs)
 
     " cool new functionality: remove lcs attributes that have been
     " set to 'NONE'.
-    call filter(l:lcs, "v:val !=# 'NONE'")
+    call filter(l:lcs_new, "v:val !=# 'NONE'")
 
-    return UserDictToCoCo(l:lcs)
+    return l:lcs_new
+endfunction
+
+function! UserListchars(lcs, exst) abort
+    let l:exst = {}
+    if type(a:exst) == 4        " a dict
+        call extend(l:exst, a:exst)
+    elseif type(a:exst) == 1    " a string
+        call extend(l:exst, UserCoCoToDict(a:exst))
+    endif
+
+    let l:lcs_choice = {}
+    if type(a:lcs) == 0         " a number - treat as index into definitions
+        call extend(l:lcs_choice, g:user_lcs[a:lcs])
+    elseif type(a:lcs) == 1     " a string - use as given
+        call extend(l:lcs_choice, UserCoCoToDict(a:lcs))
+    elseif type(a:lcs) == 4     " a dict
+        call extend(l:lcs_choice, a:lcs)
+    endif
+
+    let l:lcs_new = UserListcharsDictMerge(l:lcs_choice, l:exst)
+    return UserDictToCoCo(l:lcs_new)
 endfunction
 
 
@@ -745,6 +773,56 @@ function! UserSetupFillchars()
     return UserFillchars(l:fcs)
 endfunction
 
+function! UserSetupListchars() abort
+    " keep listchars in top-level data structures so that i can mess with them
+    " easily.
+    "
+    " for win32 and X11 with a good font:
+    " eol: U+21B2 DOWNWARDS ARROW WITH TIP LEFTWARDS
+    "   parity with g:user_showbreak_char
+    " nbsp: U+263A WHITE SMILING FACE (mocking)
+    " tab: U+2192 RIGHTWARDS ARROW  + U+2014 EM DASH
+    "   other: interpunct
+    "   other: U+2409 SYMBOL FOR HORIZONTAL TABULATION
+    "   tabs can be hidden by setting value to "\u20\u20", but showing is more
+    "   useful.
+    " trail: trailing spaces
+    "   other: ␠  U+2420 SYMBOL FOR SPACE
+
+    " bug/inconsistency in vim - it's possible to set showbreak=NONE, but not
+    " set listchars=eol:NONE etc.; here we use NONE, because UserListchars()
+    " knows how to deal with it. this has the effect of unsetting eol even if
+    " the previous listchars defined it.
+    "
+    " these are most troublesome chars, displaying eol is usually just an
+    " immense amount of clutter.
+
+    "let user_lcs_p = UserCoCoToDict('eol:NONE,nbsp:☺,tab:→ ,trail:_')
+    " U+21E5 RIGHTWARDS ARROW TO BAR
+    "let user_lcs_p = UserCoCoToDict('eol:NONE,nbsp:☺,tab:⇥ ,trail:_')
+    " guiellemet right - awkward but legible
+    "let user_lcs_p = UserCoCoToDict('eol:NONE,nbsp:☺,tab:»>,trail:_')
+    " it's important to make the whole tab visible, without using spaces,
+    " to clearly separate it from actual spaces.
+
+    let g:user_lcs_p = UserCoCoToDict('eol:NONE,nbsp:∩,tab:|_>,trail:_')
+
+    let g:user_lcs_def = UserCoCoToDict('eol:↲,extends:>,nbsp:∩,precedes:<,tab:|_>,trail:_')
+
+    " for the linux console or old X bitmap fonts:
+    let g:user_lcs_ascii = UserCoCoToDict('eol:NONE,extends:>,nbsp:?,precedes:<,tab:|_>,trail:_')
+
+    let g:user_lcs = [g:user_lcs_def, g:user_lcs_p, g:user_lcs_ascii]
+
+    " old vims < 8.1.0759 don't support 3-char tab.
+    " patch made 2014, applied 2019.
+    if !has('patch-8.1.0759')
+        for l:l in g:user_lcs
+            let l:l['tab'] = '|_'
+        endfor
+    endif
+endfunction
+
 
 " our statusline and highlight groups (VertSplit) depend on what's included in
 " fillchars. so, set it early before defining statusline and our highlight
@@ -752,45 +830,8 @@ endfunction
 let &fillchars = UserSetupFillchars()
 
 
-" keep listchars in top-level data structures so that i can mess with them
-" easily.
-"
-" for win32 and X11 with a good font:
-" eol: U+21B2 DOWNWARDS ARROW WITH TIP LEFTWARDS
-"   parity with g:user_showbreak_char
-" nbsp: U+263A WHITE SMILING FACE (mocking)
-" tab: U+2192 RIGHTWARDS ARROW  + U+2014 EM DASH
-"   other: interpunct
-"   other: U+2409 SYMBOL FOR HORIZONTAL TABULATION
-"   tabs can be hidden by setting value to "\u20\u20", but showing is more
-"   useful.
-" trail: trailing spaces
-"   other: ␠  U+2420 SYMBOL FOR SPACE
-
-" bug/inconsistency in vim - it's possible to set showbreak=NONE, but not set
-" listchars=eol:NONE etc.; here we use NONE, because UserListchars() knows how
-" to deal with it. this has the effect of unsetting eol even if the previous
-" listchars defined it.
-"
-" these are most troublesome chars, displaying eol is usually just an immense
-" amount of clutter.
-
-"let user_lcs_p = UserCoCoToDict('eol:NONE,nbsp:☺,tab:→ ,trail:_')
-" U+21E5 RIGHTWARDS ARROW TO BAR
-"let user_lcs_p = UserCoCoToDict('eol:NONE,nbsp:☺,tab:⇥ ,trail:_')
-" guiellemet right - awkward but legible
-"let user_lcs_p = UserCoCoToDict('eol:NONE,nbsp:☺,tab:»>,trail:_')
-" it's important to make the whole tab visible, without using spaces,
-" to clearly separate it from actual spaces.
-let user_lcs_p = UserCoCoToDict('eol:NONE,nbsp:☺,tab:/>,trail:_')
-
-let user_lcs_def = UserCoCoToDict('eol:↲,extends:>,nbsp:☺,precedes:<,tab:/>,trail:_')
-
-" for the linux console or old X bitmap fonts:
-let user_lcs_ascii = UserCoCoToDict('eol:$,extends:>,nbsp:^,precedes:<,tab:/>,trail:_')
-let user_lcs = [user_lcs_def, user_lcs_p, user_lcs_ascii]
-
 " set initial value, starting with nothing (the empty dict parameter)
+call UserSetupListchars()
 let &listchars = UserListchars( UserTermPrimitive() ? 2 : 1, {} )
 set list
 
@@ -1686,6 +1727,8 @@ endfunction
 " NonText and SpecialKey bg should match UserTrailingWhitespace. now that we
 " can use background colors, we clear ctermfg.
 "
+" SpecialKey's also used with :map, so can't be too light.
+"
 " Old vims don't know EndOfBuffer, just NonText. So NonText shouldn't use the
 " same ctermbg as StatusLineNC.
 
@@ -1695,7 +1738,8 @@ function! UserColours256Light()
 
         highlight NonText           ctermfg=NONE    ctermbg=7
         "highlight SpecialKey        ctermfg=NONE    ctermbg=7
-        highlight SpecialKey        ctermfg=161     ctermbg=NONE
+        "highlight SpecialKey        ctermfg=161     ctermbg=NONE
+        highlight SpecialKey        ctermfg=247     ctermbg=NONE
         highlight ColorColumn                       ctermbg=12
         highlight StatusLine        ctermfg=0       ctermbg=152
         highlight StatusLineNC      ctermfg=236     ctermbg=252
@@ -1756,9 +1800,6 @@ endfunction
 " also dark turquoise.
 "
 function! UserColoursGui()
-    " passable light: NonText SpecialKey guifg=grey50   guibg=grey88
-    " passable dark:  NonText SpecialKey guifg=grey50   guibg=grey25
-
     " light vs. dark, always overriding any colorschemes. SpellBad -
     " overriding because themes like using only guisp=undercurl, which we do
     " not want, which can leave SpellBad with nothing at all.
@@ -1766,7 +1807,7 @@ function! UserColoursGui()
         " my precious...
         highlight ColorColumn               guibg=azure2
         highlight NonText       ctermfg=NONE ctermbg=NONE guifg=NONE guibg=grey88
-        highlight SpecialKey    ctermfg=NONE ctermbg=NONE guifg=#d7005f guibg=NONE
+        highlight SpecialKey    ctermfg=NONE ctermbg=NONE guifg=#9e9e9e guibg=NONE
         highlight SpellBad      guifg=fg    guibg=grey91    gui=NONE
         highlight StatusLine    guifg=fg    guibg=#b0e0e6   gui=NONE
         highlight StatusLineNC  guifg=fg    guibg=#d8d8d8   gui=NONE
@@ -2063,7 +2104,7 @@ endfunction
 
 " doc slow-terminal
 function! UserTermSlow()
-    set noruler noshowcmd nottyfast
+    set noincsearch noruler noshowcmd nottyfast
 endfunction
 
 
@@ -2298,12 +2339,12 @@ function! UserShowMaps()
     global/\n\s\+Last set from/s//\t# src =/
     " delete lines that don't refer to a vimrc/gvimrc at home.
     " 2022-08-22 actually it's useful to see all mappings.
-    "global/src =/g!/src = \~\S\+vimrc\>/d
+    "global/src =/g!/src = \~\S\+vimrc\>/d _
     " replace <file> line <lineno> with something gF can jump to
     global/ line \(\d\+\)$/s//:\1/
 
     " delete empty lines
-    global/^$/d
+    global/^$/d _
     " internal :sort, skipping the first column (mode)
     sort /^.\s\+/
 
@@ -2323,14 +2364,14 @@ function! UserShowCommands()
     " our config = any line with "src = ~" + "vimrc" + word boundary.
     " should work with windows/vimfiles too.
     " this deletes commands from plugins/colorschemes under ~/.vim.
-    global/src =/g!/src = \~\S\+vimrc\>/d
+    global/src =/g!/src = \~\S\+vimrc\>/d _
     " enable going to location - replace "<file> line <lineno>" in the
     " 'verbose' output with <file>:<lineno>
     global/ line \(\d\+\)$/s//:\1/
 
     " ':command' output is already sorted.
     " delete empty lines
-    global/^$/d
+    global/^$/d _
 
     setlocal readonly nomodifiable
 endfunction
@@ -2343,9 +2384,9 @@ function! UserShowFunctions()
     call append(0, ['Functions', ''])
     put= UserRun('verbose function')
     global/\n\s\+Last set from/s//\t# src =/
-    global/src =/g!/src = \~\S\+vimrc\>/d
+    global/src =/g!/src = \~\S\+vimrc\>/d _
     global/ line \(\d\+\)$/s//:\1/
-    global/^$/d
+    global/^$/d _
     sort
 
     file Functions
@@ -2369,7 +2410,7 @@ function! UserShowSyntaxItems() abort
     " add output to new scratch buffer
     call append(0, ['Syntax items for buffer ' . l:bufnr])
     put =l:syn
-    /^--- Syntax items ---$/d
+    /^--- Syntax items ---$/d _
     :0
 endfunction
 
@@ -2936,6 +2977,7 @@ nnoremap    <silent> <Leader>;;      :silent update<cr>
 
 " open the command window with ,f in the command line
 cnoremap    <expr>  <Leader>f    &cedit
+nnoremap            <Leader>f   q:
 
 " doc CTRL-G
 " alt: let l = execute("normal! 3\<C-g>")
@@ -2972,7 +3014,7 @@ nnoremap    g<C-h>  <nop>
 "
 " vile's 'q' (quoted motion) is interesting.
 "nnoremap    q   <nop>
-nnoremap    q   :echo 'Temper, temper, mon capitaine.'<cr>
+nnoremap    q   :echo 'Temper temper / mon capitaine.'<cr>
 
 " end q-mappings adventure.
 
@@ -2980,6 +3022,9 @@ nnoremap    q   :echo 'Temper, temper, mon capitaine.'<cr>
 nnoremap    /       /\v
 nnoremap    ?       ?\v
 
+" set 'number', toggle 'relativenumber'
+nnoremap    <silent>    <Leader>n   :let &nu = 1<bar>let &rnu = !&rnu<cr>
+nnoremap    <silent>    <Leader>N   :let &nu = 0<bar>let &rnu = 0<cr>
 
 " -- ~ eof-map ~ end of most mapping definitions
 
@@ -3094,8 +3139,6 @@ command -bar SynSync        syntax sync fromstart
 " mnemonic to open all folds in buffer
 command -bar Unfold         normal! zR
 
-command -bar Number         setlocal number relativenumber
-
 command -nargs=1 Ch         set cmdheight=<args>
 
 command -bar -nargs=1 Tw    setlocal textwidth=<args>
@@ -3105,7 +3148,8 @@ command Colortest       runtime syntax/colortest.vim
 " kludge for 256 colour dark terminals; background detection will probably
 " never work 100%.
 " useful in a pinch for the gui too, when lucius is not around.
-command -bar Dark       set bg=dark | call UserColours()
+command -bar Dark       set bg=dark  | call UserColours()
+command -bar Light      set bg=light | call UserColours()
 
 " useful when testing in verbose mode
 command -bar -nargs=+ Log    call UserLog(<args>)
@@ -3135,10 +3179,11 @@ command Index       call UserOpenIndexFile()
 
 " enable 'list' in all windows, with or without tab visibility.
 " use as :List 1 or :List 0
-command -bar -nargs=1 List  let &lcs = UserListchars(<f-args>, &listchars) | windo set list
+command -bar -nargs=1 List  let &lcs = UserListchars(<f-args>, &lcs) | windo set list
 command -bar Nolist     windo setl nolist
+command -bar ListHideTab    let &lcs = UserListchars('tab:  ', &lcs)
+command -bar ListShowTab    let &lcs = UserListchars('tab:'.g:user_lcs_p['tab'], &lcs)
 
-command -bar VeDefault   set virtualedit=block,onemore
 
 " search for the nbsps that 'list' also uses
 " but vim isn't great for this; use perl5:
@@ -3215,10 +3260,13 @@ augroup UserVimRc
     autocmd BufReadPost *   call UserLastPositionJump()
 
     autocmd BufNewFile,BufReadPost  /etc/*          Proper
-    autocmd FileType        c,sh,conf               Proper
+    autocmd FileType        c,conf,bash,go,sh,zsh   Proper
+    autocmd FileType        c,bash,go,sh,zsh        ListHideTab
+    autocmd FileType        text                    ListHideTab
     autocmd FileType        perl,python,vim         Lousy
+    autocmd FileType        python                  ListShowTab
     autocmd FileType        ruby,eruby              Lousy
-    autocmd FileType        js,json,yaml            Lousy
+    autocmd FileType        javascript,json,yaml    Lousy
     autocmd FileType        jproperties             Lousy | setl fenc=latin1
     autocmd FileType        lisp,scheme,clojure     Lisp
     " the first line of the commit message should be < 50 chars
@@ -3253,6 +3301,9 @@ augroup UserVimRc
     " autocmd-pattern - * includes path separators.
     autocmd BufReadPost /private/var/mobile/Library/Mobile\ Documents/com~apple~CloudDocs/*.txt
                     \ setlocal swapfile
+
+    " if swapfile exists, always open read-only
+    "autocmd SwapExists *    let v:swapchoice = 'o'
 
     "autocmd TermResponse * echom 'termresponse:' strtrans(v:termresponse)
 augroup end
