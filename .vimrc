@@ -1,7 +1,6 @@
 set nocompatible
 if version < 704
     nnoremap    s   <C-w>
-    set list
     finish
 endif
 set secure encoding=utf-8 fileencoding=utf-8 nobomb
@@ -359,7 +358,6 @@ set showcmd
 set formatoptions=t
 " leave only one space after ./?/! when joining
 set nojoinspaces
-set linebreak
 " wrapmargin adds <EOL>s, never use.
 
 " http://stackoverflow.com/a/26779916/1183357
@@ -805,12 +803,22 @@ function! UserSetupListchars() abort
     " it's important to make the whole tab visible, without using spaces,
     " to clearly separate it from actual spaces.
 
-    let g:user_lcs_p = UserCoCoToDict('eol:NONE,nbsp:∩,tab:|_>,trail:_')
+    " trailing spaces - underscores are too disturbing. seems too valid,
+    " too much like a possible syntax error.
+    " but - leave it out, so that our UserTrailingWhitespace syntax match
+    " takes effect.
 
-    let g:user_lcs_def = UserCoCoToDict('eol:↲,extends:>,nbsp:∩,precedes:<,tab:|_>,trail:_')
+    let g:user_lcs_def = UserCoCoToDict('conceal:*,eol:↲,extends:>,nbsp:∩,precedes:<,tab:|_>')
+
+    " same as def above, but without eol, which is distracting.
+    let g:user_lcs_p = copy(g:user_lcs_def)
+    let g:user_lcs_p['eol'] = 'NONE'
 
     " for the linux console or old X bitmap fonts:
-    let g:user_lcs_ascii = UserCoCoToDict('eol:NONE,extends:>,nbsp:?,precedes:<,tab:|_>,trail:_')
+    " no eol, a plain ascii nbsp.
+    let g:user_lcs_ascii = copy(g:user_lcs_def)
+    let g:user_lcs_ascii['eol'] = 'NONE'
+    let g:user_lcs_ascii['nbsp'] = '?'
 
     let g:user_lcs = [g:user_lcs_def, g:user_lcs_p, g:user_lcs_ascii]
 
@@ -832,7 +840,7 @@ let &fillchars = UserSetupFillchars()
 
 " set initial value, starting with nothing (the empty dict parameter)
 call UserSetupListchars()
-let &listchars = UserListchars( UserTermPrimitive() ? 2 : 1, {} )
+let &listchars = UserListchars(UserTermPrimitive() ? g:user_lcs_ascii : g:user_lcs_p, {} )
 set list
 
 "-- doc 'statusline'
@@ -3022,9 +3030,9 @@ nnoremap    q   :echo 'Temper temper / mon capitaine.'<cr>
 nnoremap    /       /\v
 nnoremap    ?       ?\v
 
-" set 'number', toggle 'relativenumber'
-nnoremap    <silent>    <Leader>n   :let &nu = 1<bar>let &rnu = !&rnu<cr>
-nnoremap    <silent>    <Leader>N   :let &nu = 0<bar>let &rnu = 0<cr>
+" set 'number', toggle 'relativenumber', starting with 'nu' on, 'rnu' off.
+nnoremap    <Leader>n   :let &rnu = !&rnu && &nu<bar>set number<cr>
+nnoremap    <Leader>N   :set nonumber norelativenumber<cr>
 
 " -- ~ eof-map ~ end of most mapping definitions
 
@@ -3183,6 +3191,8 @@ command -bar -nargs=1 List  let &lcs = UserListchars(<f-args>, &lcs) | windo set
 command -bar Nolist     windo setl nolist
 command -bar ListHideTab    let &lcs = UserListchars('tab:  ', &lcs)
 command -bar ListShowTab    let &lcs = UserListchars('tab:'.g:user_lcs_p['tab'], &lcs)
+command -bar ListShowTrail  let &lcs = UserListchars('trail:␠', &lcs)
+command -bar ListHideTrail  let &lcs = UserListchars('trail:NONE', &lcs)
 
 
 " search for the nbsps that 'list' also uses
@@ -3263,8 +3273,8 @@ augroup UserVimRc
     autocmd FileType        c,conf,bash,go,sh,zsh   Proper
     autocmd FileType        c,bash,go,sh,zsh        ListHideTab
     autocmd FileType        text                    ListHideTab
+    autocmd FileType        text                    setl linebreak
     autocmd FileType        perl,python,vim         Lousy
-    autocmd FileType        python                  ListShowTab
     autocmd FileType        ruby,eruby              Lousy
     autocmd FileType        javascript,json,yaml    Lousy
     autocmd FileType        jproperties             Lousy | setl fenc=latin1
@@ -3291,7 +3301,7 @@ augroup UserVimRc
     "
     " doc cmdwin-char
     autocmd CmdWinEnter :
-                    \ let &l:lcs = UserListchars(0, {})
+                    \ let &l:lcs = UserListchars(g:user_lcs_def, {})
                     \ | setlocal list number norelativenumber
 
     " for iVim on iOS; by default, swap seems to be automatically disabled
