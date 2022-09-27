@@ -1,12 +1,15 @@
 set nocompatible
 if version < 704
     nnoremap    s   <C-w>
+    set number list
     finish
 endif
 set secure encoding=utf-8 fileencoding=utf-8 nobomb
 scriptencoding utf-8        " must go after 'encoding'
 
-" Last Modified: 2022-09-13
+" Last Modified: 2022-09-27
+"
+" 2022-09-27 (rip)grep cleanup, unicode whitespace notes.
 "
 " 2022-09-13 listchars/SpecialKey tinkering. Introspection commands (My*) -
 " use :g//d _ - delete to black hole register.
@@ -248,8 +251,19 @@ if has('unix') && exists('*exepath')
     endif
 endif
 " ripgrep
+"
+" 2022-09-27
+" "It's very unlikely 'grepprg' is useful to search in buffers"
+" but no bgrep/bufgrep has materialized yet.
+" https://groups.google.com/g/vim_dev/c/4fYjTCWtWLM
+" https://groups.google.com/g/vim_dev/c/idm621ixACU
+"
+" also https://github.com/tpope/vim-sensible/issues/115
 if executable('rg')
-    let &grepprg = 'rg --vimgrep --no-heading --smart-case'
+    " trailing /dev/null just helps when you forget %/filename
+    set grepprg=rg\ --vimgrep\ --no-heading\ --smart-case\ $*\ /dev/null
+    " use column number provided by ripgrep
+    set grepformat=%f:%l:%c:%m
 endif
 
 
@@ -779,6 +793,7 @@ function! UserSetupListchars() abort
     " eol: U+21B2 DOWNWARDS ARROW WITH TIP LEFTWARDS
     "   parity with g:user_showbreak_char
     " nbsp: U+263A WHITE SMILING FACE (mocking)
+    "   other: U+2423 OPEN BOX
     " tab: U+2192 RIGHTWARDS ARROW  + U+2014 EM DASH
     "   other: interpunct
     "   other: U+2409 SYMBOL FOR HORIZONTAL TABULATION
@@ -808,7 +823,7 @@ function! UserSetupListchars() abort
     " but - leave it out, so that our UserTrailingWhitespace syntax match
     " takes effect.
 
-    let g:user_lcs_def = UserCoCoToDict('conceal:*,eol:↲,extends:>,nbsp:∩,precedes:<,tab:|_>')
+    let g:user_lcs_def = UserCoCoToDict('conceal:*,eol:↲,extends:>,nbsp:␣,precedes:<,tab:|_>')
 
     " same as def above, but without eol, which is distracting.
     let g:user_lcs_p = copy(g:user_lcs_def)
@@ -3198,7 +3213,23 @@ command -bar ListHideTrail  let &lcs = UserListchars('trail:NONE', &lcs)
 " search for the nbsps that 'list' also uses
 " but vim isn't great for this; use perl5:
 "       perl -Mopen=locale -pe 's/[\N{U+202f}\N{U+00a0}]/[X]/g'
-command Fnbsp            /[\u202f\ua0]
+"
+" with perl and ripgrep (no need for pcre), \p{Zs} works.
+"
+" to exclude ordinary space, use double negation: [^\P{Zs} ]
+"   inverted Zs + ordinary space, inverted.
+"
+" \p{Zs} == \p{Space_Separator}
+"
+"   https://perldoc.perl.org/perlunicode#General_Category
+"   https://perldoc.perl.org/perluniprops#Properties-accessible-through-%5Cp%7B%7D-and-%5CP%7B%7D
+"
+" \s matches horizontal tab, but \p{Zs} won't.
+"   https://perldoc.perl.org/perlrecharclass#Whitespace
+"   /a complete listing of characters matched by \s, \h and \v as of Unicode 14.0./
+"
+"command Fnbsp            /[\u202f\ua0]
+command FWS         :grep '[^\P{Zs} ]' %
 
 " WIP/demo; pipe the buffer into some shell command seq, get output into qf.
 " use as: :Ce grep f        [no quoting in the command line]
