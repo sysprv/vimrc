@@ -2246,9 +2246,11 @@ function! UserBufCloseKeepWin()
     " keep current buffer number, we'll need it later
     let l:bufnr = bufnr('%')
 
-    if bufnr('#') != -1
-        " has alternate buffer, switch to it
-        buffer \#
+    let l:bufnr_alt = bufnr('#')
+    if l:bufnr_alt != -1
+        " has alternate buffer, switch to it.
+        " using execute instead of a simple buffer #, too close to a comment.
+        execute 'confirm buffer' l:bufnr_alt
 
         " try to delete the original buffer, if it's not in any other window
         if !bufloaded(l:bufnr)
