@@ -1047,8 +1047,13 @@ if has('patch-8.1.1372')
 
         "let l:stlparts[70] = " r%{v:register}"
 
-        " if fillchars has stl/stlnc, make the rest effectively invisible
-        let l:stlparts[80] = &fillchars =~# 'stl' ? "%#Normal#" : "%#StatusLineNC#"
+        let l:stlparts[80] = "%#StatusLineNC#"
+        " if fillchars has stl and stlnc, make the rest effectively invisible.
+        " vim9+ fcs defines a 'lastline' attribute, so not enough to check for
+        " 'stl' without separating colon.
+        if &fcs =~# 'stl:' && &fcs =~# 'stlnc:'
+            let l:stlparts[80] = "%#Normal#"
+        endif
 
         let l:stlparts[1000] = "%= " . g:user_mark . " "
 
