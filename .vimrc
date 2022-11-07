@@ -3436,9 +3436,6 @@ elseif has('win64')
 elseif has('ios')
     " iVim, iPhone
     set guifont=Menlo:h11.0
-    " versionlong 8012110 seems buggy, blinkon0 makes the cursor blink
-    " as fast as possible.
-    set guicursor=a:block-blinkwait7000-blinkon1000-blinkoff300
 endif
 
 call UserColoursPrelude()
