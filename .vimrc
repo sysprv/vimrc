@@ -2066,7 +2066,7 @@ function! UserApplySyntaxRules()
         \ display oneline containedin=ALLBUT,UserTrailingWhitespace
 
     " canary:
-    " -- date 2022-07-25 14:42:43+0200 (Jul, Mon)x
+    " -- date 2022-07-25 14:42:43+0200 (Jul, Mon)dnl
     syntax clear UserDateComment
     syntax match UserDateComment
         \ /\v-- date 20\d\d+-[0-1]\d-[0-3]\d [0-2]\d:[0-5]\d:[0-6]\d.{,16}/
@@ -2890,7 +2890,8 @@ if has('gui_running') || has('win32')
     " longer in vogue. SharpKeys can't map combinations (to do C-S-v ->
     " S-Insert).
     "
-    " just have to stick with ,xp, get used to C-q, keep xon/xoff in mind.
+    " just have to stick with ,xp, get used to C-q (emacs quoted-insert),
+    " keeping xon/xoff flow control in mind.
 
     nmap    <C-S-v>     <Leader>xp
     imap    <C-S-v>     <Leader>xp
