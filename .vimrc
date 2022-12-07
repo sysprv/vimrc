@@ -2853,8 +2853,18 @@ endfunction
 
 " ttys and bracketed paste cover this well
 nnoremap <Leader>xp     :call UserRegXPutBufN()<cr>
-" visual mode: cut selection to small delete register. this leaves vim in insert
-" mode. Escape to normal mode, then paste (using virtualedit).
+
+" visual mode, useful for replacing the current visual selection with what's in
+" the clipboard.
+"   "-c - cut selection to small delete register and go to insert mode
+"       doc: v_c
+"   <Esc> - go to normal mode
+"       then paste (using virtualedit).
+"
+" !! beware clipboard autoselect/guioption a (go-a) and [other copy/visual
+" selection start] order, as vim clipboard grabbing can overwrite the copied
+" data.
+" 1. start visual selection, 2. copy from other app, 3. paste in vim works.
 vnoremap <Leader>xp     "-c<Esc>:call UserRegXPutBufV()<cr>
 
 " insert mode: with undo branching.

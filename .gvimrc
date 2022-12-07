@@ -1,5 +1,7 @@
-set guioptions=acgimpt
-set clipboard+=autoselect
+" 2022-12-08 - remove 'a'
+set guioptions=cgimpt
+" 2022-12-08 - removing autoselect; gvim's like a terminal emulator anyway.
+set clipboard=unnamedplus
 
 " for the popup menu
 set mousemodel=popup
