@@ -3128,15 +3128,29 @@ endfunction
 
 " ----
 
+" tab settings
+" https://ericasadun.com/2016/03/31/swift-style-are-you-a-4-denter/
+" Unix (drank the 80's soda)
+command -bar Proper  setlocal softtabstop=8 shiftwidth=8 noexpandtab
+" for Python and common scripting languages
+command -bar Lousy   setlocal softtabstop=4 shiftwidth=4 expandtab
+" for lisps
+command -bar Lisp    setlocal softtabstop=2 shiftwidth=2 expandtab
+command -bar Retab   %retab
+
+" for prose
 " doc fo-table
-command -bar Nowr    setlocal fo=t nospell ai nosi nocin
-command -bar FoText  setl fo=at
+command -bar Nowr    setlocal fo=tq nospell ai nosi nocin | Proper
+" auto-format, without depending on trailing spaces (fo-w)
+command -bar FoText  setl fo=atq2
 command -bar FoCode  setl fo=cjoqr nosi cin
-"
+
 " NB: autoindent affects fo-at
 " spelling: probably better to switch to native aspell and dict-gcide
 "   (GNU Collaborative International Dictionary of English)
-command -bar Wr      setlocal tw=78 fo=at nocin nosi noai spell
+"
+" auto-format + auto-indent + fo-2 doesn't seem to do what i mean.
+command -bar Wr      setlocal noai nosi nocin spell tw=78 | FoText | Lousy
 
 " for small screens (iVim) - iPhone 13 Pro, Menlo:h11.0
 command -bar Mobile  Wr | setl tw=60 nonu nornu
@@ -3146,14 +3160,8 @@ command -bar Mobile  Wr | setl tw=60 nonu nornu
 " remember - delete to beginning of line: 0d (V), Ctrl-U (I);
 "   Ctrl-U is readline unix-line-discard.
 " set colorcolumn=16,32,48,64,80,96 might also help.
-command -bar Poetry  setlocal tw=0 formatoptions-=ta sts=4 sw=4 sts=4 ai et nospell
+command -bar Poetry  setlocal tw=0 formatoptions-=ta ai nospell | Lousy
 
-command -bar Proper  setlocal softtabstop=8 shiftwidth=8 noexpandtab
-" for Python and common scripting languages
-command -bar Lousy   setlocal softtabstop=4 shiftwidth=4 expandtab
-" for lisps
-command -bar Lisp    setlocal softtabstop=2 shiftwidth=2 expandtab
-command -bar Retab   %retab
 
 command -bar ShowBreak       let &showbreak = g:user_showbreak_char
 command -bar NoShowBreak     set showbreak=NONE
@@ -3315,9 +3323,11 @@ augroup UserVimRc
     autocmd FileType        text                    setl linebreak
     autocmd FileType        perl,python,vim         Lousy
     autocmd FileType        ruby,eruby              Lousy
-    autocmd FileType        javascript,json,yaml    Lousy
+    autocmd FileType        javascript,json         Lousy
     autocmd FileType        jproperties             Lousy | setl fenc=latin1
-    autocmd FileType        lisp,scheme,clojure     Lisp
+    autocmd FileType        markdown                Lousy
+    autocmd FileType        lisp,scheme,racket,clojure  Lisp
+
     " the first line of the commit message should be < 50 chars
     " to allow for git log --oneline
     " FileType *commit / BufNewFile,BufReadPost COMMIT_EDITMSG
