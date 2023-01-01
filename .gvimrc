@@ -45,9 +45,10 @@ elseif has('win64')
     " Iosevka _term_ has ligatures, _fixed_ doesn't. there's a new
     " 'guiligatures' option, but gtk-only so far.
 
-    set guifont=Iosevka_Fixed_SS04:h12:cDEFAULT:qCLEARTYPE
-    set guifont+=Go_Mono:h12:cDEFAULT:qCLEARTYPE
-    set guifont+=Consolas:h12:cDEFAULT:qCLEARTYPE
+    " trailing comma-separated options: :cDEFAULT,qCLEARTYPE
+    set guifont=Iosevka_Fixed_SS04:h12
+    set guifont+=Go_Mono:h12
+    set guifont+=Consolas:h12
 
     set renderoptions=type:directx
 endif
@@ -115,13 +116,11 @@ endtry
 " add a new File menu before everything we've defined above.
 1amenu &File.&Exit              :confirm qa<cr>g
 
-" if we loaded a session, save it when focus lost
-" autocmd SessionLoadPost * autocmd! FocusLost * :mksession!
 
 " started with https://github.com/tlvince/vim-auto-commit, then
 " fixed modified/fixed some things.
 "
-" could use partials... will be messier.
+" could use partials... will be messy.
 " with :wq f.ex., vim will exit before this runs or finishes running.
 " acceptable.
 " this version, using the job api looks pretty good.
@@ -191,13 +190,25 @@ function! UserGitCommitAdapter(...)
     call UserAutoGitCommitJob()
 endfunction
 
+
+function! UserSessionUpdate()
+    execute 'mksession!' fnameescape(v:this_session)
+    echom '(session updated)'
+endfunction
+
 augroup UserGvimRc
     autocmd!
+
+    " 2022-12-08 now that we've settled on sessionoptions we're happy with,
+    " if we loaded a session, add an autocmd to save it when focus is lost.
+    autocmd SessionLoadPost *
+        \ autocmd UserGvimRc FocusLost * call UserSessionUpdate()
 augroup end
 
 if has('unix')
     autocmd UserGvimRc BufWritePost /stuff/notes/* call UserGitCommitAdapter()
 endif
+
 
 " .vimrc has a 'set backgroundg&', which works well in linux. but gvim on
 " windows still starts with bg == 'dark'. manually doing 'set bg&' does the
