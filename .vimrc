@@ -399,10 +399,17 @@ endif
 set swapfile updatecount=10
 " to see current swap file path: ':sw[apname]' / swapname('%')
 
-if has('persistent_undo')
+" it's great that vim can undo more, but i can't remember that much history.
+set undolevels=20
+
+" 2023-01-01 no longer using persistent undo; haven't needed it.
+if 0 && has('persistent_undo')
     call UserMkdirOnce(g:user_undo_dir)
     let &undodir = g:user_undo_dir
-    set undofile undolevels=1000
+    " 2023-01-01 i'd like to see the .un~ file extension used with non-. undodirs,
+    " the same way the .swp extension is used. seeing undo files with "real"
+    " extensions like .pl or .txt is confusing and inconsistent.
+    set undofile
 endif
 
 " mapleader is a variable, not a setting; no &-prefix
@@ -3304,6 +3311,18 @@ function! UserAutoSetFtText(fn)
         setfiletype text
     endif
 endfunction
+
+
+" persistent undo doesn't feel good sometimes.
+" doc clear-undo
+function! UserClearUndo() abort
+    let l:old_undolevels = &undolevels
+    set undolevels=-1
+    execute "normal a \<bs>\<esc>"
+    let &undolevels = l:old_undolevels
+endfunction
+
+command -bar ClearUndo  call UserClearUndo()
 
 
 " mine own #-autogroup
