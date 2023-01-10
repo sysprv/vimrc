@@ -3469,8 +3469,8 @@ if has('linux')
     " assuming gtk
     let &guifont = 'Iosevka Fixed SS04 Light 12'
 elseif has('win64')
-    set guifont=Iosevka_Fixed_SS04_Light:h12:W300:cDEFAULT:qCLEARTYPE
-    set guifont+=Consolas:h12:cDEFAULT:qCLEARTYPE
+    set guifont=Iosevka_Fixed_SS04_Light:h12:W300
+    set guifont+=Consolas:h12
     set renderoptions=type:directx
 elseif has('ios')
     " iVim, iPhone
