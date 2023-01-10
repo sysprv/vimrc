@@ -1774,7 +1774,7 @@ function! UserColours256Light()
         highlight NonText           ctermfg=NONE    ctermbg=7
         "highlight SpecialKey        ctermfg=NONE    ctermbg=7
         "highlight SpecialKey        ctermfg=161     ctermbg=NONE
-        highlight SpecialKey        ctermfg=247     ctermbg=NONE
+        highlight SpecialKey        ctermfg=247     ctermbg=7
         highlight ColorColumn                       ctermbg=12
         highlight StatusLine        ctermfg=0       ctermbg=152
         highlight StatusLineNC      ctermfg=236     ctermbg=252
@@ -1842,7 +1842,7 @@ function! UserColoursGui()
         " my precious...
         highlight ColorColumn               guibg=azure2
         highlight NonText       ctermfg=NONE ctermbg=NONE guifg=NONE guibg=grey88
-        highlight SpecialKey    ctermfg=NONE ctermbg=NONE guifg=#9e9e9e guibg=NONE
+        highlight SpecialKey    ctermfg=NONE ctermbg=NONE guifg=#9e9e9e guibg=grey88
         highlight SpellBad      guifg=fg    guibg=grey91    gui=NONE
         highlight StatusLine    guifg=fg    guibg=#b0e0e6   gui=NONE
         highlight StatusLineNC  guifg=fg    guibg=#d8d8d8   gui=NONE
@@ -1886,7 +1886,7 @@ endfunction
 
 
 " Meant to run after a colorscheme we like is loaded. Overrides highlights
-" we don't agree with (StatusLine(NC), NonText, SpecialKeys), defines good
+" we don't agree with (StatusLine(NC), NonText, SpecialKey), defines good
 " highlights in case the colorscheme file might not be available (Visual).
 "
 " mlterm starts with t_Co 8, later changes to 256.
@@ -3237,6 +3237,8 @@ command Index       call UserOpenIndexFile()
 " use as :List 1 or :List 0
 command -bar -nargs=1 List  let &lcs = UserListchars(<f-args>, &lcs) | windo set list
 command -bar Nolist     windo setl nolist
+" this can make trailing hard tabs invisible unless the SpecialKey highlight
+" accounts for that.
 command -bar ListHideTab    let &lcs = UserListchars('tab:  ', &lcs)
 command -bar ListShowTab    let &lcs = UserListchars('tab:'.g:user_lcs_p['tab'], &lcs)
 command -bar ListShowTrail  let &lcs = UserListchars('trail:␠', &lcs)
