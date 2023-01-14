@@ -7,7 +7,10 @@ endif
 set secure encoding=utf-8 fileencoding=utf-8 nobomb
 scriptencoding utf-8        " must go after 'encoding'
 
-" Last Modified: 2022-09-27
+" Last Modified: 2023-01-14
+"
+" 2023-01-14 disable list; take another look at undodir and dir.
+" redo ,n mapping for switching between line number display formats.
 "
 " 2022-09-27 (rip)grep cleanup, unicode whitespace notes.
 "
@@ -321,15 +324,18 @@ endif
 lockvar g:user_mark
 
 " would like to stick to the default behaviour of keeping undo files in the
-" same dir; but breaks badly on iOS when editing files on iCloud Drive.
+" same dir; but breaks badly on iOS when editing files on iCloud Drive -
+" the iOS Files API probably doesn't like dot-hidden files.
 "
-" with centralised undo files, vim will automaticall use the fill filename
+" with centralised undo files, vim will automaticall use the full filename
 " with % as separators as the undofile name - does not need trailing slashes
 " the way 'directory' does.
+" but no file extension's added for such files, unlike for swap files (.swp
+" is added even for centralised swap files. inconsistent for no reason.
 let g:user_undo_dir = expand('~/.vim/var/un')
 lockvar g:user_undo_dir
 
-" ditto; shouldn't have any trailing slashes.
+" ditto; shouldn't have any trailing slashes - added later.
 let g:user_swap_dir = expand('~/.vim/var/swap')
 lockvar g:user_swap_dir
 
@@ -381,6 +387,9 @@ set backupskip+=COMMIT_EDITMSG,NOTES-*.txt
 
 
 function! UserMkdirOnce(dir)
+    if a:dir == '.'
+        return
+    endif
     if !isdirectory(a:dir)
         call mkdir(a:dir, 'p', 0700)
     endif
@@ -394,7 +403,11 @@ endfunction
 "
 if has('unix') || has('win32')
     call UserMkdirOnce(g:user_swap_dir)
-    let &directory = g:user_swap_dir . '//'
+    if g:user_swap_dir ==# '.'
+        let &directory = g:user_swap_dir
+    else
+        let &directory = g:user_swap_dir . '//'
+    endif
 endif
 set swapfile updatecount=10
 " to see current swap file path: ':sw[apname]' / swapname('%')
@@ -402,13 +415,10 @@ set swapfile updatecount=10
 " it's great that vim can undo more, but i can't remember that much history.
 set undolevels=20
 
-" 2023-01-01 no longer using persistent undo; haven't needed it.
-if 0 && has('persistent_undo')
+" few undo levels, might as well persist if possible.
+if has('persistent_undo')
     call UserMkdirOnce(g:user_undo_dir)
     let &undodir = g:user_undo_dir
-    " 2023-01-01 i'd like to see the .un~ file extension used with non-. undodirs,
-    " the same way the .swp extension is used. seeing undo files with "real"
-    " extensions like .pl or .txt is confusing and inconsistent.
     set undofile
 endif
 
@@ -863,7 +873,7 @@ let &fillchars = UserSetupFillchars()
 " set initial value, starting with nothing (the empty dict parameter)
 call UserSetupListchars()
 let &listchars = UserListchars(UserTermPrimitive() ? g:user_lcs_ascii : g:user_lcs_p, {} )
-set list
+set nolist
 
 "-- doc 'statusline'
 " should allow three vertical splits.
@@ -2586,6 +2596,7 @@ if exists('&t_TI') && exists('&t_TE') && has('unix')
     set t_TI= t_TE=
 endif
 
+" arrow keys are good.
 nnoremap        <Up>    gk
 nnoremap        <Down>  gj
 nnoremap        k       gk
@@ -3070,9 +3081,24 @@ nnoremap    q   :echo 'Temper temper / mon capitaine.'<cr>
 nnoremap    /       /\v
 nnoremap    ?       ?\v
 
-" set 'number', toggle 'relativenumber', starting with 'nu' on, 'rnu' off.
-nnoremap    <Leader>n   :let &rnu = !&rnu && &nu<bar>set number<cr>
-nnoremap    <Leader>N   :set nonumber norelativenumber<cr>
+" three-state switch for 'number' and 'relativenumber'.
+" 0 0, 1 0, 1 1, 0 0
+
+function! UserNuRnuSwitch()
+    let l:nu = &number
+    let l:rnu = &relativenumber
+
+    let l:rnu = !l:rnu && l:nu
+    let l:nu = !( l:nu && !l:rnu )
+
+    " echo 'nu=' l:nu 'rnu=' l:rnu
+    " set both options in one go
+    let l:opt_nu = l:nu ? 'number' : 'nonumber'
+    let l:opt_rnu = l:rnu ? 'relativenumber' : 'norelativenumber'
+    execute 'setlocal' l:opt_nu l:opt_rnu
+endfunction
+
+nnoremap    <silent> <expr> <Leader>n   UserNuRnuSwitch()
 
 " -- ~ eof-map ~ end of most mapping definitions
 
@@ -3350,8 +3376,7 @@ augroup UserVimRc
     autocmd BufNewFile,BufReadPost  /etc/*          Proper
     autocmd FileType        c,conf,bash,go,sh,zsh   Proper
     autocmd FileType        c,bash,go,sh,zsh        ListHideTab
-    autocmd FileType        text                    ListHideTab
-    autocmd FileType        text                    setl linebreak
+    autocmd FileType        text                    setl linebreak nolist
     autocmd FileType        perl,python,vim         Lousy
     autocmd FileType        ruby,eruby              Lousy
     autocmd FileType        javascript,json         Lousy
