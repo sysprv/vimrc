@@ -1,7 +1,12 @@
 " 2022-12-08 - remove 'a'
 set guioptions=cgimpt
 " 2022-12-08 - removing autoselect; gvim's like a terminal emulator anyway.
-set clipboard=unnamedplus
+" 2023-01-02 - just unnamedplus is no good for win32. doesn't fail early, but
+" breaks y/p.
+set clipboard=unnamed
+if has('unnamedplus')
+    set clipboard=unnamedplus
+endif
 
 " for the popup menu
 set mousemodel=popup
