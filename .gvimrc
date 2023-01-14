@@ -14,50 +14,7 @@ set mousemodel=popup
 set mouseshape-=v:rightup-arrow
 set mouseshape+=n-v:beam
 
-" 2022-09-07 this is mostly a log of what's been tried. .vimrc defines
-" guifont and guicorsor now.
-
-if 0
-if has('linux') && has('gui_gtk')
-    "set guifont=Source\ Code\ Pro\ Light\ 12
-    "set guifont=Go\ Mono\ 11
-    "set guifont=Operator\ Mono\ Light\ 12
-    "set guifont=Letter\ Gothic\ Std\ 11        " macrons don't look good
-    "set guifont=PragmataPro\ Mono\ 12
-    "let &guifont = 'PragmataPro Mono 14'
-    "let &guifont = 'Fairfax HD Medium 14'
-    " FreeMono - like Courier, a little better than Nimbus Mono
-    "let &guifont = 'FreeMono 12'
-    " for some reason CMY TT doesn't get antialiased
-    "let &guifont = 'CMU Typewriter Text 12'
-    "let &guifont = 'Inconsolata Light 12'
-    "let &guifont = 'Source Code Pro Light 11'
-    " Prestige Elite
-    " let deffont = 'PrestigeEliMOT'
-    " let deffont = 'Inconsolata Light'
-    " let g:deffont = 'Source Code Pro'     " large; use size 11
-    " let g:deffont = 'Iosevka Term SS08 Light'
-    " - iosevka term has ligatures
-    let g:deffont = 'Iosevka Fixed SS04 Light'
-    let &guifont = deffont . ' 12'
-
-    command Big let &guifont = deffont . ' 12'
-    command Econ let &guifont = 'PragmataPro Mono 10'
-elseif has('win64')
-    " Consolas is missing some reasonable glyphs.
-    "let &g:guifont = 'Consolas:h12:cDEFAULT:qCLEARTYPE'
-
-    " Iosevka _term_ has ligatures, _fixed_ doesn't. there's a new
-    " 'guiligatures' option, but gtk-only so far.
-
-    " trailing comma-separated options: :cDEFAULT,qCLEARTYPE
-    set guifont=Iosevka_Fixed_SS04:h12
-    set guifont+=Go_Mono:h12
-    set guifont+=Consolas:h12
-
-    set renderoptions=type:directx
-endif
-endif
+" guifont - see .vimrc:/guifont/
 
 command Geometry set lines=50 columns=90
 Geometry
