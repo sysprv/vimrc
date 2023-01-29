@@ -372,7 +372,7 @@ endif
 " indication to selected line count. the jumping cursor and redrawing is
 " noticeable on slow Windows environments (VMware, large screen, underpowered
 " graphics.)
-set showcmd
+set noshowcmd
 
 " doc fo-table
 set formatoptions=t
@@ -476,7 +476,8 @@ set colorcolumn=+1
 " will be fine using visual mode/line numbers and the xsel(1) integration
 " mappings and commands further below.
 " highlight group: NonText
-let &showbreak = g:user_showbreak_char
+" let &showbreak = g:user_showbreak_char
+" 2023-01-29 not too useful.
 
 if g:user_has_x11 || has('gui_running')
     " yes, even for vim in X terminal emulators
@@ -2988,6 +2989,7 @@ let Symbols = {
     \ ,'brkt left corner': nr2char(0xFF62)
     \ ,'brkt right corner': nr2char(0xFF63)
     \ ,'silcrow':       nr2char(0xA7)
+    \ ,'bourbaki bend': nr2char(0x2621)
     \ }
 lockvar Symbols
 
@@ -3382,6 +3384,8 @@ augroup UserVimRc
     autocmd FileType        javascript,json         Lousy
     autocmd FileType        jproperties             Lousy | setl fenc=latin1
     autocmd FileType        markdown                Lousy
+    " yaml - don't even bother
+    autocmd FileType        java,xml                Lousy
     autocmd FileType        lisp,scheme,racket,clojure  Lisp
 
     " the first line of the commit message should be < 50 chars
