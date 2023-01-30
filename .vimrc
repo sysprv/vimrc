@@ -3088,7 +3088,7 @@ nnoremap    ?       ?\v
 " three-state switch for 'number' and 'relativenumber'.
 " 0 0, 1 0, 1 1, 0 0
 
-function! UserNuRnuSwitch()
+function! UserLineNumberSwitch()
     let l:nu = &number
     let l:rnu = &relativenumber
 
@@ -3102,7 +3102,7 @@ function! UserNuRnuSwitch()
     execute 'setlocal' l:opt_nu l:opt_rnu
 endfunction
 
-nnoremap    <silent> <expr> <Leader>n   UserNuRnuSwitch()
+nnoremap    <silent> <Leader>n   :call UserLineNumberSwitch()<cr>
 
 " -- ~ eof-map ~ end of most mapping definitions
 
