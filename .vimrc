@@ -460,10 +460,12 @@ set smarttab
 set shiftround
 set backspace=indent,eol,start
 
-" move, in normal+visual with, <left> and <right>.
-" NB regarding the default (b,s) - we map <bs> to disable hlsearch, and i've never
-" used <space> to go forward. so, instead of +=, here we do =.
-set whichwrap=<,>
+" move, in normal+visual with, <left> and <right>.  NB regarding the default
+" (b,s) - we map <bs> to disable hlsearch, and i've never used <space> to go
+" forward. so, instead of +=, here we do =.
+" 2023-01-29 add [,] for left/right in insert mode. can't recall if it's
+" already been tried and rejected.
+set whichwrap=<,>,[,]
 
 
 " indentation
