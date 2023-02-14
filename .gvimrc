@@ -122,7 +122,7 @@ function! UserAutoGitCommitJob()
     " no message -> just check the buffer with job output
     function! UserAGCCB3(job, status) closure
         if l:E0(a:job)
-            echom '(committed)'
+            "echom '(committed)'
         endif
     endfunction
 
@@ -155,7 +155,7 @@ endfunction
 
 function! UserSessionUpdate()
     execute 'mksession!' fnameescape(v:this_session)
-    echom '(session updated)'
+    "echom '(session updated)'
 endfunction
 
 augroup UserGvimRc
