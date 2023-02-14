@@ -4,10 +4,17 @@ if version < 704
     set number list
     finish
 endif
+
 set secure encoding=utf-8 fileencoding=utf-8 nobomb
 scriptencoding utf-8        " must go after 'encoding'
 
-" Last Modified: 2023-01-14
+" Last Modified: 2023-02-14
+"
+" 2023-02-14 still can't get multi-column glyphs right, even in gvim.
+" not the best editor for working with hieroglyphs or yijing hexagrams.
+" funny. unix, text. some text.
+"
+" 2023-02-01 Reduce highlight rules a little
 "
 " 2023-01-14 disable list; take another look at undodir and dir.
 " redo ,n mapping for switching between line number display formats.
@@ -371,7 +378,9 @@ endif
 " for example visual mode selected char count display switching without
 " indication to selected line count. the jumping cursor and redrawing is
 " noticeable on slow Windows environments (VMware, large screen, underpowered
-" graphics.)
+" graphics.) v:count is what's good to know; the statusline doesn't update
+" often enough to be useful for this. vile throws up an arg: prompt for this,
+" which is nice.
 set noshowcmd
 
 " doc fo-table
@@ -448,10 +457,12 @@ endif
 set selectmode=
 
 " laststatus: 0 = never, 1 = show if multiple splits, 2 = always.
-set laststatus=2
+set laststatus=1
 
 " disabling 'ruler' makes 3<C-g> print more info.
-set noruler rulerformat=%=%M\ %{g:user_mark}
+set ruler rulerformat=%=%M\ %{g:user_mark}
+" would like to disable showmode; but with all the different modes in
+" vim...
 set showmode
 " never changing tabstop again
 set tabstop=8 shiftwidth=8 softtabstop=8 noexpandtab
@@ -1040,7 +1051,7 @@ if has('patch-8.1.1372')
             let l:stlparts[20] = " [%{UserStLnBufFlags()}%W%H]"
 
             if l:lvl > 2
-                " ****** buffer name - after everything else
+                " ****** buffer name - after everything else.
                 let l:stlparts[900] = " %.30f"
 
                 if l:lvl > 3
@@ -1676,7 +1687,7 @@ function! UserCustomSyntaxHighlights()
     endif
 
     if &background ==# 'light'
-        highlight UserDateComment ctermfg=8 ctermbg=12 guifg=grey40 guibg=azure2
+        highlight UserDateComment ctermfg=241 ctermbg=254 guifg=grey40 guibg=azure2
         "highlight UserHashTag ctermbg=194 guibg=#b9ebc4
         " like the status line
         highlight UserHashTag ctermbg=152 guibg=#b0e0e6
@@ -1702,7 +1713,8 @@ function! UserSafeUIHighlights()
     "highlight LineNr        NONE
     highlight MatchParen    NONE
     " in some situations the default bold attribute of ModeMsg caused problems.
-    highlight ModeMsg       NONE
+    " clear the term attribute, leave the rest to the colorscheme.
+    highlight ModeMsg       term=NONE
     "highlight Normal        ctermbg=NONE guibg=NONE
     highlight EndOfBuffer   NONE
     highlight SpellBad      NONE
@@ -1750,8 +1762,7 @@ endfunction
 
 
 " meant for use when testing colorschemes, to see if a colorscheme has better
-" status line colours than my choices, for example. so far this has not been the
-" case, including both iceberg and lucius.
+" status line colours than my choices.
 function! UserOverrideUiColours()
     return 1
 endfunction
@@ -1781,27 +1792,28 @@ endfunction
 " same ctermbg as StatusLineNC.
 
 function! UserColours256Light()
-    if UserOverrideUiColours()
-        "highlight LineNr            ctermbg=253
+    "highlight LineNr            ctermbg=253
 
-        highlight NonText           ctermfg=NONE    ctermbg=7
-        "highlight SpecialKey        ctermfg=NONE    ctermbg=7
-        "highlight SpecialKey        ctermfg=161     ctermbg=NONE
-        highlight SpecialKey        ctermfg=247     ctermbg=7
-        highlight ColorColumn                       ctermbg=12
-        highlight StatusLine        ctermfg=0       ctermbg=152
-        highlight StatusLineNC      ctermfg=236     ctermbg=252
-        highlight Visual                            ctermbg=153 cterm=NONE
-    endif
+    highlight NonText           ctermfg=NONE    ctermbg=7
+    "highlight SpecialKey        ctermfg=NONE    ctermbg=7
+    "highlight SpecialKey        ctermfg=161     ctermbg=NONE
+    highlight SpecialKey        ctermfg=247     ctermbg=7
+    highlight ColorColumn                       ctermbg=254                 "---+
+    highlight StatusLine        ctermfg=0       ctermbg=152
+    highlight StatusLineNC      ctermfg=236     ctermbg=254
+    highlight Visual                            ctermbg=153 cterm=NONE
+    highlight SpellBad                          ctermbg=254
 
-    highlight SpellBad                              ctermbg=253
-
-    " no point clearing 'Normal' here, vim doesn't seem to reset the background
-    " colour to the tty background color. probably mentioned somewhere in
-    " `help :hi-normal-cterm'.
+    " no point clearing 'Normal' here, vim doesn't seem to reset the
+    " background colour to the tty background color. probably mentioned
+    " somewhere in `help :hi-normal-cterm'.
+    "
     " instead - either choose a colorscheme that can work without modifying
     " Normal-ctermbg like lucius, or wrap it like our own iceberg-wrapper.vim.
-    " 2022-07-09 lucius can be set to not touch ctermbg, but still sets ctermfg.
+    "
+    " 2022-07-09 lucius can be set to not touch ctermbg, but still sets
+    " ctermfg.
+
     highlight Normal ctermfg=NONE
 endfunction
 
@@ -1811,25 +1823,20 @@ endfunction
 " as when trying desert in a bright tty. the following function
 " will get run because bg's now dark, and the result can look wrong.
 function! UserColours256Dark()
-    if UserOverrideUiColours()
-        "highlight LineNr            ctermbg=237
-        highlight NonText           ctermfg=NONE    ctermbg=238
-        highlight SpecialKey        ctermfg=NONE    ctermbg=238
-        highlight ColorColumn                       ctermbg=238
-        highlight StatusLine        ctermfg=15      ctermbg=6
-        highlight StatusLineNC      ctermfg=NONE    ctermbg=238
-        highlight Visual                            ctermbg=24  cterm=NONE
-    endif
-    highlight SpellBad                              ctermbg=237
+    "highlight LineNr            ctermbg=237
+    highlight NonText           ctermfg=NONE    ctermbg=238
+    highlight SpecialKey        ctermfg=NONE    ctermbg=238
+    highlight ColorColumn                       ctermbg=238
+    highlight StatusLine        ctermfg=0       ctermbg=6
+    highlight StatusLineNC      ctermfg=NONE    ctermbg=238
+    highlight Visual                            ctermbg=24  cterm=NONE
+    highlight SpellBad                          ctermbg=238
 endfunction
 
 function! UserColours256()
     "highlight ErrorMsg          ctermfg=yellow  ctermbg=brown   cterm=bold
     highlight MatchParen                        ctermbg=202
-    highlight EndOfBuffer       ctermbg=NONE
-
-    " high visibility - works well everywhere
-    highlight ModeMsg term=reverse ctermfg=0 ctermbg=214 guifg=#000000 guibg=#ffaf00
+    highlight EndOfBuffer                       ctermbg=NONE
 
     if &background ==# 'light'
         call UserColours256Light()
@@ -1862,6 +1869,7 @@ function! UserColoursGui()
         highlight Visual        cterm=NONE  guifg=NONE      guibg=#afd7ff
 
         " if we're using lucius, let it set the Normal colours and don't override.
+        " for anything else, set our own foreground/background.
         if !exists('g:colors_name') || g:colors_name !=# 'lucius'
             " default gui forground/background
             " was: whitesmoke; current - anti-flash white; see also #f2f3f4
@@ -1870,12 +1878,11 @@ function! UserColoursGui()
 
         " a little monkeypatching. the regular lucius light gui background
         " colour is a little too dark. match that case and override.
-        "
-        " 2022-08-24 hlget() is too new.
-        if exists('g:colors_name') && (g:colors_name ==# 'lucius') && exists('*execute')
-            let l:norm = execute('highlight Normal')
-            if match(l:norm, 'guibg=#eeeeee') > -1
-                highlight Normal                        guibg=#f3f3f3
+        " the checks are very specific here so that this won't interfere
+        " with other colours like LuciusWhite.
+        if exists('g:colors_name') && (g:colors_name ==# 'lucius') && exists('*hlget')
+            if hlget('Normal')[0]['guibg'] ==# '#eeeeee'
+                highlight Normal guibg=#f3f3f3
             endif
         endif
     else
@@ -1893,7 +1900,6 @@ function! UserColoursGui()
 
     " regardless of bg light/dark
     highlight EndOfBuffer       guifg=grey50    guibg=NONE
-    highlight ModeMsg           guifg=black     guibg=#ffaf00
     highlight MatchParen                        guibg=#ff8c00
 endfunction
 
@@ -1906,21 +1912,23 @@ endfunction
 
 function! UserColours()
     call UserLog('UserColours enter win', winnr())
-    " clean up UI colours
-    call UserSafeUIHighlights()
 
-    " orange
-    highlight clear UserHighVis
-    highlight! default link ModeMsg UserHighVis
+    if UserOverrideUiColours()
+        " clean up UI colours
+        call UserSafeUIHighlights()
 
-    " NB don't run 256-color code for gui. and, no support for 88 colors.
-    if User256()
-        call UserColours256()
+        " apply our highlights
+        " NB don't run 256-color code for gui. and, no support for 88 colors.
+        if User256()
+            call UserColours256()
+        endif
+
+        if UserCanUseGuiColours()
+            call UserColoursGui()
+        endif
     endif
 
-    if UserCanUseGuiColours()
-        call UserColoursGui()
-    endif
+    " unconditionally:
 
     " if we've defined a 'vert' in fillchars, remove the corresponding
     " highlight group.
@@ -2171,10 +2179,21 @@ function! UserColoursPrelude()
         " living with bad decisions
         set termguicolors
         set t_Co=16777216
-    elseif exists('&t_Co') && &t_Co == 8 && $TERM !~# '^Eterm'
+    else
+
+        " vim background color detection is mostly broken:
+        " https://github.com/vim/vim/issues/869 . to give up and use dark
+        " terminals (to fit in with rainbow barf tools):
+
+        if 0 && has('linux') && !has('gui')
+            set background=dark
+        endif
+
         " good idea from tpope/sensible; bright without bold.
         " will take effect under screen(1) ($TERM == 'screen').
-        set t_Co=16
+        if exists('&t_Co') && &t_Co == 8 && $TERM !~# '^Eterm'
+            set t_Co=16
+        endif
     endif
 endfunction
 
@@ -2616,12 +2635,15 @@ vnoremap        j       gj
 " nnoremap        g'      cs'g
 " nnoremap        g"      cs"G
 
-" on hitting F1 instead of Esc by accident when sleepy - do something
-" unobtrusive instead of opening help. <expr> is brittle. <Cmd>'s robust, but
-" very new. the quiet alternative: <Nop>
-nnoremap        <F1>      :call UserShowHelp()<cr>
+" on hitting F1 instead of Esc by accident when sleepy - do something a little
+" less intrusive than opening help. <expr> is brittle. <Cmd>'s robust, but
+" very new.
+"
+" the quiet alternative: <Nop>
+
+nnoremap    <silent> <F1>      :call UserShowHelp()<cr>
 " insert mode <F1> - don't change mode
-inoremap        <F1>      <C-\><C-o>:call UserShowHelp()<cr>
+inoremap    <silent> <F1>      <C-\><C-o>:call UserShowHelp()<cr>
 
 command -bar B      echo UserBufferInfo()
 
@@ -2654,8 +2676,11 @@ nnoremap        <F11>  :sball<cr>
 "
 " Trying out a mapping to show buffers quickly and unobtrusively.
 " https://stackoverflow.com/a/16084326 https://github.com/Raimondi/vim-buffalo
-" The <space> after :b allows wildmenu to come into play easily.  NB: can't be
-" a silent mapping. used to use '+', but turns out it's useful. now using 'K'.
+" The <space> after :b allows wildmenu to come into play easily.
+"
+" NB: can't be a silent mapping.
+"
+" used to use '+', but turns out it's somewhat useful.
 
 nnoremap    K           :ls!<cr>:b<space>
 
@@ -2999,12 +3024,9 @@ inoremap <expr> <Leader>ip      Symbols['interpunct']
 inoremap <expr> <Leader>lz      Symbols['lozenge']
 inoremap <expr> <Leader>dg      Symbols['dagger']
 inoremap <expr> <Leader>sc      Symbols['silcrow']
-" 2022-07-14
-inoremap <expr> <Leader>(       Symbols['brkt left corner']
-inoremap <expr> <Leader>)       Symbols['brkt right corner']
 " 2022-08-26
-inoremap <expr> <Leader>m       Symbols['em dash']
-inoremap <expr> <Leader>n       Symbols['en dash']
+inoremap <expr> <Leader>mm      Symbols['em dash']
+inoremap <expr> <Leader>nn      Symbols['en dash']
 
 " pound signs used everywhere, lozenge taken by Pollen...
 " U+25B8 Black right-pointing small triangle
@@ -3021,7 +3043,7 @@ cnoremap <expr> <Leader><Leader>   Symbols['greek cross, heavy']
 " prevent accidental nbsp entry; using 'execute' for mapping whitespace
 " execute "inoremap \u00A0 <Space>"
 
-" use 's' for window commands instead of the emacsy C-w
+" use 's' for window commands instead of the default emacsness.
 nnoremap    s   <C-w>
 " for keys like C-wf (doc CTRL-W_f), there's no option to make the split
 " vertical by default. We make do with this:
@@ -3231,11 +3253,10 @@ command -bar -nargs=1 Tw    setlocal textwidth=<args>
 
 command Colortest       runtime syntax/colortest.vim
 
-" kludge for 256 colour dark terminals; background detection will probably
-" never work 100%.
+" kludge for 256 colour dark terminals
 " useful in a pinch for the gui too, when lucius is not around.
-command -bar Dark       set bg=dark  | call UserColours()
-command -bar Light      set bg=light | call UserColours()
+command -bar Dark       set background=dark  | call UserColours()
+command -bar Light      set background=light | call UserColours()
 
 " useful when testing in verbose mode
 command -bar -nargs=+ Log    call UserLog(<args>)
@@ -3290,8 +3311,8 @@ command -bar ListHideTrail  let &lcs = UserListchars('trail:NONE', &lcs)
 "   https://perldoc.perl.org/perluniprops#Properties-accessible-through-%5Cp%7B%7D-and-%5CP%7B%7D
 "
 " \s matches horizontal tab, but \p{Zs} won't.
-"   https://perldoc.perl.org/perlrecharclass#Whitespace
-"   /a complete listing of characters matched by \s, \h and \v as of Unicode 14.0./
+" https://perldoc.perl.org/perlrecharclass#Whitespace
+" /a complete listing of characters matched by \s, \h and \v as of Unicode 14.0./
 "
 "command Fnbsp            /[\u202f\ua0]
 command FWS         :grep '[^\P{Zs} ]' %
@@ -3420,7 +3441,8 @@ augroup UserVimRc
     " there will not be an attempt to create swap files on iCloud Drive.
     "
     " autocmd-pattern - * includes path separators.
-    autocmd BufReadPost /private/var/mobile/Library/Mobile\ Documents/com~apple~CloudDocs/*.txt
+    autocmd BufReadPost
+    \ /private/var/mobile/Library/Mobile\ Documents/com~apple~CloudDocs/*.txt
                     \ setlocal swapfile
 
     " if swapfile exists, always open read-only
@@ -3500,15 +3522,18 @@ set guicursor=a:block-blinkon0
 " guifont
 if has('linux')
     " assuming gtk
-    let &guifont = 'Iosevka Fixed SS04 Light 12'
+    let &guifont = 'Iosevka Fixed Slab Lt Ex 11'
 elseif has('win64')
-    set guifont=Iosevka_Fixed_SS04_Light:h12:W300
+    " default cANSI:qDRAFT
+    set guifont=Iosevka_Fixed_Slab_Lt_Ex:h11:cDEFAULT:qCLEARTYPE
     set guifont+=Consolas:h12
-    set renderoptions=type:directx
+    " more cleartype; no hidpi here.
+    set renderoptions=type:directx,taamode:1
 elseif has('ios')
     " iVim, iPhone
     set guifont=Menlo:h11.0
 endif
+
 
 call UserColoursPrelude()
 " syntax for text isn't worth the trouble but we like good UI colours.
