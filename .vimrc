@@ -8,13 +8,11 @@ endif
 set secure encoding=utf-8 fileencoding=utf-8 nobomb
 scriptencoding utf-8        " must go after 'encoding'
 
-" Last Modified: 2023-02-14
+" Last Modified: 2023-02-17
 "
-" 2023-02-14 still can't get multi-column glyphs right, even in gvim.
-" not the best editor for working with hieroglyphs or yijing hexagrams.
-" funny. unix, text. some text.
+" 2023-02-17 Call setcellwidths() for yijing hexagrams and hieroglyphs.
 "
-" 2023-02-01 Reduce highlight rules a little
+" 2023-02-01 Reduce highlight rules a little.
 "
 " 2023-01-14 disable list; take another look at undodir and dir.
 " redo ,n mapping for switching between line number display formats.
@@ -3386,6 +3384,15 @@ endfunction
 
 command -bar ClearUndo  call UserClearUndo()
 
+" set cell widths for unicode char ranges vim doesn't
+" know about
+function UserSetCellWidths()
+    let l:yijing_hexagrams = [0x4DC0, 0x4DFF, 2]
+    let l:egyptian_hieroglyphs = [0x13000, 0x1342F, 2]
+    let l:u_ranges = [l:yijing_hexagrams, l:egyptian_hieroglyphs]
+    call setcellwidths(l:u_ranges)
+endfunction
+
 
 " mine own #-autogroup
 augroup UserVimRc
@@ -3544,6 +3551,7 @@ elseif has('ios')
 endif
 
 
+call UserSetCellWidths()
 call UserColoursPrelude()
 " syntax for text isn't worth the trouble but we like good UI colours.
 " for non-xterm-direct terminals (VTE, kitty) it might be necessary to
@@ -3556,3 +3564,4 @@ call UserLoadColors()
 " encodings even tested.
 
 " vim:tw=80 fo=croq:
+
