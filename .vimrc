@@ -3249,7 +3249,12 @@ command -bar Unfold         normal! zR
 
 command -nargs=1 Ch         set cmdheight=<args>
 
-command -bar -nargs=1 Tw    setlocal textwidth=<args>
+" query or set textwidth
+command -bar -nargs=?   Tw  if len(<q-args>) == 0
+    \ |     setlocal textwidth?
+    \ | else
+    \ |     setlocal textwidth=<args>
+    \ | endif
 
 command Colortest       runtime syntax/colortest.vim
 
