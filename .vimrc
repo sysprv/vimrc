@@ -457,7 +457,11 @@ endif
 set selectmode=
 
 " laststatus: 0 = never, 1 = show if multiple splits, 2 = always.
-set laststatus=1
+"
+" 2023-02-15 laststatus 1 seems a bit buggy with current gvim; on split +
+" statusline drawing, command line height becomes too much.
+
+set laststatus=2
 
 " disabling 'ruler' makes 3<C-g> print more info.
 set ruler rulerformat=%=%M\ %{g:user_mark}
