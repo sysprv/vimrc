@@ -548,7 +548,8 @@ endif
 
 set browsedir=buffer
 "set autochdir - too cumbersome
-set virtualedit=block
+set virtualedit=block,onemore
+set history=200
 
 " helps with navigating to a line of interest with <no>j and <no>k,
 " but also takes up a lot of space.
@@ -3413,6 +3414,11 @@ endfunction
 
 command -bar ClearUndo  call UserClearUndo()
 
+" for lines that don't start with [whitespace]#, prepend a #
+command -range CommentOnce  <line1>,<line2>:g!/^\s*#/g/^\s*[^\s]/s/^/# /
+" put # just before the first non-whitespace char
+" command -range CommentOnce  <line1>,<line2>:g!/^\s*#/s/\v^(\s*)([^\s])/\1# \2/
+
 " set cell widths for unicode char ranges vim doesn't
 " know about
 function UserSetCellWidths()
@@ -3495,7 +3501,11 @@ augroup UserVimRc
 
     "autocmd TermResponse * echom 'termresponse:' strtrans(v:termresponse)
 augroup end
-
+if has('cmdline_hist')
+    " forget :q!/:qall!
+    " must run after viminfo's loaded.
+    autocmd UserVimRc VimEnter * call histdel(':', '\v^w?q')
+endif
 
 " autogroup for my weird syntax dealings
 augroup UserVimRcSyntax
@@ -3587,6 +3597,7 @@ call UserColoursPrelude()
 " for non-xterm-direct terminals (VTE, kitty) it might be necessary to
 " call UserColours() again after enabling termguicolors.
 call UserLoadColors()
+
 
 " ~ fini ~
 
