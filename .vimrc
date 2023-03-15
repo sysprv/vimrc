@@ -3567,13 +3567,14 @@ set guicursor=a:block-blinkon0
 " guifont
 if has('linux')
     " assuming gtk
-    let &guifont = 'Iosevka Fixed Slab Lt Ex 11'
+    let &guifont = 'Iosevka Fixed Slab Extended 11'
 elseif has('win64')
     " default cANSI:qDRAFT
     set guifont=Iosevka_Fixed_Slab_Lt_Ex:h11:cDEFAULT:qCLEARTYPE
     set guifont+=Consolas:h12
     " more cleartype; no hidpi here.
-    set renderoptions=type:directx,taamode:1
+    " 2023-03-02 have hidpi now.
+    "set renderoptions=type:directx,taamode:1
 elseif has('ios')
     " iVim, iPhone
     set guifont=Menlo:h11.0
