@@ -508,7 +508,9 @@ set cpoptions+=n
 set cpoptions-=a
 set cpoptions-=A
 
-set scrolloff=2 scrolljump=5
+set scrolloff=2
+" scrolljump is efficient but jarring.
+"set scrolljump=5
 set cmdheight=1
 "set cursorlineopt=number,screenline cursorline
 "set confirm
