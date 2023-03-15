@@ -2892,7 +2892,15 @@ function! UserRegXPutBufN() abort
         return
     endif
 
-    normal! "xgP
+    if col('.') == col('$') - 1 && &virtualedit !=# 'all'
+        " at end of line - put text after cursor.
+        " test: multiple consecutive pastes.
+        normal! "xgp
+    else
+        " beginning/middle of line - put text before cursor.
+        " feels natural. same behaviour as paste.vim.
+        normal! "xgP
+    endif
 endfunction
 
 " mappings to copy/paste using the X clipboard from tty vim, without resorting
