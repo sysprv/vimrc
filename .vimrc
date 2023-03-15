@@ -2918,7 +2918,7 @@ endfunction
 " -- paste mappings - common to tty and gui.
 
 " ttys and bracketed paste cover this well
-nnoremap <Leader>xp     :call UserRegXPutBufN()<cr>
+nnoremap    <silent>    <Leader>xp      :call UserRegXPutBufN()<cr>
 
 " visual mode, useful for replacing the current visual selection with what's in
 " the clipboard.
@@ -2973,6 +2973,11 @@ if has('gui_running') || has('win32')
     imap    <C-S-v>     <Leader>xp
     vmap    <C-S-v>     <Leader>xp
     cmap    <C-S-v>     <Leader>xp
+    " on getting a laptop with a usable insert key
+    nmap    <S-Insert>  <Leader>xp
+    imap    <S-Insert>  <Leader>xp
+    vmap    <S-insert>  <Leader>xp
+    cmap    <S-Insert>  <Leader>xp
 endif
 
 " -- copying; separate definitions for tty vs. gui - write to the
@@ -2985,6 +2990,9 @@ if g:user_has_x11 && has('unix') && !has('gui_running')
     " doc :write_c
     " use: :.,+10WX11
     command -range WX11     silent <line1>,<line2>:w !xsel -i -b
+
+    nmap    <C-Insert>  <Leader>xc
+    vmap    <C-Insert>  <Leader>xc
 endif
 if has('gui_running') || has('win32')
     set mouse=inv
@@ -2995,6 +3003,9 @@ if has('gui_running') || has('win32')
     vnoremap <silent> <Leader>xc    "+zy
 
     command -range WX11     <line1>,<line2>y +
+
+    nmap    <C-Insert>  <Leader>xc
+    vmap    <C-Insert>  <Leader>xc
 endif
 
 
