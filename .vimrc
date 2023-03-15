@@ -2105,10 +2105,18 @@ function! UserApplySyntaxRules()
         \ display oneline containedin=ALLBUT,UserDateComment
 
     " canary: [✚x] [✚'x'] [✚'x ✚'x](pathological, overlap)
+    "              [✚"x"] [✚"x ✚"x] [✚"xs-xp-xq'-xz"]
+    "   [✚'a\'b']
+    "   [✚'a\✚b\'cde']
     syntax clear UserHashTag
-    syntax match UserHashTag /\v✚[_[:lower:][:upper:][:digit:]]+/
+    syntax match UserHashTag /\v✚[_[:lower:][:upper:][:digit:]]{1,30}/
         \ display oneline containedin=ALLBUT,UserHashTag
-    syntax match UserHashTag /\v✚'[^^'✚]{-1,30}'/
+    "syntax match UserHashTag /\v✚'[^^'✚]{-1,30}'/
+    "
+    " in single quotes, allow escaping anything - including single quotes
+    " and tag-starting cross.
+    " %() - non-capturing group.
+    syntax match UserHashTag /\v✚'%([^✚'\\]|\\.){-1,30}'/
         \ display oneline containedin=ALLBUT,UserHashTag
 
     " make URIs effectively invisible; if contained, highlight like the
