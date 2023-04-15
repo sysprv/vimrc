@@ -548,7 +548,7 @@ endif
 
 set browsedir=buffer
 "set autochdir - too cumbersome
-set virtualedit=block,onemore
+set virtualedit=block
 set history=200
 
 " helps with navigating to a line of interest with <no>j and <no>k,
@@ -2746,6 +2746,8 @@ inoremap    <C-w>   <C-g>u<C-w>
 "" insert timestamp
 "" nnoremap        <silent> <Leader>dt :put=UserDateTimeComment()<cr>
 inoremap <expr> <silent> <Leader>dt     UserDateTimeComment()
+"" ,dt is too complicated when tired/sleepy.
+inoremap <expr> <silent> <Leader>.      UserDateTimeComment()
 
 "" insert date
 "" nnoremap        <silent> <Leader>dd :put=UserDate()<cr>
@@ -3144,8 +3146,8 @@ nnoremap    q   :echo 'Temper temper / mon capitaine.'<cr>
 " end q-mappings adventure.
 
 " verymagic
-nnoremap    /       /\v
-nnoremap    ?       ?\v
+"nnoremap    /       /\v
+"nnoremap    ?       ?\v
 
 " three-state switch for 'number' and 'relativenumber'.
 " 0 0, 1 0, 1 1, 0 0
@@ -3245,7 +3247,8 @@ command -bar Proper  setlocal softtabstop=8 shiftwidth=8 noexpandtab
 command -bar Lousy   setlocal softtabstop=4 shiftwidth=4 expandtab
 " for lisps
 command -bar Lisp    setlocal softtabstop=2 shiftwidth=2 expandtab
-command -bar Retab   %retab
+
+" rtfm'ed - :retab! uses % as the range by default.
 
 " for prose
 " doc fo-table
@@ -3438,7 +3441,8 @@ endfunction
 command -bar ClearUndo  call UserClearUndo()
 
 " for lines that don't start with [whitespace]#, prepend a #
-command -range CommentOnce  <line1>,<line2>:g!/^\s*#/g/^\s*[^\s]/s/^/# /
+" and clear the last search pattern (set by :s), turning hlsearch off.
+command -range CommentOnce  <line1>,<line2>:g/^\s*[^#]/s/^/# / | let @/ = ''
 " put # just before the first non-whitespace char
 " command -range CommentOnce  <line1>,<line2>:g!/^\s*#/s/\v^(\s*)([^\s])/\1# \2/
 
