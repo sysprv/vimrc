@@ -1685,6 +1685,9 @@ function! UserCustomSyntaxHighlights()
     " for URIs at top level, with syntax highlighting and not matchadd()
     highlight! default link UserHttpURI Normal
 
+    " __UNIWS__
+    highlight! default link UserUnicodeWhitespace SpecialKey
+
     if !UserCanUseGuiColours() && !User256()
         " no colours, but the highlights are defined above, so it's safe to
         " return. syntax items will work.
@@ -2097,6 +2100,11 @@ function! UserApplySyntaxRules()
     syntax clear UserTrailingWhitespace
     syntax match UserTrailingWhitespace /\s\+$/
         \ display oneline containedin=ALLBUT,UserTrailingWhitespace
+
+    " reveal unicode whitespace; __UNIWS__
+    syntax clear UserUnicodeWhitespace
+    syntax match UserUnicodeWhitespace /\(\%u0085\|\%u00A0\|\%u1680\|\%u2000\|\%u2001\|\%u2002\|\%u2003\|\%u2004\|\%u2005\|\%u2006\|\%u2007\|\%u2008\|\%u2009\|\%u200A\|\%u2028\|\%u2029\|\%u202F\|\%u205F\|\%u3000\)/
+        \ display oneline containedin=ALLBUT,UserUnicodeWhitespace
 
     " canary:
     " -- date 2022-07-25 14:42:43+0200 (Jul, Mon)dnl
@@ -2878,7 +2886,7 @@ function! UserRegXPutBufV() abort
     normal! "xgP
 
     let l:col = col('.')
-    " instead of the normal i^[ in paste.vim with the literal escape:
+    " instead of the normal i^[ in paste.vim with the literal escape:
     execute "normal! i\<Esc>"
     if col('.') < l:col
         normal! l
@@ -3073,7 +3081,7 @@ cnoremap <expr> <Leader><Leader>   Symbols['greek cross, heavy']
 " abbreviations aren't so useful in such cases, they expand after whitespace.
 
 " prevent accidental nbsp entry; using 'execute' for mapping whitespace
-" execute "inoremap \u00A0 <Space>"
+execute "inoremap \u00A0 <Space>"
 
 " use 's' for window commands instead of the default emacsness.
 nnoremap    s   <C-w>
@@ -3351,8 +3359,23 @@ command -bar ListHideTrail  let &lcs = UserListchars('trail:NONE', &lcs)
 " https://perldoc.perl.org/perlrecharclass#Whitespace
 " /a complete listing of characters matched by \s, \h and \v as of Unicode 14.0./
 "
-"command Fnbsp            /[\u202f\ua0]
-command FWS         :grep '[^\P{Zs} ]' %
+"
+" pattern in double quotes instead of single quotes, for windows cmd.
+" requires a capable grep like ripgrep.
+command Grepws         :grep "[^\P{Zs} ]" %
+
+" search for unicode whitespace in pure vim: __UNIWS__
+" https://vi.stackexchange.com/a/33312
+" https://en.wikipedia.org/wiki/Whitespace_character#Unicode
+" test: https://jkorpela.fi/chars/spaces.html
+"
+" this command translates to a :/ - i.e. cursur ends up at the beginning of
+" the matching line, not at the first match.
+command Findws /\(\%u0085\|\%u00A0\|\%u1680\|\%u2000\|\%u2001\|\%u2002\|\%u2003\|\%u2004\|\%u2005\|\%u2006\|\%u2007\|\%u2008\|\%u2009\|\%u200A\|\%u2028\|\%u2029\|\%u202F\|\%u205F\|\%u3000\)
+
+" global replace unicode whitespace with an ordinary space; __UNIWS__
+" default range: whole buffer
+command -bar -range=% Cleanws <line1>,<line2>:s/\(\%u0085\|\%u00A0\|\%u1680\|\%u2000\|\%u2001\|\%u2002\|\%u2003\|\%u2004\|\%u2005\|\%u2006\|\%u2007\|\%u2008\|\%u2009\|\%u200A\|\%u2028\|\%u2029\|\%u202F\|\%u205F\|\%u3000\)/ /g
 
 " WIP/demo; pipe the buffer into some shell command seq, get output into qf.
 " use as: :Ce grep f        [no quoting in the command line]
