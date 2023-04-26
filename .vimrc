@@ -1694,7 +1694,7 @@ function! UserCustomSyntaxHighlights()
     highlight! default link UserHttpURI Normal
 
     " __UNIWS__
-    highlight! default link UserUnicodeWhitespace SpecialKey
+    highlight UserUnicodeWhitespace term=reverse ctermbg=red guibg=red
 
     if !UserCanUseGuiColours() && !User256()
         " no colours, but the highlights are defined above, so it's safe to
