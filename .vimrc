@@ -3285,7 +3285,19 @@ command -bar FoCode  setl fo=cjoqr nosi cin
 "   (GNU Collaborative International Dictionary of English)
 "
 " auto-format + auto-indent + fo-2 doesn't seem to do what i mean.
-command -bar Wr      setlocal noai nosi nocin spell tw=78 | FoText | Lousy
+
+function! UserWr()
+    if &textwidth == 0
+        setlocal textwidth=80
+    endif
+    setlocal noautoindent nosmartindent nocindent
+    setlocal spell
+    FoText
+    " 4-denting
+    Lousy
+endfunction
+
+command -bar Wr      call UserWr()
 
 " for small screens (iVim) - iPhone 13 Pro, Menlo:h11.0
 command -bar Mobile  Wr | setl tw=60 nonu nornu
@@ -3503,11 +3515,14 @@ augroup UserVimRc
     autocmd BufNewFile,BufReadPost  /etc/*          Proper
     autocmd FileType        c,conf,bash,go,sh,zsh   Proper
     autocmd FileType        c,bash,go,sh,zsh        ListHideTab
-    autocmd FileType        text                    setl linebreak nolist
+    " 2023-04-17 became a 4-denter
+    autocmd FileType        text                    Lousy
+        \ | setlocal linebreak nolist
     autocmd FileType        perl,python,vim         Lousy
     autocmd FileType        ruby,eruby              Lousy
     autocmd FileType        javascript,json         Lousy
-    autocmd FileType        jproperties             Lousy | setl fenc=latin1
+    autocmd FileType        jproperties             Lousy
+        \ | setlocal fileencoding=latin1
     autocmd FileType        markdown                Lousy
     " yaml - don't even bother
     autocmd FileType        java,xml                Lousy
