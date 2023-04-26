@@ -516,7 +516,9 @@ set scrolloff=2
 " scrolljump is efficient but jarring.
 "set scrolljump=5
 set cmdheight=1
-"set cursorlineopt=number,screenline cursorline
+" cursorline - no line/screenline. too confusing with splits.
+set cursorlineopt=number
+set cursorline
 "set confirm
 set autoread autowrite autowriteall
 set hidden
@@ -557,7 +559,9 @@ set history=200
 
 " helps with navigating to a line of interest with <no>j and <no>k,
 " but also takes up a lot of space.
-"set number relativenumber
+" see: cursorlineopt=number
+"set number
+"set relativenumber
 
 " but never newtab; maybe split.
 set switchbuf=useopen,usetab
