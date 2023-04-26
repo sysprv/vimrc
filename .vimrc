@@ -1729,8 +1729,11 @@ function! UserSafeUIHighlights()
     "highlight LineNr        NONE
     highlight MatchParen    NONE
     " in some situations the default bold attribute of ModeMsg caused problems.
-    " clear the term attribute, leave the rest to the colorscheme.
-    highlight ModeMsg       term=NONE
+    " clear the term attribute.
+    highlight ModeMsg       NONE
+    highlight CursorLine    NONE
+    highlight CursorLineNr  term=NONE cterm=NONE
+    highlight CursorColumn  NONE
     "highlight Normal        ctermbg=NONE guibg=NONE
     highlight EndOfBuffer   NONE
     highlight SpellBad      NONE
@@ -1783,6 +1786,11 @@ function! UserOverrideUiColours()
     return 1
 endfunction
 
+
+function! UserIsBlessedColorscheme()
+    return exists('g:colors_name') && (g:colors_name ==# 'lucius')
+endfunction
+
 "
 " Tip: set tty (xterm, rxvt-unicode, VTE) colour 12 to azure2/#e0eeee.
 " For mlterm: ~/.mlterm/color, 12 = #e0eeee;
@@ -1818,7 +1826,6 @@ function! UserColours256Light()
     highlight StatusLine        ctermfg=0       ctermbg=152
     highlight StatusLineNC      ctermfg=236     ctermbg=254
     highlight Visual                            ctermbg=153 cterm=NONE
-    highlight SpellBad                          ctermbg=254
 
     " no point clearing 'Normal' here, vim doesn't seem to reset the
     " background colour to the tty background color. probably mentioned
@@ -1846,20 +1853,15 @@ function! UserColours256Dark()
     highlight StatusLine        ctermfg=0       ctermbg=6
     highlight StatusLineNC      ctermfg=NONE    ctermbg=238
     highlight Visual                            ctermbg=24  cterm=NONE
-    highlight SpellBad                          ctermbg=238
 endfunction
 
-function! UserColours256()
+
+function! UserColours256Any()
     "highlight ErrorMsg          ctermfg=yellow  ctermbg=brown   cterm=bold
     highlight MatchParen                        ctermbg=202
     highlight EndOfBuffer                       ctermbg=NONE
-
-    if &background ==# 'light'
-        call UserColours256Light()
-    else
-        call UserColours256Dark()
-    endif
 endfunction
+
 
 " 'light' only
 " sea green ?
@@ -1870,55 +1872,43 @@ endfunction
 " guibg=#grey82 (typo) produced a nice colour, probably #efdf82
 " also dark turquoise.
 "
-function! UserColoursGui()
-    " light vs. dark, always overriding any colorschemes. SpellBad -
-    " overriding because themes like using only guisp=undercurl, which we do
-    " not want, which can leave SpellBad with nothing at all.
-    if &background ==# 'light'
-        " my precious...
-        highlight ColorColumn               guibg=azure2
-        highlight NonText       ctermfg=NONE ctermbg=NONE guifg=NONE guibg=grey88
-        highlight SpecialKey    ctermfg=NONE ctermbg=NONE guifg=#9e9e9e guibg=grey88
-        highlight SpellBad      guifg=fg    guibg=grey91    gui=NONE
-        highlight StatusLine    guifg=fg    guibg=#b0e0e6   gui=NONE
-        highlight StatusLineNC  guifg=fg    guibg=#d8d8d8   gui=NONE
-        highlight Visual        cterm=NONE  guifg=NONE      guibg=#afd7ff
+function! UserColoursGuiLight()
+    " my precious...
+    highlight ColorColumn               guibg=azure2
+    highlight NonText       ctermfg=NONE ctermbg=NONE guifg=NONE guibg=grey88
+    highlight SpecialKey    ctermfg=NONE ctermbg=NONE guifg=#9e9e9e guibg=grey88
+    highlight StatusLine    guifg=fg    guibg=#b0e0e6   gui=NONE
+    highlight StatusLineNC  guifg=fg    guibg=#d8d8d8   gui=NONE
+    highlight Visual        cterm=NONE  guifg=NONE      guibg=#afd7ff
 
-        " if we're using lucius, let it set the Normal colours and don't override.
-        " for anything else, set our own foreground/background.
-        if !exists('g:colors_name') || g:colors_name !=# 'lucius'
-            " default gui forground/background
-            " was: whitesmoke; current - anti-flash white; see also #f2f3f4
-            highlight Normal            guifg=black     guibg=#f3f3f3
-        endif
-
-        " a little monkeypatching. the regular lucius light gui background
-        " colour is a little too dark. match that case and override.
-        " the checks are very specific here so that this won't interfere
-        " with other colours like LuciusWhite.
-        if exists('g:colors_name') && (g:colors_name ==# 'lucius') && exists('*hlget')
-            if hlget('Normal')[0]['guibg'] ==# '#eeeeee'
-                highlight Normal guibg=#f3f3f3
-            endif
-        endif
-    else
-        highlight NonText                   guibg=grey25
-        highlight SpecialKey                guibg=grey25
-        highlight SpellBad      guifg=fg    guibg=grey25    gui=NONE
-        highlight StatusLine    guifg=black guibg=#b0e0e6   gui=NONE
-        highlight StatusLineNC  guifg=fg    guibg=grey40    gui=NONE
-        highlight Visual        cterm=NONE  guifg=NONE      guibg=#005f87
-        if !exists('g:colors_name') || g:colors_name !=# 'lucius'
-            " for emergencies only
-            highlight Normal            guifg=#d7d7d7   guibg=darkslategrey
-        endif
+    " if we're using lucius, let it set the Normal colours and don't override.
+    " for anything else, set our own foreground/background.
+    if !UserIsBlessedColorscheme()
+        " default gui forground/background
+        " was: whitesmoke; current - anti-flash white; see also #f2f3f4
+        highlight Normal    guifg=black guibg=#f3f3f3
     endif
+endfunction
 
+
+function! UserColoursGuiDark()
+    highlight NonText                   guibg=grey25
+    highlight SpecialKey                guibg=grey25
+    highlight StatusLine    guifg=black guibg=#b0e0e6   gui=NONE
+    highlight StatusLineNC  guifg=fg    guibg=grey40    gui=NONE
+    highlight Visual        cterm=NONE  guifg=NONE      guibg=#005f87
+    if !exists('g:colors_name') || g:colors_name !=# 'lucius'
+        " for emergencies only
+        highlight Normal            guifg=#d7d7d7   guibg=darkslategrey
+    endif
+endfunction
+
+
+function! UserColoursGuiAny()
     " regardless of bg light/dark
     highlight EndOfBuffer       guifg=grey50    guibg=NONE
     highlight MatchParen                        guibg=#ff8c00
 endfunction
-
 
 " Meant to run after a colorscheme we like is loaded. Overrides highlights
 " we don't agree with (StatusLine(NC), NonText, SpecialKey), defines good
@@ -1928,6 +1918,8 @@ endfunction
 
 function! UserColours()
     call UserLog('UserColours enter win', winnr())
+    let l:bg_light = &background ==# 'light'
+    let l:bg_dark = !l:bg_light
 
     if UserOverrideUiColours()
         " clean up UI colours
@@ -1936,15 +1928,34 @@ function! UserColours()
         " apply our highlights
         " NB don't run 256-color code for gui. and, no support for 88 colors.
         if User256()
-            call UserColours256()
+            if l:bg_light | call UserColours256Light() | endif
+            if l:bg_dark  | call UserColours256Dark()  | endif
+            call UserColours256Any()
         endif
 
         if UserCanUseGuiColours()
-            call UserColoursGui()
+            if l:bg_light | call UserColoursGuiLight() | endif
+            if l:bg_dark  | call UserColoursGuiDark()  | endif
+            call UserColoursGuiAny()
         endif
     endif
 
     " unconditionally:
+
+    " spell check is often wrong - deemphasize.
+    " ModeMsg could use some more attention.
+    if l:bg_light
+        highlight SpellBad              ctermbg=254
+        highlight SpellBad  guifg=fg    guibg=grey91    gui=NONE    guisp=NONE
+        highlight ModeMsg   ctermfg=0   ctermbg=254     cterm=bold
+        highlight ModeMsg   guifg=fg    guibg=#d8d8d8   gui=bold
+    endif
+    if l:bg_dark
+        highlight SpellBad              ctermbg=238
+        highlight SpellBad  guifg=fg    guibg=grey25    gui=NONE    guisp=NONE
+        highlight ModeMsg   ctermfg=0   ctermbg=238     cterm=bold
+        highlight ModeMsg   guifg=fg    guibg=grey40    gui=bold
+    endif
 
     " if we've defined a 'vert' in fillchars, remove the corresponding
     " highlight group.
@@ -1952,8 +1963,13 @@ function! UserColours()
         highlight clear VertSplit
     endif
 
-    " WIP
-    highlight! default link TabLineFill StatusLine
+    if UserIsBlessedColorscheme() &&
+                \ exists('*hlget') &&
+                \ hlget('Normal')[0]['guibg'] ==# '#eeeeee'
+        " a little monkeypatching. we're in LuciusLight. background's a bit too
+        " dark, override.
+        highlight Normal                guibg=#f3f3f3
+    endif
 
     " since we're handling a colorscheme change: pull in our custom colour and
     " syntax definitions. these are original highlights, not overrides.
@@ -2269,7 +2285,6 @@ function! UserLoadColors()
             " perfect, A+; cterm only, not for tgc
             let g:lucius_no_term_bg = 1
             colorscheme lucius
-            nnoremap <F5>   :colorscheme lucius<cr>
             if UserCanUseGuiColours()
                 LuciusLight
             endif
