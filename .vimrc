@@ -211,7 +211,6 @@ let g:loaded_logiPat = 1
 " have to also delete the filetypedetect group. anyway, we do want filetypes
 " setup, the FileType event is convenient sometimes. it's just that, that
 " autogroup has too many things - ugly. 700+ autocmds.
-
 "let g:did_load_filetypes = 1
 
 " 2022-07-28 clear out autocommands of other people.
@@ -293,15 +292,20 @@ set nofsync swapsync=
 set backupcopy=yes
 
 set modeline
-" love/hate relationship with this. can be annoying.
-" a plugin that requires these: vimoutliner
-filetype plugin off
-" language-specific auto indenting is about 10% solved.
-filetype indent off
-" often assumed; and some curious behaviour - vim always
+
+" love/hate relationship with vim bundled filetype plugins. syntax
+" highlighting and indenting rules are often less than perfect. that these
+" features are enabled, is often assumed. some curious behaviour - vim always
 " seems to set filetype for the first buffer, but not other loaded files.
 " filetype off ought to exclude setting ft for the first buffer...
-filetype on
+"
+" a plugin that requires these: vimoutliner
+"
+" 2023-04-17 trying to live with predef rules
+"
+" linux distributions may enable these by default, may not happen on windows.
+
+filetype plugin indent on
 
 " 2022-07-16 selective syntax highlighting no longer in use
 
