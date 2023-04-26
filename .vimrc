@@ -2725,8 +2725,8 @@ nnoremap        <F11>  :sball<cr>
 " NB: can't be a silent mapping.
 "
 " used to use '+', but turns out it's somewhat useful.
-
 nnoremap    K           :ls!<cr>:b<space>
+nnoremap    Q           :bnext<CR>
 
 " alt, the remote protocol:
 "
@@ -3401,7 +3401,8 @@ command Findws /\(\%u0085\|\%u00A0\|\%u1680\|\%u2000\|\%u2001\|\%u2002\|\%u2003\
 
 " global replace unicode whitespace with an ordinary space; __UNIWS__
 " default range: whole buffer
-command -bar -range=% Cleanws <line1>,<line2>:s/\(\%u0085\|\%u00A0\|\%u1680\|\%u2000\|\%u2001\|\%u2002\|\%u2003\|\%u2004\|\%u2005\|\%u2006\|\%u2007\|\%u2008\|\%u2009\|\%u200A\|\%u2028\|\%u2029\|\%u202F\|\%u205F\|\%u3000\)/ /g
+command -bar -range=% Fixws <line1>,<line2>:s/\(\%u0085\|\%u00A0\|\%u1680\|\%u2000\|\%u2001\|\%u2002\|\%u2003\|\%u2004\|\%u2005\|\%u2006\|\%u2007\|\%u2008\|\%u2009\|\%u200A\|\%u2028\|\%u2029\|\%u202F\|\%u205F\|\%u3000\)/ /g
+    \ | <line1>,<line2>retab!
 
 " WIP/demo; pipe the buffer into some shell command seq, get output into qf.
 " use as: :Ce grep f        [no quoting in the command line]
