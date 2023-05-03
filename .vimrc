@@ -8,7 +8,13 @@ endif
 set secure encoding=utf-8 fileencoding=utf-8 nobomb
 scriptencoding utf-8        " must go after 'encoding'
 
-" Last Modified: 2023-02-17
+" Last Modified: 2023-04-30
+"
+" 2023-04-30 A lot of fun with many things. Refactored unicode whitespace
+" matching, trying echowindow instead of popups, enabled cursorline, colourful
+" StatusLineNC, started using concealment to make whitespace visible,
+" ifdef'ed-out unused functions - mainly those used to try matchadd() as an
+" alternative to syntax matches.
 "
 " 2023-02-17 Call setcellwidths() for yijing hexagrams and hieroglyphs.
 "
@@ -213,6 +219,27 @@ let g:loaded_logiPat = 1
 " autogroup has too many things - ugly. 700+ autocmds.
 "let g:did_load_filetypes = 1
 
+" love/hate relationship with vim bundled filetype plugins. syntax
+" highlighting and indenting rules are often less than perfect. that these
+" features are enabled, is often assumed. some curious behaviour - vim always
+" seems to set filetype for the first buffer, but not other loaded files.
+" filetype off ought to exclude setting ft for the first buffer...
+"
+" a plugin that requires these: vimoutliner
+"
+" 2023-04-17 trying to live with predef rules
+"
+" linux distributions may enable these by default, may not happen on windows.
+
+filetype plugin on
+
+" 2023-04-29 vim indent rules are good sometimes, but better live with simple
+" autoindent than run into annoyances every once in a while (and maybe clean
+" indentexpr per filetype). F.ex. xml - where varying styles are fine.
+
+filetype indent off
+
+
 " 2022-07-28 clear out autocommands of other people.
 " {{{
 
@@ -257,6 +284,7 @@ if has('unix') && exists('*exepath')
         set shell=/bin/bash
     endif
 endif
+
 " ripgrep
 "
 " 2022-09-27
@@ -293,24 +321,9 @@ set backupcopy=yes
 
 set modeline
 
-" love/hate relationship with vim bundled filetype plugins. syntax
-" highlighting and indenting rules are often less than perfect. that these
-" features are enabled, is often assumed. some curious behaviour - vim always
-" seems to set filetype for the first buffer, but not other loaded files.
-" filetype off ought to exclude setting ft for the first buffer...
-"
-" a plugin that requires these: vimoutliner
-"
-" 2023-04-17 trying to live with predef rules
-"
-" linux distributions may enable these by default, may not happen on windows.
-
-filetype plugin indent on
-
-" 2022-07-16 selective syntax highlighting no longer in use
+" 2022-07-16 selective syntax highlighting no longer in use.
 
 " ----
-
 
 function! UserTermPrimitive()
     let l:term = &term
@@ -504,7 +517,7 @@ if g:user_has_x11 || has('gui_running')
 endif
 "set display+=uhex
 if v:version < 802
-    " newer vims set this to 'truncate'
+    " newer vims set this to 'truncate' and that's fine.
     set display+=lastline
 endif
 " use number column for wrapped lines, including showbreak char
@@ -512,13 +525,12 @@ set cpoptions+=n
 set cpoptions-=a
 set cpoptions-=A
 
-set scrolloff=2
+set scrolloff=0
+
 " scrolljump is efficient but jarring.
 "set scrolljump=5
 set cmdheight=1
-" cursorline - no line/screenline. too confusing with splits.
-set cursorlineopt=number
-set cursorline
+
 "set confirm
 set autoread autowrite autowriteall
 set hidden
@@ -559,7 +571,7 @@ set history=200
 
 " helps with navigating to a line of interest with <no>j and <no>k,
 " but also takes up a lot of space.
-" see: cursorlineopt=number
+" see: cursorlineopt=number, 'signcolumn'
 "set number
 "set relativenumber
 
@@ -838,6 +850,7 @@ function! UserSetupListchars() abort
     "   parity with g:user_showbreak_char
     " nbsp: U+263A WHITE SMILING FACE (mocking)
     "   other: U+2423 OPEN BOX
+    "
     " tab: U+2192 RIGHTWARDS ARROW  + U+2014 EM DASH
     "   other: interpunct
     "   other: U+2409 SYMBOL FOR HORIZONTAL TABULATION
@@ -867,7 +880,7 @@ function! UserSetupListchars() abort
     " but - leave it out, so that our UserTrailingWhitespace syntax match
     " takes effect.
 
-    let g:user_lcs_def = UserCoCoToDict('conceal:*,eol:↲,extends:>,nbsp:␣,precedes:<,tab:|_>')
+    let g:user_lcs_def = UserCoCoToDict('conceal:*,eol:↲,extends:>,nbsp:␣,precedes:<,tab:|_>,trail:␠,conceal:?')
 
     " same as def above, but without eol, which is distracting.
     let g:user_lcs_p = copy(g:user_lcs_def)
@@ -899,8 +912,30 @@ let &fillchars = UserSetupFillchars()
 
 " set initial value, starting with nothing (the empty dict parameter)
 call UserSetupListchars()
-let &listchars = UserListchars(UserTermPrimitive() ? g:user_lcs_ascii : g:user_lcs_p, {} )
-set nolist
+let &listchars = UserListchars(UserTermPrimitive() ? g:user_lcs_ascii : g:user_lcs_p, {})
+"set list
+
+set conceallevel=1
+" beware spooky action at a distance with cursorline and syntax matches.
+set concealcursor=nvi
+
+" cursorline - can be confusing with splits.
+"
+" the CursorLine highlight doesn't combine well with other highlights
+" sometimes, including UserTrailingWhitespace. Can use 'set list' + listchars
+" += trail:x as a workaround - then, when there is a char and not just
+" whitespace to show, the SpecialKey highlight does show up "above" the
+" CursorLine highlight.
+"
+" UserUnicodeWhitespace is out of luck. But 'Search'/'CurSearch' combine, even
+" with just whitespace.
+"
+" Alternative: conceal, with a syn-cchar or listchars lcs-conceal.
+"
+" https://github.com/vim/vim/issues/10654
+if v:version >= 802
+    set cursorlineopt=line,number
+endif
 
 "-- doc 'statusline'
 " should allow three vertical splits.
@@ -1020,6 +1055,8 @@ function! UserStLnBufFlags()
     call add(l:l, UserStLnTextWidth())
     call add(l:l, UserStLnFenc())
     call add(l:l, UserStLnFf())
+
+    " searching (for unicode whitespace) - costly
 
     " erase numbers that are 0, erase empty strings
     call filter(l:l, "v:val != 0 || v:val !=# ''")
@@ -1297,7 +1334,12 @@ endfunction
 
 
 function! UserAlert(lines)
-    if has('popupwin')
+    if exists(':echowindow')
+        " all lines get batched into one window
+        for l:ln in a:lines
+            echowindow l:ln
+        endfor
+    elseif has('popupwin')
         let l:opts = UserPopupNotfOpts()
         call popup_notification(a:lines, l:opts)
     endif
@@ -1761,7 +1803,7 @@ function! UserSafeUIHighlights()
     " specifying ctermfg in case of a dark tty background
     highlight StatusLine    ctermfg=black   ctermbg=darkcyan cterm=NONE  gui=NONE
     highlight StatusLineNC  ctermfg=black   ctermbg=grey    cterm=NONE  gui=NONE
-endfunction
+endfunction     " UserSafeUIHighlights
 
 
 " turn off most highlights; 'highlight clear' defaults are awful,
@@ -1824,8 +1866,9 @@ function! UserColours256Light()
     highlight SpecialKey        ctermfg=247     ctermbg=7
     highlight ColorColumn                       ctermbg=254                 "---+
     highlight StatusLine        ctermfg=0       ctermbg=152
-    highlight StatusLineNC      ctermfg=236     ctermbg=254
+    highlight StatusLineNC      ctermfg=15      ctermbg=90
     highlight Visual                            ctermbg=153 cterm=NONE
+    highlight CursorLine                        ctermbg=230
 
     " no point clearing 'Normal' here, vim doesn't seem to reset the
     " background colour to the tty background color. probably mentioned
@@ -1851,8 +1894,9 @@ function! UserColours256Dark()
     highlight SpecialKey        ctermfg=NONE    ctermbg=238
     highlight ColorColumn                       ctermbg=238
     highlight StatusLine        ctermfg=0       ctermbg=6
-    highlight StatusLineNC      ctermfg=NONE    ctermbg=238
+    highlight StatusLineNC      ctermfg=15      ctermbg=90
     highlight Visual                            ctermbg=24  cterm=NONE
+    highlight CursorLine                        ctermbg=242
 endfunction
 
 
@@ -1878,8 +1922,11 @@ function! UserColoursGuiLight()
     highlight NonText       ctermfg=NONE ctermbg=NONE guifg=NONE guibg=grey88
     highlight SpecialKey    ctermfg=NONE ctermbg=NONE guifg=#9e9e9e guibg=grey88
     highlight StatusLine    guifg=fg    guibg=#b0e0e6   gui=NONE
-    highlight StatusLineNC  guifg=fg    guibg=#d8d8d8   gui=NONE
+    "highlight StatusLineNC  guifg=fg    guibg=#d8d8d8   gui=NONE
+    " DarkOrchid4
+    highlight StatusLineNC  guifg=bg    guibg=#68228b   gui=NONE
     highlight Visual        cterm=NONE  guifg=NONE      guibg=#afd7ff
+    highlight CursorLine                guibg=PaleGoldenrod
 
     " if we're using lucius, let it set the Normal colours and don't override.
     " for anything else, set our own foreground/background.
@@ -1895,9 +1942,13 @@ function! UserColoursGuiDark()
     highlight NonText                   guibg=grey25
     highlight SpecialKey                guibg=grey25
     highlight StatusLine    guifg=black guibg=#b0e0e6   gui=NONE
-    highlight StatusLineNC  guifg=fg    guibg=grey40    gui=NONE
+    "highlight StatusLineNC  guifg=fg    guibg=grey40    gui=NONE
+    " DarkOrchid4
+    highlight StatusLineNC  guifg=fg    guibg=#68228b   gui=NONE
     highlight Visual        cterm=NONE  guifg=NONE      guibg=#005f87
-    if !exists('g:colors_name') || g:colors_name !=# 'lucius'
+    highlight CursorLine                guibg=SeaGreen
+
+    if !UserIsBlessedColorscheme()
         " for emergencies only
         highlight Normal            guifg=#d7d7d7   guibg=darkslategrey
     endif
@@ -1978,6 +2029,7 @@ function! UserColours()
 endfunction
 
 
+if 0
 " cruft warning; not failsafe, depends on vim version.
 function! UserIsWinRegular()
     " check for popup/preview/command line etc.
@@ -1996,13 +2048,16 @@ function! UserIsWinRegular()
     " nothing more to check
     return 1
 endfunction
+endif
 
+if 0
 function! UserHlNames()
     return [
         \ 'UserTrailingWhitespace',
         \ 'UserDateComment',
         \ 'UserHashTag',
-        \ 'UserHttpURI'
+        \ 'UserHttpURI',
+        \ 'UserUnicodeWhitespace'
         \ ]
 endfunction
 
@@ -2050,13 +2105,13 @@ endfunction
 "
 function! UserMatchAdd() abort
     " if we've defined all the matches we want in this window, no need to act
-    if exists('w:user_matches') && w:user_matches == 5
+    if exists('w:user_matches') && w:user_matches == len(UserHlNames())
         return
     endif
     let w:user_matches = 0
 
     " the names of our highlight-groups.
-    let [l:hg_utws, l:hg_udtc, l:hg_uht, l:hg_uhuri] = UserHlNames()
+    let [l:hg_utws, l:hg_udtc, l:hg_uht, l:hg_uhuri, l:hg_uniws] = UserHlNames()
 
     " matches that have already been defined
     let l:hl_exst = UserGetCurWinMatchHls()
@@ -2066,16 +2121,16 @@ function! UserMatchAdd() abort
 
     " this date range should be enough to outlast me.
     " the seconds part should cater for leap seconds.
-    let l:re_udtc = '\v-- date 20\d\d+-[0-1]\d-[0-3]\d [0-2]\d:[0-5]\d:[0-6]\d.{,16}'
+    let l:re_udtc = '\v-- date 20\d\d+-\d\d-\d\d \d\d:\d\d:\d\d.{,16}'
     " date comment, optional trailing part, after seconds: [+-]\d{4} \(\a+, \a+\)
 
-    let l:re_uht_simple = '\v✚[_[:lower:][:upper:][:digit:]]+'
+    let l:re_uht_simple = '\v✚[_[:lower:][:upper:][:digit:]]{1,30}'
     " non-greedily ("-1") match anything except
     "   caret, apostrophe, hash
     " (too broad but must include unicode) chars between apostrophes.
     " canary: [✚x] [✚'x'] [✚'x ✚'x](pathological, overlap)
     " if a tag is over 30 chars - could indicate a problem.
-    let l:re_uht_liberal = "✚'[^^'✚]\\{-1,30}'"
+    let l:re_uht_liberal = "\v✚'%([^✚'\\]|\\.){-1,30}'"
 
     let l:re_uhuri = '\v<https?:\/\/\S+>'
 
@@ -2103,6 +2158,10 @@ function! UserMatchAdd() abort
         call matchadd(l:hg_uhuri, l:re_uhuri, l:prio)
         let w:user_matches += 1
     endif
+    if s:needs(l:hg_uniws)
+        call matchadd(l:hg_uniws, UserGetUnicodeWhitespaceRegexp(), l:prio)
+        let w:user_matches += 1
+    endif
 
     delfunction s:needs
 endfunction
@@ -2113,6 +2172,7 @@ function! UserMatchReset()
     let w:user_matches = 0
     call UserMatchAdd()
 endfunction
+endif
 
 
 " reason for syntax clear - syntax match is additive, and there's no good way
@@ -2126,15 +2186,26 @@ function! UserApplySyntaxRules()
         \ display oneline containedin=ALLBUT,UserTrailingWhitespace
 
     " reveal unicode whitespace; __UNIWS__
+    "
+    " 2023-04-28 using a highlight group defined elsewhere, but also
+    " concealment, with syn-cchar defined with listchars (which is used by
+    " concealment even when 'list' is disabled. hlsearch highlight does not
+    " override conceal highlight :-) what a wonderful stew of interactions.)
+    " 2023-05-01 no concealing - doesn't buy a lot for whitespace.
+
+    let l:expr_synmatch_uniws = 'syntax match'
+                \ . ' UserUnicodeWhitespace'
+                \ . ' /' . UserGetUnicodeWhitespaceRegexp() . '/'
+                \ . ' display oneline containedin=ALLBUT,UserUnicodeWhitespace'
+
     syntax clear UserUnicodeWhitespace
-    syntax match UserUnicodeWhitespace /\(\%u0085\|\%u00A0\|\%u1680\|\%u2000\|\%u2001\|\%u2002\|\%u2003\|\%u2004\|\%u2005\|\%u2006\|\%u2007\|\%u2008\|\%u2009\|\%u200A\|\%u2028\|\%u2029\|\%u202F\|\%u205F\|\%u3000\)/
-        \ display oneline containedin=ALLBUT,UserUnicodeWhitespace
+    execute l:expr_synmatch_uniws
 
     " canary:
     " -- date 2022-07-25 14:42:43+0200 (Jul, Mon)dnl
     syntax clear UserDateComment
     syntax match UserDateComment
-        \ /\v-- date 20\d\d+-[0-1]\d-[0-3]\d [0-2]\d:[0-5]\d:[0-6]\d.{,16}/
+        \ /\v-- date 20\d\d+-\d\d-\d\d \d\d:\d\d:\d\d.{,16}/
         \ display oneline containedin=ALLBUT,UserDateComment
 
     " canary: [✚x] [✚'x'] [✚'x ✚'x](pathological, overlap)
@@ -2540,8 +2611,8 @@ command ShowSyntaxItems   silent call UserShowSyntaxItems()
 " doc:last-position-jump
 " https://vim.fandom.com/wiki/Restore_cursor_to_file_position_in_previous_editing_session
 function! UserLastPositionJump()
-    " don't restore for vcs commit message files
-    if &filetype =~# 'commit'
+    " don't restore sometimes
+    if &filetype =~# '\vcommit|rebase|diff'
         return
     endif
 
@@ -2662,15 +2733,16 @@ if exists('&t_TI') && exists('&t_TE') && has('unix')
     set t_TI= t_TE=
 endif
 
-" arrow keys are good.
-nnoremap        <Up>    gk
-nnoremap        <Down>  gj
+" arrow keys are good, bill joy used arrow keys.
+" use zz to recenter all the time
 nnoremap        k       gk
 nnoremap        j       gj
-vnoremap        <Up>    gk
-vnoremap        <Down>  gj
+nmap            <Up>    k
+nmap            <Down>  j
 vnoremap        k       gk
 vnoremap        j       gj
+vmap            <Up>    k
+vmap            <Down>  j
 
 " 2022-07-16 - recognition, through vimrc.
 " https://github.com/hotchpotch/dotfiles-vim/blob/master/.vimrc
@@ -3381,7 +3453,7 @@ command -bar ListHideTrail  let &lcs = UserListchars('trail:NONE', &lcs)
 
 " search for the nbsps that 'list' also uses
 " but vim isn't great for this; use perl5:
-"       perl -Mopen=locale -pe 's/[\N{U+202f}\N{U+00a0}]/[X]/g'
+"       perl -Mopen=locale -pe 's/[\N{U+202F}\N{U+00A0}]/[X]/g'
 "
 " with perl and ripgrep (no need for pcre), \p{Zs} works.
 "
@@ -3402,19 +3474,111 @@ command -bar ListHideTrail  let &lcs = UserListchars('trail:NONE', &lcs)
 " requires a capable grep like ripgrep.
 command Grepws         :grep "[^\P{Zs} ]" %
 
-" search for unicode whitespace in pure vim: __UNIWS__
+" make a regular expression to match unicode whitespace in pure vim: __UNIWS__
+"   LRM/RLM aren't strictly whitespace.
+"
 " https://vi.stackexchange.com/a/33312
 " https://en.wikipedia.org/wiki/Whitespace_character#Unicode
 " test: https://jkorpela.fi/chars/spaces.html
-"
-" this command translates to a :/ - i.e. cursur ends up at the beginning of
-" the matching line, not at the first match.
-command Findws /\(\%u0085\|\%u00A0\|\%u1680\|\%u2000\|\%u2001\|\%u2002\|\%u2003\|\%u2004\|\%u2005\|\%u2006\|\%u2007\|\%u2008\|\%u2009\|\%u200A\|\%u2028\|\%u2029\|\%u202F\|\%u205F\|\%u3000\)
+" https://github.com/sg16-unicode/sg16/issues/74
+" https://util.unicode.org/UnicodeJsps/list-unicodeset.jsp?a=%5B%3APattern_White_Space%3A%5D&g=&i=
 
-" global replace unicode whitespace with an ordinary space; __UNIWS__
-" default range: whole buffer
-command -bar -range=% Fixws <line1>,<line2>:s/\(\%u0085\|\%u00A0\|\%u1680\|\%u2000\|\%u2001\|\%u2002\|\%u2003\|\%u2004\|\%u2005\|\%u2006\|\%u2007\|\%u2008\|\%u2009\|\%u200A\|\%u2028\|\%u2029\|\%u202F\|\%u205F\|\%u3000\)/ /g
-    \ | <line1>,<line2>retab!
+function! UserGetUnicodeWhitespaceRegexp()
+    " code points
+    let l:nbsp                      =   0xA0
+    let l:next_line                 =   0x85
+    let l:ogham_space_mark          = 0x1680
+    let l:mongolian_vowel_separator = 0x180E
+    let l:en_quad                   = 0x2000
+    let l:em_quad                   = 0x2001
+    let l:en_space                  = 0x2002
+    let l:em_space                  = 0x2003
+    let l:three_per_em_space        = 0x2004
+    let l:four_per_em_space         = 0x2005
+    let l:six_per_em_space          = 0x2006
+    let l:figure_space              = 0x2007
+    let l:punctuation_space         = 0x2008
+    let l:thin_space                = 0x2009
+    let l:hair_space                = 0x200A
+    let l:zero_width_space          = 0x200B
+    let l:left_to_right_mark        = 0x200E
+    let l:right_to_left_mark        = 0x200F
+    let l:line_separator            = 0x2028
+    let l:paragraph_separator       = 0x2029
+    let l:narrow_nbsp               = 0x202F
+    let l:medium_mathematical_space = 0x205F
+    let l:ideographic_space         = 0x3000
+    let l:zero_width_nbsp           = 0xFEFF
+
+    " don't need to match all of the above. ideographic space is fine.
+    " 2023-04-27 vim seems to show zero-width space (0x200b), zero-width nbsp
+    " (0xfeff), LRM (0x200e) and RLM (0x200f) as angle-bracket-surrounded code
+    " point values. matchadd() doesn't override that. but hlsearch highlights
+    " these.
+
+    let l:m = [
+                \ l:nbsp,
+                \ l:next_line,
+                \ l:ogham_space_mark,
+                \ l:mongolian_vowel_separator,
+                \ l:en_quad,
+                \ l:em_quad,
+                \ l:en_space,
+                \ l:em_space,
+                \ l:three_per_em_space,
+                \ l:four_per_em_space,
+                \ l:six_per_em_space,
+                \ l:figure_space,
+                \ l:punctuation_space,
+                \ l:thin_space,
+                \ l:hair_space,
+                \ l:zero_width_space,
+                \ l:left_to_right_mark,
+                \ l:right_to_left_mark,
+                \ l:line_separator,
+                \ l:paragraph_separator,
+                \ l:narrow_nbsp,
+                \ l:medium_mathematical_space,
+                \
+                \ l:zero_width_nbsp
+                \ ]
+
+    let l:match_parts = []
+    " expression should not require magic.
+    for l:sp in l:m
+        call add(l:match_parts, printf('\%%u%04x', l:sp))
+    endfor
+    let l:regexp = join(l:match_parts, '\|')
+    return l:regexp
+endfunction!
+
+" set last search pattern, go to next match; for some reason feels more
+" natural to have this as a command rather than a mapping.
+" moving from :-command mode to /-command mode...
+" can't catch the no-match case...
+command! Findws let @/ = UserGetUnicodeWhitespaceRegexp() | call feedkeys('n', 'n')
+
+" replace unicode whitespace with an ordinary space; __UNIWS__
+" then retab
+function! UserFixUnicodeWhitespace() range
+    let l:regexp = UserGetUnicodeWhitespaceRegexp()
+    let l:cmd = a:firstline.','.a:lastline.'s/'.l:regexp.'/ /g'
+    try
+        execute l:cmd
+    catch /^Vim\%((\a\+)\)\=:E486:/
+        " the default error message when the pattern finds no matches is
+        " unsightly and can take up multiple lines because it echoes the
+        " long regexp.
+        echom 'No weird whitespace found.'
+        return
+    endtry
+
+    " redo indents to respect the buffer's tab settings
+    execute a:firstline.','.a:lastline.'retab!'
+endfunction
+
+command -bar -range=% Fixws     <line1>,<line2>call UserFixUnicodeWhitespace()
+
 
 " WIP/demo; pipe the buffer into some shell command seq, get output into qf.
 " use as: :Ce grep f        [no quoting in the command line]
@@ -3478,13 +3642,16 @@ command -bar ClearUndo  call UserClearUndo()
 
 " for lines that don't start with [whitespace]#, prepend a #
 " and clear the last search pattern (set by :s), turning hlsearch off.
-command -range CommentOnce  <line1>,<line2>:g/^\s*[^#]/s/^/# / | let @/ = ''
+command -range CommentOnce  <line1>,<line2>g/^\s*[^#]/s/^/# / | let @/ = ''
 " put # just before the first non-whitespace char
-" command -range CommentOnce  <line1>,<line2>:g!/^\s*#/s/\v^(\s*)([^\s])/\1# \2/
+" command -range CommentOnce  <line1>,<line2>g!/^\s*#/s/\v^(\s*)([^\s])/\1# \2/
 
 " set cell widths for unicode char ranges vim doesn't
 " know about
 function UserSetCellWidths()
+    if v:version < 900
+        return
+    endif
     let l:yijing_hexagrams = [0x4DC0, 0x4DFF, 2]
     let l:egyptian_hieroglyphs = [0x13000, 0x1342F, 2]
     let l:u_ranges = [l:yijing_hexagrams, l:egyptian_hieroglyphs]
@@ -3495,6 +3662,9 @@ endfunction
 " mine own #-autogroup
 augroup UserVimRc
     autocmd!
+
+    " on creating a new window - enable cursorline, in all windows.
+    "autocmd WinNew * windo set cursorline
 
     " enable auto reformatting when writing journal entries,
     " not for all text files.
@@ -3517,7 +3687,7 @@ augroup UserVimRc
     autocmd FileType        c,bash,go,sh,zsh        ListHideTab
     " 2023-04-17 became a 4-denter
     autocmd FileType        text                    Lousy
-        \ | setlocal linebreak nolist
+        \ | setlocal linebreak
     autocmd FileType        perl,python,vim         Lousy
     autocmd FileType        ruby,eruby              Lousy
     autocmd FileType        javascript,json         Lousy
@@ -3531,9 +3701,7 @@ augroup UserVimRc
     " the first line of the commit message should be < 50 chars
     " to allow for git log --oneline
     " FileType *commit / BufNewFile,BufReadPost COMMIT_EDITMSG
-    " force cursor position, regardless of viminfo/marks.
     autocmd FileType *commit    setlocal spell tw=78 cc=50,78
-                            \ | call setpos('.', [0, 0, 0, 0])
 
     autocmd BufWritePre *   call UserStripTrailingWhitespace()
     autocmd BufWritePre *   call UserUpdateBackupOptions()
