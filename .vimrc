@@ -760,8 +760,6 @@ function! UserListchars(lcs, exst) abort
     let l:exst = {}
     if type(a:exst) == 4        " a dict
         call extend(l:exst, a:exst)
-    elseif type(a:exst) == 1    " a string
-        call extend(l:exst, UserCoCoToDict(a:exst))
     endif
 
     let l:lcs_choice = {}
@@ -769,7 +767,7 @@ function! UserListchars(lcs, exst) abort
         call extend(l:lcs_choice, g:user_lcs[a:lcs])
     elseif type(a:lcs) == 1     " a string - use as given
         call extend(l:lcs_choice, UserCoCoToDict(a:lcs))
-    elseif type(a:lcs) == 4     " a dict
+    elseif type(a:lcs) == 4     " a dict - use as given
         call extend(l:lcs_choice, a:lcs)
     endif
 
@@ -789,11 +787,21 @@ endfunction
 " what's expected.
 "
 function! UserFillchars(...) abort
+    " start with existing fillchars. if first param is a map, append it.
     let l:fcs = UserCoCoToDict(&fillchars)
-    " start with existing fillchars. if first param is an array, append it.
-    if a:0 > 0 && type(a:1) == 4
-        call extend(l:fcs, a:1)
+    if a:0 > 0
+        if type(a:1) == 1   " convert to dict and use
+            call extend(l:fcs, UserCoCoToDict(a:1))
+        elseif type(a:1) == 4   " a dict
+            call extend(l:fcs, a:1)
+        endif
     endif
+
+    for k in keys(l:fcs)
+        if l:fcs[k] ==# 'NONE'
+            let l:fcs[k] = ' '
+        endif
+    endfor
 
     return UserDictToCoCo(l:fcs)
 endfunction
@@ -811,7 +819,6 @@ function! UserSetupFillchars()
         " U+2502 - BOX DRAWINGS LIGHT VERTICAL
         "   (vert default: U+007C    VERTICAL LINE)
         let l:fcs.fold = nr2char(0x2504)
-        let l:fcs.vert = nr2char(0x2502)
 
         " for the statuslines:
         " U+23BD HORIZONTAL SCAN LINE-9 is nice, but not quite low enough.
@@ -1867,6 +1874,7 @@ function! UserColours256Light()
     highlight ColorColumn                       ctermbg=254                 "---+
     highlight StatusLine        ctermfg=0       ctermbg=152
     highlight StatusLineNC      ctermfg=15      ctermbg=90
+    highlight VertSplit         ctermfg=90      ctermbg=90
     highlight Visual                            ctermbg=153 cterm=NONE
     highlight CursorLine                        ctermbg=230
 
@@ -1895,6 +1903,7 @@ function! UserColours256Dark()
     highlight ColorColumn                       ctermbg=238
     highlight StatusLine        ctermfg=0       ctermbg=6
     highlight StatusLineNC      ctermfg=15      ctermbg=90
+    highlight VertSplit         ctermfg=90      ctermbg=90
     highlight Visual                            ctermbg=24  cterm=NONE
     highlight CursorLine                        ctermbg=242
 endfunction
@@ -1925,6 +1934,7 @@ function! UserColoursGuiLight()
     "highlight StatusLineNC  guifg=fg    guibg=#d8d8d8   gui=NONE
     " DarkOrchid4
     highlight StatusLineNC  guifg=bg    guibg=#68228b   gui=NONE
+    highlight VertSplit     guifg=#68228b   guibg=#68228b
     highlight Visual        cterm=NONE  guifg=NONE      guibg=#afd7ff
     highlight CursorLine                guibg=PaleGoldenrod
 
@@ -1945,6 +1955,7 @@ function! UserColoursGuiDark()
     "highlight StatusLineNC  guifg=fg    guibg=grey40    gui=NONE
     " DarkOrchid4
     highlight StatusLineNC  guifg=fg    guibg=#68228b   gui=NONE
+    highlight VertSplit     guifg=#68228b   guibg=#68228b
     highlight Visual        cterm=NONE  guifg=NONE      guibg=#005f87
     highlight CursorLine                guibg=SeaGreen
 
@@ -2006,12 +2017,6 @@ function! UserColours()
         highlight SpellBad  guifg=fg    guibg=grey25    gui=NONE    guisp=NONE
         highlight ModeMsg   ctermfg=0   ctermbg=238     cterm=bold
         highlight ModeMsg   guifg=fg    guibg=grey40    gui=bold
-    endif
-
-    " if we've defined a 'vert' in fillchars, remove the corresponding
-    " highlight group.
-    if &fillchars =~# 'vert:'
-        highlight clear VertSplit
     endif
 
     if UserIsBlessedColorscheme() &&
