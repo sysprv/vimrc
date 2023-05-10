@@ -8,7 +8,41 @@ endif
 set secure encoding=utf-8 fileencoding=utf-8 nobomb
 scriptencoding utf-8        " must go after 'encoding'
 
-" Last Modified: 2023-04-30
+" Last Modified: 2023-05-11
+"
+" 2023-05-11 Lots of changes.
+"
+" Refactored copy/paste handling. Can now copy the current command line.
+"
+" listchars/fillchars setup:
+"   listchars: support tab:NONE as two spaces.
+"   fillchars: support NONE like UserListchars.
+"
+" statusline: static by default, use the status line function only when needed,
+" with the SL/StatusLevel user command.
+"
+" Introduce b:user_noautomod for nonsensical file formats like
+" markdown and yaml. Currently only controls the stripping of trailing spaces.
+"
+" Small utility functions for defining gui highlight groups.
+"
+" StatusLineNC/VertSplit - switch from grey to safflower.
+"
+" guifont setup - moved to a function.
+"
+" termguicolors - cleaned up, added support for Windows consoles (vcon).
+"
+" MyMaps report format cleaned up.
+"
+" Filetype indent rules reenabled, disabled only for some filetypes like xml.
+"
+" Re-enable some common options like showcmd, showbreak, number, list.
+"
+" Moved functions around a bit, + calling from a single place at startup:
+" UserInit().
+"
+"
+" 2023-05-03 UserListchars()/UserFillchars cleanup. Use scrolloff 0.
 "
 " 2023-04-30 A lot of fun with many things. Refactored unicode whitespace
 " matching, trying echowindow instead of popups, enabled cursorline, colourful
@@ -231,14 +265,7 @@ let g:loaded_logiPat = 1
 "
 " linux distributions may enable these by default, may not happen on windows.
 
-filetype plugin on
-
-" 2023-04-29 vim indent rules are good sometimes, but better live with simple
-" autoindent than run into annoyances every once in a while (and maybe clean
-" indentexpr per filetype). F.ex. xml - where varying styles are fine.
-
-filetype indent off
-
+filetype plugin indent on
 
 " 2022-07-28 clear out autocommands of other people.
 " {{{
@@ -267,8 +294,6 @@ function! UserRemoveVendorAugroups()
         endif
     endfor
 endfunction
-
-call UserRemoveVendorAugroups()
 
 " }}}
 
@@ -396,7 +421,8 @@ endif
 " graphics.) v:count is what's good to know; the statusline doesn't update
 " often enough to be useful for this. vile throws up an arg: prompt for this,
 " which is nice.
-set noshowcmd
+
+set showcmd
 
 " doc fo-table
 set formatoptions=t
@@ -469,7 +495,7 @@ endif
 " a little like :behave mswin, but not all the way. think DOS EDIT.COM.
 " set keymodel=startsel selectmode=mouse,key
 " don't use SELECT mode
-set selectmode=
+set selectmode= keymodel=
 
 " laststatus: 0 = never, 1 = show if multiple splits, 2 = always.
 "
@@ -504,12 +530,12 @@ set whichwrap=<,>,[,]
 set autoindent
 set colorcolumn=+1
 
-" showbreak's troublesome in X11 ttys, when selecting purely with the mouse.
 " will be fine using visual mode/line numbers and the xsel(1) integration
 " mappings and commands further below.
+"
 " highlight group: NonText
-" let &showbreak = g:user_showbreak_char
-" 2023-01-29 not too useful.
+
+let &showbreak = g:user_showbreak_char
 
 if g:user_has_x11 || has('gui_running')
     " yes, even for vim in X terminal emulators
@@ -572,7 +598,8 @@ set history=200
 " helps with navigating to a line of interest with <no>j and <no>k,
 " but also takes up a lot of space.
 " see: cursorlineopt=number, 'signcolumn'
-"set number
+set number
+set list
 "set relativenumber
 
 " but never newtab; maybe split.
@@ -587,7 +614,12 @@ set eadirection=hor
 if has('X11') && has('clipboard') && !has('gui_running')
     set clipboard=exclude:.*
 endif
-set mouse=
+
+if has('gui_running') || has('win32')
+    set mouse=inv
+else
+    set mouse=
+endif
 
 " I use 'view' a lot. In Red Hat Linux, view is provided by vim-minimal,
 " which evidently does not include folding. This if statement avoids
@@ -679,6 +711,19 @@ function! UserRuntimeHas(pathspec)
 endfunction
 
 
+" set cell widths for unicode char ranges vim doesn't
+" know about
+function UserSetCellWidths()
+    if v:version < 900
+        return
+    endif
+    let l:yijing_hexagrams = [0x4DC0, 0x4DFF, 2]
+    let l:egyptian_hieroglyphs = [0x13000, 0x1342F, 2]
+    let l:u_ranges = [l:yijing_hexagrams, l:egyptian_hieroglyphs]
+    call setcellwidths(l:u_ranges)
+endfunction
+
+
 " termguicolors - accept only if turned on.
 function! UserCanUseGuiColours()
     return has('gui_running') || (has('termguicolors') && &termguicolors)
@@ -738,8 +783,7 @@ endfunction
 "
 " Test nbsp with AltGr+Space.
 "
-" tab: U+00BB and a space; if 2nd char isn't space, cumbersome/ugly.
-" hl: SpecialKey
+" 'tab' hl: SpecialKey
 "
 " not being able to exclude 'tab' from listchars really seems to favour
 " 'expandtabs' ... ?
@@ -749,6 +793,10 @@ function! UserListcharsDictMerge(lcs, lcs_exst) abort
     let l:lcs_new = copy(a:lcs_exst)
     call extend(l:lcs_new, a:lcs)
 
+    " tab is special, can't be removed and the default is awful.
+    if !has_key(l:lcs_new, 'tab') || (l:lcs_new.tab ==# 'NONE')
+        let l:lcs_new.tab = '  '     " two spaces
+    endif
     " cool new functionality: remove lcs attributes that have been
     " set to 'NONE'.
     call filter(l:lcs_new, "v:val !=# 'NONE'")
@@ -756,21 +804,35 @@ function! UserListcharsDictMerge(lcs, lcs_exst) abort
     return l:lcs_new
 endfunction
 
-function! UserListchars(lcs, exst) abort
+function! UserListchars(...) abort
     let l:exst = {}
-    if type(a:exst) == 4        " a dict
-        call extend(l:exst, a:exst)
+    if a:0 == 2
+        let l:lcs_exst = a:2
+        if type(l:lcs_exst) == 1
+            " 2nd parameter is a string - convert to dict and use
+            call extend(l:exst, UserCoCoToDict(l:lcs_exst))
+        elseif type(l:lcs_exst) == 4
+            " a 2nd parameter has been given, and it's a dict
+            call extend(l:exst, l:lcs_exst)
+        endif
+    else
+        " no 2nd parameter - start with existing listchars
+        call extend(l:exst, UserCoCoToDict(&listchars))
     endif
 
     let l:lcs_choice = {}
-    if type(a:lcs) == 0         " a number - treat as index into definitions
-        call extend(l:lcs_choice, g:user_lcs[a:lcs])
-    elseif type(a:lcs) == 1     " a string - use as given
-        call extend(l:lcs_choice, UserCoCoToDict(a:lcs))
-    elseif type(a:lcs) == 4     " a dict - use as given
-        call extend(l:lcs_choice, a:lcs)
+    if a:0 > 0
+        let l:lcs_input = a:1
+        if type(l:lcs_input) == 1
+            " input 1 is a string - use as given
+            call extend(l:lcs_choice, UserCoCoToDict(l:lcs_input))
+        elseif type(l:lcs_input) == 4
+            " input 1 is a dict - use as given
+            call extend(l:lcs_choice, l:lcs_input)
+        endif
     endif
 
+    " extend + override the existent listchars with the input listchars
     let l:lcs_new = UserListcharsDictMerge(l:lcs_choice, l:exst)
     return UserDictToCoCo(l:lcs_new)
 endfunction
@@ -780,23 +842,28 @@ endfunction
 " the accumulated output is a mess and can be confusing. this function
 " can be used to remove redundant items.
 "
-" input should be a dict of items that 'fillchars' understands.
-" example: UserFillChars({'stl': 'x', 'stlnc': 'y'})
+" input should be a dict of items that 'fillchars' understands,
+" or a comma-column string.
 "
-" could have just used a:000, but it's also nice to be explicit about
-" what's expected.
+" usage:
+"
+"   let &fcs = UserFillchars({'stl': 'x', 'stlnc': 'y'})
+"   let &fcs = UserFillchars('vert:NONE')    " set vert to space
 "
 function! UserFillchars(...) abort
     " start with existing fillchars. if first param is a map, append it.
     let l:fcs = UserCoCoToDict(&fillchars)
     if a:0 > 0
-        if type(a:1) == 1   " convert to dict and use
-            call extend(l:fcs, UserCoCoToDict(a:1))
-        elseif type(a:1) == 4   " a dict
-            call extend(l:fcs, a:1)
+        let l:input = a:1
+        if type(l:input) == 1   " convert to dict and use
+            call extend(l:fcs, UserCoCoToDict(l:input))
+        elseif type(l:input) == 4   " a dict
+            call extend(l:fcs, l:input)
         endif
     endif
 
+    " fillchars doesn't natively support NONE, try to emulate with space.
+    " similar to how UserListchars handles NONE for listchars.
     for k in keys(l:fcs)
         if l:fcs[k] ==# 'NONE'
             let l:fcs[k] = ' '
@@ -887,40 +954,33 @@ function! UserSetupListchars() abort
     " but - leave it out, so that our UserTrailingWhitespace syntax match
     " takes effect.
 
-    let g:user_lcs_def = UserCoCoToDict('conceal:*,eol:↲,extends:>,nbsp:␣,precedes:<,tab:|_>,trail:␠,conceal:?')
+    let l:tab = [ '|_>', '├─›', '╰─╮'][-1]   " box drawing
+    " old vims < 8.1.0759 don't support 3-char tab. patch made 2014, applied 2019.
+    if !has('patch-8.1.0759') | let l:tab = '├─' | endif
+    " trailing chars can be very annoying, so let's try something cool.
+    let l:trail = [ '␠', '❤' ][-1]
+
+    let g:user_lcs_def = { 'eol': '↲'
+                       \ , 'extends': '>'
+                       \ , 'nbsp': '␣'
+                       \ , 'precedes': '<'
+                       \ , 'tab': l:tab
+                       \ , 'trail': l:trail
+                       \ , 'conceal': '?'
+                       \ }
 
     " same as def above, but without eol, which is distracting.
     let g:user_lcs_p = copy(g:user_lcs_def)
-    let g:user_lcs_p['eol'] = 'NONE'
+    let g:user_lcs_p.eol = 'NONE'
 
     " for the linux console or old X bitmap fonts:
-    " no eol, a plain ascii nbsp.
     let g:user_lcs_ascii = copy(g:user_lcs_def)
-    let g:user_lcs_ascii['eol'] = 'NONE'
-    let g:user_lcs_ascii['nbsp'] = '?'
+    let g:user_lcs_ascii.eol = 'NONE'
+    let g:user_lcs_ascii.nbsp = '?'
+    let g:user_lcs_ascii.trail = '_'
 
     let g:user_lcs = [g:user_lcs_def, g:user_lcs_p, g:user_lcs_ascii]
-
-    " old vims < 8.1.0759 don't support 3-char tab.
-    " patch made 2014, applied 2019.
-    if !has('patch-8.1.0759')
-        for l:l in g:user_lcs
-            let l:l['tab'] = '|_'
-        endfor
-    endif
 endfunction
-
-
-" our statusline and highlight groups (VertSplit) depend on what's included in
-" fillchars. so, set it early before defining statusline and our highlight
-" overrides.
-let &fillchars = UserSetupFillchars()
-
-
-" set initial value, starting with nothing (the empty dict parameter)
-call UserSetupListchars()
-let &listchars = UserListchars(UserTermPrimitive() ? g:user_lcs_ascii : g:user_lcs_p, {})
-"set list
 
 set conceallevel=1
 " beware spooky action at a distance with cursorline and syntax matches.
@@ -1073,7 +1133,7 @@ endfunction
 " NB last double quote starts a comment and preserves the trailing space.
 " vim indicates truncated names with a leading '<', so using something else
 " around %f/%t.
-set statusline=%n%<\ [%{UserStLnBufFlags()}%W%H]\ [%5l:%4c]%#StatusLineNC#\ %.30f%=\ %{g:user_mark}\ "
+set statusline=%n%<\ [%{UserStLnBufFlags()}%W%H]\ r%{v:register}%#StatusLineNC#\ %.30f%=\ %{g:user_mark}\ "
 
 " it's nice to see the the window size. or, the width.
 "
@@ -1133,7 +1193,8 @@ if has('patch-8.1.1372')
             endif
         endif
 
-        "let l:stlparts[70] = " r%{v:register}"
+        " show current register
+        let l:stlparts[70] = " r%{v:register}"
 
         let l:stlparts[80] = "%#StatusLineNC#"
         " if fillchars has stl and stlnc, make the rest effectively invisible.
@@ -1152,10 +1213,16 @@ if has('patch-8.1.1372')
 
         return l:s
     endfunction
-    set statusline=%!UserStatusLine()
 
     " UI support for easily setting info level
     function! UserStatusLevel(lvl)
+        " 2023-05-09 small (awful) hack - set statusline to the function
+        " defined above only if we need something dynamic..
+        "
+        " otherwise, just live with the default static statusline defined
+        " firther up.
+
+        set statusline=%!UserStatusLine()
         let l:lvl = 3
         if exists('g:user_statusline_level')
             let l:lvl = g:user_statusline_level
@@ -1693,6 +1760,9 @@ function! UserStripTrailingWhitespace()
     if !&l:modifiable || &l:readonly || &l:binary
         return
     endif
+    if exists('b:user_noautomod') && b:user_noautomod
+        return
+    endif
 
     " ah well, only handles ascii whitespace
     let l:regexp = '\s\+$'
@@ -1840,6 +1910,21 @@ function! UserIsBlessedColorscheme()
     return exists('g:colors_name') && (g:colors_name ==# 'lucius')
 endfunction
 
+
+function! UHgui(...)
+    let l:spec = ['highlight']
+    call extend(l:spec, a:000)
+    call extend(l:spec, ['ctermfg=NONE', 'ctermbg=NONE', 'cterm=NONE'])
+    execute join(l:spec, ' ')
+endfunction
+
+function! UHcterm(...)
+    let l:spec = ['highlight']
+    call extend(l:spec, a:000)
+    call extend(l:spec, ['guifg=NONE', 'guibg=NONE', 'gui=NONE'])
+    execute join(l:spec, ' ')
+endfunction
+
 "
 " Tip: set tty (xterm, rxvt-unicode, VTE) colour 12 to azure2/#e0eeee.
 " For mlterm: ~/.mlterm/color, 12 = #e0eeee;
@@ -1859,7 +1944,7 @@ endfunction
 " NonText and SpecialKey bg should match UserTrailingWhitespace. now that we
 " can use background colors, we clear ctermfg.
 "
-" SpecialKey's also used with :map, so can't be too light.
+" SpecialKey's also used with :map - too light isn't great, but can use MyMaps.
 "
 " Old vims don't know EndOfBuffer, just NonText. So NonText shouldn't use the
 " same ctermbg as StatusLineNC.
@@ -1868,13 +1953,14 @@ function! UserColours256Light()
     "highlight LineNr            ctermbg=253
 
     highlight NonText           ctermfg=NONE    ctermbg=7
-    "highlight SpecialKey        ctermfg=NONE    ctermbg=7
-    "highlight SpecialKey        ctermfg=161     ctermbg=NONE
-    highlight SpecialKey        ctermfg=247     ctermbg=7
+    highlight SpecialKey        ctermfg=252     ctermbg=NONE
     highlight ColorColumn                       ctermbg=254                 "---+
     highlight StatusLine        ctermfg=0       ctermbg=152
-    highlight StatusLineNC      ctermfg=15      ctermbg=90
-    highlight VertSplit         ctermfg=90      ctermbg=90
+    "highlight StatusLineNC      ctermfg=15      ctermbg=90
+    "highlight VertSplit         ctermfg=90      ctermbg=90
+    let l:clr = [90, 60][-1]
+    call UHcterm('StatusLineNC', 'ctermfg=15', 'ctermbg='.l:clr)
+    call UHcterm('VertSplit', 'ctermfg='.l:clr, 'ctermbg='.l:clr)
     highlight Visual                            ctermbg=153 cterm=NONE
     highlight CursorLine                        ctermbg=230
 
@@ -1899,11 +1985,12 @@ endfunction
 function! UserColours256Dark()
     "highlight LineNr            ctermbg=237
     highlight NonText           ctermfg=NONE    ctermbg=238
-    highlight SpecialKey        ctermfg=NONE    ctermbg=238
+    highlight SpecialKey        ctermfg=238     ctermbg=NONE
     highlight ColorColumn                       ctermbg=238
     highlight StatusLine        ctermfg=0       ctermbg=6
-    highlight StatusLineNC      ctermfg=15      ctermbg=90
-    highlight VertSplit         ctermfg=90      ctermbg=90
+    let l:clr = [90, 60][-1]
+    call UHcterm('StatusLineNC', 'ctermfg=15', 'ctermbg='.l:clr)
+    call UHcterm('VertSplit', 'ctermfg='.l:clr, 'ctermbg='.l:clr)
     highlight Visual                            ctermbg=24  cterm=NONE
     highlight CursorLine                        ctermbg=242
 endfunction
@@ -1929,12 +2016,15 @@ function! UserColoursGuiLight()
     " my precious...
     highlight ColorColumn               guibg=azure2
     highlight NonText       ctermfg=NONE ctermbg=NONE guifg=NONE guibg=grey88
-    highlight SpecialKey    ctermfg=NONE ctermbg=NONE guifg=#9e9e9e guibg=grey88
+    highlight SpecialKey    ctermfg=NONE ctermbg=NONE guifg=#d3d3d3 guibg=NONE
     highlight StatusLine    guifg=fg    guibg=#b0e0e6   gui=NONE
     "highlight StatusLineNC  guifg=fg    guibg=#d8d8d8   gui=NONE
-    " DarkOrchid4
-    highlight StatusLineNC  guifg=bg    guibg=#68228b   gui=NONE
-    highlight VertSplit     guifg=#68228b   guibg=#68228b
+    " DarkOrchid4: #68228b
+    " safflower: #5A4F74
+    " https://en.wikipedia.org/wiki/Traditional_colors_of_Japan#Blue/blue_violet_series
+    let l:safflower = '#5A4F74'
+    call UHgui('StatusLineNC', 'guifg=bg', 'guibg='.l:safflower, 'gui=NONE')
+    call UHgui('VertSplit', 'guifg='.l:safflower, 'guibg='.l:safflower, 'gui=NONE')
     highlight Visual        cterm=NONE  guifg=NONE      guibg=#afd7ff
     highlight CursorLine                guibg=PaleGoldenrod
 
@@ -1950,12 +2040,11 @@ endfunction
 
 function! UserColoursGuiDark()
     highlight NonText                   guibg=grey25
-    highlight SpecialKey                guibg=grey25
+    highlight SpecialKey    guifg=#515151   guibg=NONE
     highlight StatusLine    guifg=black guibg=#b0e0e6   gui=NONE
-    "highlight StatusLineNC  guifg=fg    guibg=grey40    gui=NONE
-    " DarkOrchid4
-    highlight StatusLineNC  guifg=fg    guibg=#68228b   gui=NONE
-    highlight VertSplit     guifg=#68228b   guibg=#68228b
+    let l:safflower = '#5A4F74'
+    call UHgui('StatusLineNC', 'guifg=fg', 'guibg='.l:safflower, 'gui=NONE')
+    call UHgui('VertSplit', 'guifg='.l:safflower, 'guibg='.l:safflower, 'gui=NONE')
     highlight Visual        cterm=NONE  guifg=NONE      guibg=#005f87
     highlight CursorLine                guibg=SeaGreen
 
@@ -1972,12 +2061,30 @@ function! UserColoursGuiAny()
     highlight MatchParen                        guibg=#ff8c00
 endfunction
 
+
+function! UserSetGuiFont()
+    if has('linux')
+        " assuming gtk
+        let &guifont = 'Iosevka Fixed Slab Extended 11'
+    elseif has('win64')
+        " default cANSI:qDRAFT
+        set guifont=Iosevka_Fixed_Slab_Lt_Ex:h11:cDEFAULT:qCLEARTYPE
+        set guifont+=Consolas:h12
+        " more cleartype; no hidpi here.
+        " 2023-03-02 have hidpi now.
+        "set renderoptions=type:directx,taamode:1
+    elseif has('ios')
+        " iVim, iPhone
+        set guifont=Menlo:h11.0
+    endif
+endfunction
+
+
 " Meant to run after a colorscheme we like is loaded. Overrides highlights
 " we don't agree with (StatusLine(NC), NonText, SpecialKey), defines good
 " highlights in case the colorscheme file might not be available (Visual).
 "
 " mlterm starts with t_Co 8, later changes to 256.
-
 function! UserColours()
     call UserLog('UserColours enter win', winnr())
     let l:bg_light = &background ==# 'light'
@@ -2292,14 +2399,21 @@ function! UserColoursPrelude()
         return
     endif
 
-    if &term ==# 'xterm-direct' && has('termguicolors')
-        " cterm colour codes shouldn't be used in direct colour mode.
-        " use gui colours instead.
-        set termguicolors
-    elseif &term =~# '^xterm' && exists('$VTE_VERSION') && has('termguicolors')
-        " living with bad decisions
-        set termguicolors
-        set t_Co=16777216
+    if has('termguicolors')
+        if &term ==# 'xterm-direct'
+            " lovely; but, pretty much have to use gui colors.
+            " unlike VTE, cterm colors and gui colors can't coexist here.
+            set termguicolors
+        elseif &term ==# 'win32' && has('vcon')
+            " windows console since Windows 10 Insiders Build #14931 or whatever
+            set termguicolors
+            " but t_Co stays at 256. setting to 2**24 does something, but
+            " t_Co itself stays at 256.
+        elseif &term =~# '^xterm' && exists('$VTE_VERSION')
+            " probably maybe VTE?
+            " unlike xterm-direct, t_Co stays at 256. unlike vcon, can set it.
+            set termguicolors t_Co=16777216
+        endif
     else
 
         " vim background color detection is mostly broken:
@@ -2319,7 +2433,10 @@ function! UserColoursPrelude()
 endfunction
 
 
-" do all the ui/content color changes and loading of a color scheme
+" syntax for text isn't worth the trouble but we like good UI colours.
+" for non-xterm-direct terminals (VTE, kitty) it might be necessary to
+" call UserColours() again after enabling termguicolors.
+" do all the ui/content color changes and loading of a color scheme.
 function! UserLoadColors()
 
     " most colorschemes don't pull their own weight. would be great if a
@@ -2341,11 +2458,6 @@ function! UserLoadColors()
         call UserClearContentHighlights()
     endif
 
-    if UserRuntimeHas('colors/tty.vim')
-        " colorscheme tty
-        nnoremap <F4>   :colorscheme tty<cr>
-    endif
-
     " 2022-03-09 lucius light and white modes seem to trigger a bug in gvim on
     " Linux. The command window rendering becomes subtly broken, selected text
     " almost invisible.
@@ -2360,17 +2472,27 @@ function! UserLoadColors()
         if UserRuntimeHas('colors/lucius.vim')
             " perfect, A+; cterm only, not for tgc
             let g:lucius_no_term_bg = 1
-            colorscheme lucius
+
             if UserCanUseGuiColours()
-                LuciusLight
+
+                " the Lucius... commands also do a 'colorscheme', causing the
+                " ColorScheme autocommand to fire again. So instead of invoking
+                " LuciusLight, we set the scheme settings first as SetLucius()
+                " would.
+
+                let g:lucius_style = 'light'
+                let g:lucius_contrast = 'normal'
+                let g:lucius_contrast_bg = 'normal'
+
             endif
+            colorscheme lucius
         endif
         " other good: iceberg, PaperColor?
         " honorable mention:
         "   monochromenote - https://github.com/koron/vim-monochromenote
     endif
 
-    " if no colorscheme found/loaded, the ColorScheme autocmd won't work. load
+    " if no colorscheme found/loaded, the ColorScheme autocmd won't fire. load
     " our UI colour overrides.
 
     if !exists('g:colors_name') || g:colors_name ==? 'default'
@@ -2517,12 +2639,16 @@ command -nargs=+ -complete=command Capture call UserSpoolEx(<q-args>)
 " in .gvimrc won't be visible when queried under tty vim.
 function! UserShowMaps()
     Scratch
-    call append(0, ['Maps', ''])
+    call append(0, ['Maps'])       | normal! G
     " :map doesn't show mappings for all modes; meh
     " doc map-overview
-    put= UserRun('verbose map')
-    put= UserRun('verbose cmap')
-    put= UserRun('verbose imap')
+    call append('.', ['', '-- :map'])   | normal! G
+    put= UserRun('verbose map')         | normal! G
+    call append('.', ['', '-- :cmap'])  | normal! G
+    put= UserRun('verbose cmap')        | normal! G
+    call append('.', ['', '-- :imap'])  | normal! G
+    put= UserRun('verbose imap')        | normal! G
+
     " get rid of the line breaks in the 'verbose' output
     " conceptually cleaner: :g/^\sLast set from/-1j    [join with line above]
     global/\n\s\+Last set from/s//\t# src =/
@@ -2532,10 +2658,7 @@ function! UserShowMaps()
     " replace <file> line <lineno> with something gF can jump to
     global/ line \(\d\+\)$/s//:\1/
 
-    " delete empty lines
-    global/^$/d _
-    " internal :sort, skipping the first column (mode)
-    sort /^.\s\+/
+    normal! gg
 
     setlocal readonly nomodifiable
 endfunction
@@ -2701,6 +2824,18 @@ function! UserMkspell() abort
 endfunction
 
 command -bar Mkspell    call UserMkspell()
+
+
+" for disabling things that indent plugins do. overkill maybe.
+" sometimes setting b:did_indent shows up as a solution, but
+" indent.vim::s:LoadIndent() (filetype autocmd) resets it before loading
+" indentation rules.
+function! UserResetIndent()
+    " could set to a function returning -1...
+    setlocal indentexpr& indentkeys&
+endfunction
+
+command! -bar NoIndentFancy     call UserResetIndent()
 
 
 set spellcapcheck=
@@ -2897,125 +3032,104 @@ nnoremap <silent> <Leader>k     gwip
 vnoremap <silent> <Leader>k     gw
 
 
-" øæå as brackets, braces, parentheses - done with xmodmap.
+" -- begin copy/paste adventures.
+"
+" other:
+" https://vim.fandom.com/wiki/Unconditional_linewise_or_characterwise_paste
+" https://github.com/inkarkat/vim-UnconditionalPaste
+" https://github.com/tpope/vim-unimpaired/blob/master/plugin/unimpaired.vim
 
-function! s:xclipbrd_write(txt)
-    silent call system('xsel -b -i', a:txt)
-    if v:shell_error
-        echoerr 'xsel invocation failed, code' v:shell_error
+" write a string to the clipboard.
+"
+" works for both gui and tty (@+ or xsel).
+
+function! UserWrX11Cb(txt)
+    if a:txt == '' | return | endif
+
+    if (has('unix') && has('gui_running')) || has('win32')
+        let @+ = a:txt
+    elseif has('unix') && executable('/usr/bin/xsel')
+        silent call system('/usr/bin/xsel -b -i', a:txt)
+        if v:shell_error
+            echoerr 'xsel invocation failed, code' v:shell_error
+        endif
+    else
+        echohl Error
+        echo 'do not know how to write to clipboard'
+        echohl None
     endif
 endfunction
 
-" put the visual selection (line-wise or not) into a register, invoke
-" xsel with the register as the input. not using get/setreginfo() for
-" compatibility.
-"
-" https://stackoverflow.com/a/26125513, adapted
-function! UserWriteVisualToX11Clipboard() abort
-    let l:reg = @u
-    " yank to register 'u'
-    normal! gv"uy
-    call s:xclipbrd_write(@u)
-    " restore 'u' somewhat
-    let @u = l:reg
-    normal! gv
-endfunction
-
-" for normal mode
-function! UserWriteLinesToX11Clipboard() abort range
-    let l:reg = @u
-    " yank to register 'u'
-    let l:cmd = a:firstline . ',' . a:lastline . 'y u'
-    silent execute l:cmd
-    call s:xclipbrd_write(@u)
-    let @u = l:reg
-endfunction
+" read text from the clipboard.
+" works for both gui and tty (@+ or xsel).
 
 function! UserRdX11Cb()
-    " clobber x
-    call setreg('x', '', 'c')
-
-    " win32 - reg:+ exists and works even in console vim, but has('unnamedplus')
-    " is false.
+    " win32 - reg:+ exists and works even in console vim,
+    " but has('unnamedplus') is false.
     if (has('unix') && has('gui_running')) || has('win32')
         let l:clp = @+
-    elseif executable('xsel')
-        silent let l:clp = system('xsel -b -o')
+    elseif has('unix') && executable('/usr/bin/xsel')
+        silent let l:clp = system('/usr/bin/xsel -b -o')
         if v:shell_error
             echoerr 'xsel invocation failed, code' v:shell_error
             return ''
         endif
     else
         echohl Error
-        echo 'do not know how to access clipboard'
+        echo 'do not know how to read from clipboard'
         echohl None
         return ''
     endif
 
     " dump into register, always characterwise.
     " can't use '+' register in tty mode without dragging in too much.
-    call setreg('x', l:clp, 'c')
+    call setreg(v:register, l:clp, 'c')
     return l:clp
 endfunction
 
-" a little like paste#Paste(); back to using ["]gP instead of i<C-r><C-r>
-" because of autoindent.
+" used for copying the current command line to the clipboard. requires a
+" c_CTRL-\_e mapping - this function gets the current command line, copies it
+" to the clipboard, and returns the command line unchanged, so that the C-\ e
+" mapping changes nothing.
 "
-" 2022-09-03 paste.vim does a lot of un-commented acrobatics, perhaps to deal
-" with corner cases.
-"
-" why does paste.vim use virtualedit for normal mode, and not for insert
-" mode? looking at menu.vim, normal mode paste actually only seems to do
-" "+gP - the paste_cmd['n'] definition's misleading, it's only used by
-" paste_cmd['v'], not the nnoremenu definition. so, virtualedit comes into
-" play only for visual mode paste. and cnoremenu uses just <C-r>+, not the
-" safer <C-r><C-r>+.
+" swallows errors.
 
-" mnemonic: register x, put to buf, visual mode
-function! UserRegXPutBufV() abort
-    let l:clp = UserRdX11Cb()
-    if l:clp == ''
-        return
-    endif
-    let l:orig_virtualedit = &virtualedit
-    set virtualedit=all
-
+function! UserTeeCmdLineX11Cb()
+    let l:cmdl = getcmdline()
     try
-        normal! `^
-    catch /^Vim\%((\a\+)\)\=:E20:/
+        call UserWrX11Cb(l:cmdl)
+    catch
     endtry
-
-    normal! "xgP
-
-    let l:col = col('.')
-    " instead of the normal i^[ in paste.vim with the literal escape:
-    execute "normal! i\<Esc>"
-    if col('.') < l:col
-        normal! l
-    endif
-    let &virtualedit = l:orig_virtualedit
+    return l:cmdl
 endfunction
 
-" mnemonic: register x, put to buf, normal mode
-function! UserRegXPutBufN() abort
-    let l:clp = UserRdX11Cb()
-    if l:clp == ''
-        return
-    endif
+" works for both gui and tty since UserRdX11Cb() does (@+ or xsel).
+"
+" test:
+"   put a single char on column 1,
+"   in normal mode, with cursor on char, pasting a line (end nl)
+"   should put the line after the char.
+"
+
+function! UserReadX11CbPut() abort
+    if UserRdX11Cb() == '' | return | endif
+
+    " the clipboard text should now be in the unnamed register.
 
     if col('.') == col('$') - 1 && &virtualedit !=# 'all'
         " at end of line - put text after cursor.
         " test: multiple consecutive pastes.
-        normal! "xgp
+        normal! gp
     else
         " beginning/middle of line - put text before cursor.
         " feels natural. same behaviour as paste.vim.
-        normal! "xgP
+        normal! gP
     endif
 endfunction
 
+
 " mappings to copy/paste using the X clipboard from tty vim, without resorting
-" to +X11 (vim feature).
+" to the +X11 vim feature.
 " doc :write_c
 
 " pasting
@@ -3028,97 +3142,144 @@ endfunction
 
 " -- paste mappings - common to tty and gui.
 
-" ttys and bracketed paste cover this well
-nnoremap    <silent>    <Leader>xp      :call UserRegXPutBufN()<cr>
+if has('unix') && g:user_has_x11
 
-" visual mode, useful for replacing the current visual selection with what's in
-" the clipboard.
-"   "-c - cut selection to small delete register and go to insert mode
-"       doc: v_c
-"   <Esc> - go to normal mode
-"       then paste (using virtualedit).
-"
-" !! beware clipboard autoselect/guioption a (go-a) and [other copy/visual
-" selection start] order, as vim clipboard grabbing can overwrite the copied
-" data.
-" 1. start visual selection, 2. copy from other app, 3. paste in vim works.
-vnoremap <Leader>xp     "-c<Esc>:call UserRegXPutBufV()<cr>
+    " ttys and bracketed paste cover this well
+    nnoremap    <silent>    <Leader>xp      :call UserReadX11CbPut()<cr>
 
-" insert mode: with undo branching.
-"inoremap    <Leader>xp  <C-g>u<C-\><C-o>:call UserRegXPutBufN()<cr><C-g>u
-"inoremap    <Leader>xp  <C-g>u<C-o>:call UserRegXPutBufN()<cr><C-g>u
-"
-" insert->normal->paste->[insert] does weird things with the cursor location.
-" insert->normal->read clipboard->[insert]->normal->put reg does the right
-" thing with regard to the cursor. but the register value better not be stale.
-"
-inoremap    <Leader>xp  <C-\><C-o>:call UserRdX11Cb()<cr><C-g>u<C-\><C-o>"xgP<C-g>u
-if (has('unix') && has('gui_running')) || has('win32')
-    inoremap <Leader>xp <C-g>u<C-\><C-o>"+gP<C-g>u
-endif
+    " visual mode, useful for replacing the current visual selection with
+    " what's in the clipboard. "-c - cut selection to small delete register
+    " and go to insert mode doc: v_c <Esc> - go to normal mode then paste
+    " (using virtualedit).
+    "
+    " !! beware clipboard autoselect/guioption a (go-a) and [other copy/visual
+    " selection start] order, as vim clipboard grabbing can overwrite the
+    " copied data.  1. start visual selection, 2. copy from other app, 3.
+    " paste in vim works.
 
-" dangerous, but tty mappings and <C-r>+ etc. work anyway.
-" defined for completeness and consistency.
-cnoremap    <Leader>xp  <C-r><C-r>=UserRdX11Cb()<cr>
+    vnoremap <Leader>xp     "-c<C-r>=UserRdX11Cb()<cr><Esc>
 
-" paste in gui mode with <C-[S-]v>.
+    " insert->normal->paste->[insert] does weird things with the cursor
+    " location. insert->normal->read clipboard->[insert]->normal->put reg does
+    " the right thing with regard to the cursor. but the register value better
+    " not be stale.
+    "
+    " 2023-05-09: [undo branch][insert-normal][expr reg, fun, return][paste
+    " before]
+
+    inoremap <Leader>xp <C-g>u<C-\><C-o>"=UserRdX11Cb()<cr>gP
+
+    " dangerous, but tty mappings and <C-r>+ etc. work anyway. defined for
+    " completeness and consistency.
+
+    " interpreted insert
+    cnoremap    <Leader>xp  <C-r><C-r>=UserRdX11Cb()<cr>
+endif " unix && X11
+
+" gui vim any platform, or win32 including console
 if has('gui_running') || has('win32')
+    " remember: UserReadX11CbPut() works in both gui and tty modes.
+    nnoremap    <Leader>xp      :call UserReadX11CbPut()<cr>
+
+    vmap        <Leader>xp      "-c<Leader>xp
+
+    " undo branch + insert. doc: i_CTRL-R ; respects tw, fo.
+    inoremap    <Leader>xp      <C-g>u<C-r>+
+
+    " doc: i_CTRL-R_CTRL-R -- literal insert
+    cnoremap    <Leader>xp      <C-r><C-r>+
+
+    " paste in gui mode with <C-[S-]v>.
+
     " pretty indispensable; unix: sadly the shift seems to depend on
     " modifyOtherKeys even for builtin_gui? test and make sure that C-v keeps
     " working to insert literally and for visual block select - not paste.
     "
-    " win32, gvim: seems gvim can't see the shift anyway it seems. the
-    " following maps breaks C-v.
+    " win32, gvim: seems gvim can't see the shift anyway. the following maps
+    " breaks C-v.
     "
     " win32 console: C-S-v seems to be handled outside vim; forces a paste,
     " doing the wrong thing in normal mode.
     "
-    " win32 gvim seems to map S-Insert by itself. but the Insert key is no
-    " longer in vogue. SharpKeys can't map combinations (to do C-S-v ->
-    " S-Insert).
+    " win32 console vim (has('win32')) sees insert but can't map it?
+    "
+    " win32 gvim seems to map S-Insert by itself.
     "
     " just have to stick with ,xp, get used to C-q (emacs quoted-insert),
     " keeping xon/xoff flow control in mind.
 
-    nmap    <C-S-v>     <Leader>xp
-    imap    <C-S-v>     <Leader>xp
-    vmap    <C-S-v>     <Leader>xp
-    cmap    <C-S-v>     <Leader>xp
-    " on getting a laptop with a usable insert key
-    nmap    <S-Insert>  <Leader>xp
-    imap    <S-Insert>  <Leader>xp
-    vmap    <S-insert>  <Leader>xp
-    cmap    <S-Insert>  <Leader>xp
-endif
+    if has('gui_running')
+        nmap    <S-Insert>  <Leader>xp
+        vmap    <S-Insert>  <Leader>xp
+        imap    <S-Insert>  <Leader>xp
+        cmap    <S-Insert>  <Leader>xp
+        nmap    <C-S-v>     <Leader>xp
+        vmap    <C-S-v>     <Leader>xp
+        imap    <C-S-v>     <Leader>xp
+        cmap    <C-S-v>     <Leader>xp
+    endif
+
+endif " gui || win32
+
 
 " -- copying; separate definitions for tty vs. gui - write to the
 " clipboard in whatever way works best.
-if g:user_has_x11 && has('unix') && !has('gui_running')
+
+if has('unix') && g:user_has_x11
+
+    " trim-select with visual mode:
+    "   m` - set previous context mark,
+    "   ^ - go to first non-blank char,
+    "   v - visual,
+    "   g_ - go to last non-blank char,
+    "   y - yank
+    "       this moves the cursor.
+    "       https://github.com/vim/vim/blob/master/runtime/doc/change.txt
+    "       /Note that after a characterwise yank command
+    "   `` - jump back
+    "   and pass the unnamed register contents to the X11 clipboard.
+    nnoremap    <Leader>xc  m`^vg_y``:call UserWrX11Cb(@")<cr>
+
+    " for the visual selection (not necessarily linewise).
+    " yank, then [in normal mode] pass the anonymous register
+    " to the X11 clipboard.
+    vnoremap    <Leader>xc  m`zy``:call UserWrX11Cb(@")<cr>
+
     " define an ex command that takes a range and pipes to xsel
-    nnoremap <silent>   <Leader>xc      :call UserWriteLinesToX11Clipboard()<cr>
-    " for the visual selection (not necessarily linewise):
-    vnoremap <silent>   <Leader>xc      :call UserWriteVisualToX11Clipboard()<cr>
     " doc :write_c
     " use: :.,+10WX11
     command -range WX11     silent <line1>,<line2>:w !xsel -i -b
 
-    nmap    <C-Insert>  <Leader>xc
-    vmap    <C-Insert>  <Leader>xc
-endif
-if has('gui_running') || has('win32')
-    set mouse=inv
+    " copying the current command line to the clipboard.
+    " doc: getcmdline()
+    cnoremap    <Leader>xc  <C-\>eUserTeeCmdLineX11Cb()<cr>
+endif " unix && X11
 
-    " normal mode, copy current line
-    nnoremap <silent> <Leader>xc    "+yy
+if has('gui_running') || has('win32')
+    " normal mode, copy current line - this includes the last newline,
+    " makes unnamedplus linewise.
+    " nnoremap <silent> <Leader>xc    "+yy
+
+    " for details see ,xc mapping for ttys above.
+    nnoremap <Leader>xc m`^vg_y``
+
+    command! -range WX11     <line1>,<line2>y +
+
     " visual mode, copy selection, not linewise; doc: v_zy
     vnoremap <silent> <Leader>xc    "+zy
 
-    command -range WX11     <line1>,<line2>y +
+    if has('gui_running')
+        nmap    <C-Insert>  <Leader>xc
+        vmap    <C-Insert>  <Leader>xc
+        cmap    <C-Insert>  <Leader>xc
+        nmap    <C-S-c>     <Leader>xc
+        vmap    <C-S-c>     <Leader>xc
+        cmap    <C-S-c>     <Leader>xc
+    endif
+endif " gui || win32
 
-    nmap    <C-Insert>  <Leader>xc
-    vmap    <C-Insert>  <Leader>xc
-endif
 
+" -- end copy/paste adventures.
 
 " set current window (split) width to 80
 " for use with multiple vertical splits
@@ -3286,7 +3447,7 @@ endif
 " trying out insert mode autocomplete with C-X C-U
 " doc i_CTRL-X_CTRL-U
 " doc complete-functions
-function! UserSymCompr(l1, l2)
+function! UserSymComparator(l1, l2)
     return a:l1[1] == a:l2[1] ? 0 : a:l1[1] > a:l2[1] ? 1 : -1
 endfunction
 
@@ -3297,7 +3458,7 @@ function! UserSymComplFn(findstart, base) abort
     elseif a:findstart == 0
         let l:compl = []
         " sort by unicode value (not hash key) of symbol, ascending
-        let l:sorted_pairs = sort(items(g:Symbols), 'UserSymCompr')
+        let l:sorted_pairs = sort(items(g:Symbols), 'UserSymComparator')
         for [l:name, l:sym] in l:sorted_pairs
             " 'word': Symbol value, 'menu', Symbol key (description)
             let l:entry = { 'menu': l:name, 'word': l:sym }
@@ -3444,16 +3605,13 @@ command -bar Scratch new | setlocal buftype=nofile noswapfile | setfiletype text
 " like :Explore
 command Index       call UserOpenIndexFile()
 
-" enable 'list' in all windows, with or without tab visibility.
-" use as :List 1 or :List 0
-command -bar -nargs=1 List  let &lcs = UserListchars(<f-args>, &lcs) | windo set list
 command -bar Nolist     windo setl nolist
 " this can make trailing hard tabs invisible unless the SpecialKey highlight
 " accounts for that.
-command -bar ListHideTab    let &lcs = UserListchars('tab:  ', &lcs)
-command -bar ListShowTab    let &lcs = UserListchars('tab:'.g:user_lcs_p['tab'], &lcs)
-command -bar ListShowTrail  let &lcs = UserListchars('trail:␠', &lcs)
-command -bar ListHideTrail  let &lcs = UserListchars('trail:NONE', &lcs)
+command -bar ListHideTab    let &lcs = UserListchars('tab:NONE')
+command -bar ListShowTab    let &lcs = UserListchars('tab:'.g:user_lcs_p['tab'])
+command -bar ListShowTrail  let &lcs = UserListchars('trail:␠')
+command -bar ListHideTrail  let &lcs = UserListchars('trail:NONE')
 
 
 " search for the nbsps that 'list' also uses
@@ -3651,25 +3809,10 @@ command -range CommentOnce  <line1>,<line2>g/^\s*[^#]/s/^/# / | let @/ = ''
 " put # just before the first non-whitespace char
 " command -range CommentOnce  <line1>,<line2>g!/^\s*#/s/\v^(\s*)([^\s])/\1# \2/
 
-" set cell widths for unicode char ranges vim doesn't
-" know about
-function UserSetCellWidths()
-    if v:version < 900
-        return
-    endif
-    let l:yijing_hexagrams = [0x4DC0, 0x4DFF, 2]
-    let l:egyptian_hieroglyphs = [0x13000, 0x1342F, 2]
-    let l:u_ranges = [l:yijing_hexagrams, l:egyptian_hieroglyphs]
-    call setcellwidths(l:u_ranges)
-endfunction
-
 
 " mine own #-autogroup
 augroup UserVimRc
     autocmd!
-
-    " on creating a new window - enable cursorline, in all windows.
-    "autocmd WinNew * windo set cursorline
 
     " enable auto reformatting when writing journal entries,
     " not for all text files.
@@ -3689,19 +3832,23 @@ augroup UserVimRc
 
     autocmd BufNewFile,BufReadPost  /etc/*          Proper
     autocmd FileType        c,conf,bash,go,sh,zsh   Proper
-    autocmd FileType        c,bash,go,sh,zsh        ListHideTab
+    "autocmd FileType        c,bash,go,sh,zsh        ListHideTab
     " 2023-04-17 became a 4-denter
     autocmd FileType        text                    Lousy
-        \ | setlocal linebreak
+        \ | setlocal linebreak nonumber
     autocmd FileType        perl,python,vim         Lousy
     autocmd FileType        ruby,eruby              Lousy
     autocmd FileType        javascript,json         Lousy
     autocmd FileType        jproperties             Lousy
         \ | setlocal fileencoding=latin1
     autocmd FileType        markdown                Lousy
-    " yaml - don't even bother
     autocmd FileType        java,xml                Lousy
     autocmd FileType        lisp,scheme,racket,clojure  Lisp
+    " with whimsical fileformats, don't be rational
+    autocmd FileType        yaml                    let b:user_noautomod = 1
+    autocmd FileType        markdown                let b:user_noautomod = 1
+    " indent reset, when default rules conflict with external constraints
+    autocmd FileType        xml     call UserResetIndent()
 
     " the first line of the commit message should be < 50 chars
     " to allow for git log --oneline
@@ -3731,20 +3878,18 @@ augroup UserVimRc
     " there will not be an attempt to create swap files on iCloud Drive.
     "
     " autocmd-pattern - * includes path separators.
-    autocmd BufReadPost
-    \ /private/var/mobile/Library/Mobile\ Documents/com~apple~CloudDocs/*.txt
-                    \ setlocal swapfile
+    autocmd BufReadPost /private/var/mobile/*       setlocal swapfile
 
     " if swapfile exists, always open read-only
     "autocmd SwapExists *    let v:swapchoice = 'o'
 
     "autocmd TermResponse * echom 'termresponse:' strtrans(v:termresponse)
+
+    if has('cmdline_hist')
+        " forget :q!/:qall! ; clearing must run after viminfo's loaded.
+        autocmd VimEnter * call histdel(':', '\v^w?q')
+    endif
 augroup end
-if has('cmdline_hist')
-    " forget :q!/:qall!
-    " must run after viminfo's loaded.
-    autocmd UserVimRc VimEnter * call histdel(':', '\v^w?q')
-endif
 
 " autogroup for my weird syntax dealings
 augroup UserVimRcSyntax
@@ -3810,38 +3955,25 @@ set redrawtime=700 synmaxcol=200
 
 " some key gui things:
 
+" disable cursor blinking.
 " someone's really gone on a wild ride with the guicursor possibilities.
 set guicursor=a:block-blinkon0
 
-" guifont
-if has('linux')
-    " assuming gtk
-    let &guifont = 'Iosevka Fixed Slab Extended 11'
-elseif has('win64')
-    " default cANSI:qDRAFT
-    set guifont=Iosevka_Fixed_Slab_Lt_Ex:h11:cDEFAULT:qCLEARTYPE
-    set guifont+=Consolas:h12
-    " more cleartype; no hidpi here.
-    " 2023-03-02 have hidpi now.
-    "set renderoptions=type:directx,taamode:1
-elseif has('ios')
-    " iVim, iPhone
-    set guifont=Menlo:h11.0
-endif
-
-
-call UserSetCellWidths()
-call UserColoursPrelude()
-" syntax for text isn't worth the trouble but we like good UI colours.
-" for non-xterm-direct terminals (VTE, kitty) it might be necessary to
-" call UserColours() again after enabling termguicolors.
-call UserLoadColors()
-
+function! UserInit()
+    call UserRemoveVendorAugroups()
+    call UserSetCellWidths()
+    let &fillchars = UserSetupFillchars()
+    call UserSetupListchars()
+    let &listchars = UserListchars(UserTermPrimitive() ? g:user_lcs_ascii : g:user_lcs_p, {})
+    call UserSetGuiFont()
+    call UserColoursPrelude()
+    call UserLoadColors()
+endfunction
+call UserInit()
 
 " ~ fini ~
 
-" maybe warn if &encoding / &termencoding are not utf-8; but are other
-" encodings even tested.
+" maybe warn if &encoding / &termencoding are not utf-8;
 
 " vim:tw=80 fo=croq:
 
