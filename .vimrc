@@ -3172,7 +3172,7 @@ if has('unix') && g:user_has_x11
     " dangerous, but tty mappings and <C-r>+ etc. work anyway. defined for
     " completeness and consistency.
 
-    " interpreted insert
+    " literal insert - doc: c_CTRL-R_CTRL-R
     cnoremap    <Leader>xp  <C-r><C-r>=UserRdX11Cb()<cr>
 endif " unix && X11
 
@@ -3258,15 +3258,17 @@ endif " unix && X11
 if has('gui_running') || has('win32')
     " normal mode, copy current line - this includes the last newline,
     " makes unnamedplus linewise.
-    " nnoremap <silent> <Leader>xc    "+yy
+    " nnoremap <silent> <Leader>xc      "+yy
 
     " for details see ,xc mapping for ttys above.
-    nnoremap <Leader>xc m`^vg_y``
+    nnoremap <Leader>xc                 m`^vg_y``
 
     command! -range WX11     <line1>,<line2>y +
 
     " visual mode, copy selection, not linewise; doc: v_zy
     vnoremap <silent> <Leader>xc    "+zy
+
+    cnoremap    <Leader>xc  <C-\>eUserTeeCmdLineX11Cb()<cr>
 
     if has('gui_running')
         nmap    <C-Insert>  <Leader>xc
