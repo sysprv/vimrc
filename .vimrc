@@ -1,3 +1,4 @@
+" Last-Modified: 2023-05-11T11:05:23.853842580+00:00
 set nocompatible
 if version < 704
     nnoremap    s   <C-w>
@@ -8,7 +9,6 @@ endif
 set secure encoding=utf-8 fileencoding=utf-8 nobomb
 scriptencoding utf-8        " must go after 'encoding'
 
-" Last Modified: 2023-05-11
 "
 " 2023-05-11 Lots of changes.
 "
@@ -3046,7 +3046,7 @@ vnoremap <silent> <Leader>k     gw
 function! UserWrX11Cb(txt)
     if a:txt == '' | return | endif
 
-    if (has('unix') && has('gui_running')) || has('win32')
+    if has('gui_running') || has('win32')
         let @+ = a:txt
     elseif has('unix') && executable('/usr/bin/xsel')
         silent call system('/usr/bin/xsel -b -i', a:txt)
@@ -3066,7 +3066,7 @@ endfunction
 function! UserRdX11Cb()
     " win32 - reg:+ exists and works even in console vim,
     " but has('unnamedplus') is false.
-    if (has('unix') && has('gui_running')) || has('win32')
+    if has('gui_running') || has('win32')
         let l:clp = @+
     elseif has('unix') && executable('/usr/bin/xsel')
         silent let l:clp = system('/usr/bin/xsel -b -o')
@@ -3261,12 +3261,12 @@ if has('gui_running') || has('win32')
     " nnoremap <silent> <Leader>xc      "+yy
 
     " for details see ,xc mapping for ttys above.
-    nnoremap <Leader>xc                 m`^vg_y``
+    nnoremap <Leader>xc                 m`^vg_"+y``
 
-    command! -range WX11     <line1>,<line2>y +
+    command! -range WX11                <line1>,<line2>y +
 
     " visual mode, copy selection, not linewise; doc: v_zy
-    vnoremap <silent> <Leader>xc    "+zy
+    vnoremap <silent> <Leader>xc        "+zy
 
     cnoremap    <Leader>xc  <C-\>eUserTeeCmdLineX11Cb()<cr>
 
@@ -3966,10 +3966,22 @@ function! UserInit()
     call UserSetCellWidths()
     let &fillchars = UserSetupFillchars()
     call UserSetupListchars()
-    let &listchars = UserListchars(UserTermPrimitive() ? g:user_lcs_ascii : g:user_lcs_p, {})
+    let &listchars = UserListchars(
+                \ UserTermPrimitive() ? g:user_lcs_ascii : g:user_lcs_p, {})
     call UserSetGuiFont()
     call UserColoursPrelude()
     call UserLoadColors()
+
+    " 2022-12-08 - removing autoselect; gvim's like a terminal emulator
+    " anyway.  2023-01-02 - just unnamedplus is no good for win32. doesn't
+    " fail early, but breaks y/p.
+
+    if has('gui_running') || has('win32')
+        set clipboard=unnamed
+        if has('unnamedplus')
+            set clipboard=unnamedplus
+        endif
+    endif
 endfunction
 call UserInit()
 
