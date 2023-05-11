@@ -1,4 +1,4 @@
-" Last-Modified: 2023-05-11T11:05:23.853842580+00:00
+" Last-Modified: 2023-05-11T18:07:51.8495225+00:00
 set nocompatible
 if version < 704
     nnoremap    s   <C-w>
@@ -837,6 +837,76 @@ function! UserListchars(...) abort
     return UserDictToCoCo(l:lcs_new)
 endfunction
 
+function! UserSetupListchars() abort
+    " keep listchars in top-level data structures so that i can mess with them
+    " easily.
+    "
+    " for win32 and X11 with a good font:
+    " eol: U+21B2 DOWNWARDS ARROW WITH TIP LEFTWARDS
+    "   parity with g:user_showbreak_char
+    " nbsp: U+263A WHITE SMILING FACE (mocking)
+    "   other: U+2423 OPEN BOX
+    "
+    " tab: U+2192 RIGHTWARDS ARROW  + U+2014 EM DASH
+    "   other: interpunct
+    "   other: U+2409 SYMBOL FOR HORIZONTAL TABULATION
+    "   tabs can be hidden by setting value to "\u20\u20", but showing is more
+    "   useful.
+    " trail: trailing spaces
+    "   other: ␠  U+2420 SYMBOL FOR SPACE
+
+    " bug/inconsistency in vim - it's possible to set showbreak=NONE, but not
+    " set listchars=eol:NONE etc.; here we use NONE, because UserListchars()
+    " knows how to deal with it. this has the effect of unsetting eol even if
+    " the previous listchars defined it.
+    "
+    " these are most troublesome chars, displaying eol is usually just an
+    " immense amount of clutter.
+
+    "let user_lcs_p = UserCoCoToDict('eol:NONE,nbsp:☺,tab:→ ,trail:_')
+    " U+21E5 RIGHTWARDS ARROW TO BAR
+    "let user_lcs_p = UserCoCoToDict('eol:NONE,nbsp:☺,tab:⇥ ,trail:_')
+    " guiellemet right - awkward but legible
+    "let user_lcs_p = UserCoCoToDict('eol:NONE,nbsp:☺,tab:»>,trail:_')
+    " it's important to make the whole tab visible, without using spaces,
+    " to clearly separate it from actual spaces.
+
+    " trailing spaces - underscores are too disturbing. seems too valid,
+    " too much like a possible syntax error.
+    " but - leave it out, so that our UserTrailingWhitespace syntax match
+    " takes effect.
+
+    let l:tab = [ '|_>', '├─›', '╰─╮', '→ ' ][-1]   " box drawing
+    " old vims < 8.1.0759 don't support 3-char tab. patch made 2014, applied 2019.
+    if !has('patch-8.1.0759') | let l:tab = '├─' | endif
+    " trailing chars can be very annoying, so let's try something cool.
+    let l:trail = [ '␠', '❤' ][-1]
+
+    let g:user_lcs_def = { 'eol': '↲'
+                       \ , 'extends': '>'
+                       \ , 'nbsp': '␣'
+                       \ , 'precedes': '<'
+                       \ , 'tab': l:tab
+                       \ , 'trail': l:trail
+                       \ , 'conceal': '?'
+                       \ }
+
+    " same as def above, but without eol, which is distracting.
+    let g:user_lcs_p = copy(g:user_lcs_def)
+    let g:user_lcs_p.eol = 'NONE'
+
+    " for the linux console or old X bitmap fonts:
+    let g:user_lcs_ascii = copy(g:user_lcs_def)
+    let g:user_lcs_ascii.eol = 'NONE'
+    let g:user_lcs_ascii.nbsp = '?'
+    let g:user_lcs_ascii.trail = '_'
+
+    let g:user_lcs = [g:user_lcs_def, g:user_lcs_p, g:user_lcs_ascii]
+endfunction
+
+set conceallevel=1
+" beware spooky action at a distance with cursorline and syntax matches.
+set concealcursor=nvi
 
 " 'fillchars' can accumulate items of same type. the last is effective. but
 " the accumulated output is a mess and can be confusing. this function
@@ -915,76 +985,6 @@ function! UserSetupFillchars()
     return UserFillchars(l:fcs)
 endfunction
 
-function! UserSetupListchars() abort
-    " keep listchars in top-level data structures so that i can mess with them
-    " easily.
-    "
-    " for win32 and X11 with a good font:
-    " eol: U+21B2 DOWNWARDS ARROW WITH TIP LEFTWARDS
-    "   parity with g:user_showbreak_char
-    " nbsp: U+263A WHITE SMILING FACE (mocking)
-    "   other: U+2423 OPEN BOX
-    "
-    " tab: U+2192 RIGHTWARDS ARROW  + U+2014 EM DASH
-    "   other: interpunct
-    "   other: U+2409 SYMBOL FOR HORIZONTAL TABULATION
-    "   tabs can be hidden by setting value to "\u20\u20", but showing is more
-    "   useful.
-    " trail: trailing spaces
-    "   other: ␠  U+2420 SYMBOL FOR SPACE
-
-    " bug/inconsistency in vim - it's possible to set showbreak=NONE, but not
-    " set listchars=eol:NONE etc.; here we use NONE, because UserListchars()
-    " knows how to deal with it. this has the effect of unsetting eol even if
-    " the previous listchars defined it.
-    "
-    " these are most troublesome chars, displaying eol is usually just an
-    " immense amount of clutter.
-
-    "let user_lcs_p = UserCoCoToDict('eol:NONE,nbsp:☺,tab:→ ,trail:_')
-    " U+21E5 RIGHTWARDS ARROW TO BAR
-    "let user_lcs_p = UserCoCoToDict('eol:NONE,nbsp:☺,tab:⇥ ,trail:_')
-    " guiellemet right - awkward but legible
-    "let user_lcs_p = UserCoCoToDict('eol:NONE,nbsp:☺,tab:»>,trail:_')
-    " it's important to make the whole tab visible, without using spaces,
-    " to clearly separate it from actual spaces.
-
-    " trailing spaces - underscores are too disturbing. seems too valid,
-    " too much like a possible syntax error.
-    " but - leave it out, so that our UserTrailingWhitespace syntax match
-    " takes effect.
-
-    let l:tab = [ '|_>', '├─›', '╰─╮'][-1]   " box drawing
-    " old vims < 8.1.0759 don't support 3-char tab. patch made 2014, applied 2019.
-    if !has('patch-8.1.0759') | let l:tab = '├─' | endif
-    " trailing chars can be very annoying, so let's try something cool.
-    let l:trail = [ '␠', '❤' ][-1]
-
-    let g:user_lcs_def = { 'eol': '↲'
-                       \ , 'extends': '>'
-                       \ , 'nbsp': '␣'
-                       \ , 'precedes': '<'
-                       \ , 'tab': l:tab
-                       \ , 'trail': l:trail
-                       \ , 'conceal': '?'
-                       \ }
-
-    " same as def above, but without eol, which is distracting.
-    let g:user_lcs_p = copy(g:user_lcs_def)
-    let g:user_lcs_p.eol = 'NONE'
-
-    " for the linux console or old X bitmap fonts:
-    let g:user_lcs_ascii = copy(g:user_lcs_def)
-    let g:user_lcs_ascii.eol = 'NONE'
-    let g:user_lcs_ascii.nbsp = '?'
-    let g:user_lcs_ascii.trail = '_'
-
-    let g:user_lcs = [g:user_lcs_def, g:user_lcs_p, g:user_lcs_ascii]
-endfunction
-
-set conceallevel=1
-" beware spooky action at a distance with cursorline and syntax matches.
-set concealcursor=nvi
 
 " cursorline - can be confusing with splits.
 "
@@ -2013,16 +2013,18 @@ endfunction
 " also dark turquoise.
 "
 function! UserColoursGuiLight()
-    " my precious...
-    highlight ColorColumn               guibg=azure2
-    highlight NonText       ctermfg=NONE ctermbg=NONE guifg=NONE guibg=grey88
-    highlight SpecialKey    ctermfg=NONE ctermbg=NONE guifg=#d3d3d3 guibg=NONE
-    highlight StatusLine    guifg=fg    guibg=#b0e0e6   gui=NONE
-    "highlight StatusLineNC  guifg=fg    guibg=#d8d8d8   gui=NONE
     " DarkOrchid4: #68228b
     " safflower: #5A4F74
     " https://en.wikipedia.org/wiki/Traditional_colors_of_Japan#Blue/blue_violet_series
     let l:safflower = '#5A4F74'
+
+    " my precious azure2...
+    highlight ColorColumn               guibg=azure2
+    call UHgui('NonText', 'guifg=NONE', 'guibg=grey88')
+    let l:dark_pink = '#AA336A'
+    call UHgui('SpecialKey', 'guifg='.l:dark_pink, 'guibg=bg')
+    highlight StatusLine    guifg=fg    guibg=#b0e0e6   gui=NONE
+    "highlight StatusLineNC  guifg=fg    guibg=#d8d8d8   gui=NONE
     call UHgui('StatusLineNC', 'guifg=bg', 'guibg='.l:safflower, 'gui=NONE')
     call UHgui('VertSplit', 'guifg='.l:safflower, 'guibg='.l:safflower, 'gui=NONE')
     highlight Visual        cterm=NONE  guifg=NONE      guibg=#afd7ff
@@ -2039,8 +2041,11 @@ endfunction
 
 
 function! UserColoursGuiDark()
-    highlight NonText                   guibg=grey25
+    highlight NonText                       guibg=grey25
     highlight SpecialKey    guifg=#515151   guibg=NONE
+    call UHgui('SpecialKey', 'guifg=#515151', 'guibg=bg')
+    let l:dark_pink = '#AA336A'
+    call UHgui('SpecialKey', 'guifg='.l:dark_pink, 'guibg=bg')
     highlight StatusLine    guifg=black guibg=#b0e0e6   gui=NONE
     let l:safflower = '#5A4F74'
     call UHgui('StatusLineNC', 'guifg=fg', 'guibg='.l:safflower, 'gui=NONE')
