@@ -3423,8 +3423,13 @@ nnoremap    g<C-h>  <nop>
 " vile's 'q' (quoted motion) is interesting.
 "nnoremap    q   <nop>
 nnoremap    q   :echo 'Temper temper / mon capitaine.'<cr>
+" -- end q-mappings adventure.
 
-" end q-mappings adventure.
+" never used the tagstack.
+" on-site cat:
+" https://jijitanblog.com/construction/genbaneko-matome/
+nnoremap    <C-t>   :echo 'ヨシ！'<cr>
+
 
 " verymagic
 "nnoremap    /       /\v
