@@ -1,4 +1,4 @@
-" Last-Modified: 2023-05-11T18:07:51.8495225+00:00
+" Last-Modified: 2023-05-14T16:35:50.804802799+00:00
 set nocompatible
 if version < 704
     nnoremap    s   <C-w>
@@ -3540,20 +3540,18 @@ command -bar Lisp    setlocal softtabstop=2 shiftwidth=2 expandtab
 " doc fo-table
 command -bar Nowr    setlocal fo=tq nospell ai nosi nocin | Proper
 " auto-format, without depending on trailing spaces (fo-w)
-command -bar FoText  setl fo=atq2
-command -bar FoCode  setl fo=cjoqr nosi cin
+" the 2 (indent of the 2nd line) requires auto-indent.
+command -bar FoText  setl ai nosi nocin fo=atq2
+command -bar FoCode  setl ai nosi cin   fo=cjoqr
 
 " NB: autoindent affects fo-at
 " spelling: probably better to switch to native aspell and dict-gcide
 "   (GNU Collaborative International Dictionary of English)
-"
-" auto-format + auto-indent + fo-2 doesn't seem to do what i mean.
 
 function! UserWr()
     if &textwidth == 0
         setlocal textwidth=80
     endif
-    setlocal noautoindent nosmartindent nocindent
     setlocal spell
     FoText
     " 4-denting
