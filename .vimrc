@@ -213,8 +213,6 @@ scriptencoding utf-8        " must go after 'encoding'
 
 " from visual mode go to insert mode: I
 
-" 'incsearch' short name: 'is'
-
 " debug log: vim -V16vdbg; block buffered; use echom to add markers.
 "   verbosity level 10: autocommands; 12: function calls.
 "   verbosity can interfere/leak in various places; when redirecting
@@ -351,8 +349,7 @@ set modeline
 " ----
 
 function! UserTermPrimitive()
-    let l:term = &term
-    return l:term ==# 'linux' || l:term ==# 'win32'
+    return (&term ==# 'linux') || (&term ==# 'win32' && !has('vcon'))
 endfunction
 
 
@@ -394,11 +391,10 @@ endif
 
 " it's fine usually. incsearch can be an unwelcome surprise over ssh.
 " doesn't handle chained :g/:v.
-"
 " doc 'is'
-"
 " to put the last match into the command line: <C-r>/
 set noincsearch
+command -bar Inc let &incsearch = !&incsearch | set incsearch?
 
 " setting 'ignorecase' can be surprising.
 " for example, checking filenames against the 'backupskip' patterns uses
@@ -876,13 +872,14 @@ function! UserSetupListchars() abort
     " but - leave it out, so that our UserTrailingWhitespace syntax match
     " takes effect.
 
-    let l:tab = [ '|_>', '├─›', '╰─╮', '→ ' ][-1]   " box drawing
+    let l:tab = [ '|_>', '├─›', '→ ' ][-1]   " box drawing
     " old vims < 8.1.0759 don't support 3-char tab. patch made 2014, applied 2019.
     if !has('patch-8.1.0759') | let l:tab = '├─' | endif
     " trailing chars can be very annoying, so let's try something cool.
     let l:trail = [ '␠', '❤' ][-1]
 
-    let g:user_lcs_def = { 'eol': '↲'
+    let g:user_lcs_def = {
+                       \ 'eol': '↲'
                        \ , 'extends': '>'
                        \ , 'nbsp': '␣'
                        \ , 'precedes': '<'
@@ -891,9 +888,12 @@ function! UserSetupListchars() abort
                        \ , 'conceal': '?'
                        \ }
 
-    " same as def above, but without eol, which is distracting.
+    " same as def above, but without eol and trail (distracting)
     let g:user_lcs_p = copy(g:user_lcs_def)
+    " ah, i liked having those bright little hearts..
+    " but a bit too much with deep indenting and expandtabs.
     let g:user_lcs_p.eol = 'NONE'
+    let g:user_lcs_p.trail = 'NONE'
 
     " for the linux console or old X bitmap fonts:
     let g:user_lcs_ascii = copy(g:user_lcs_def)
@@ -1826,11 +1826,15 @@ function! UserCustomSyntaxHighlights()
         "highlight UserHashTag ctermbg=194 guibg=#b9ebc4
         " like the status line
         highlight UserHashTag ctermbg=152 guibg=#b0e0e6
-        highlight UserTrailingWhitespace ctermbg=7 guibg=grey88
-    else
+        "highlight UserTrailingWhitespace ctermbg=7 guibg=grey88
+        " 2023-05-13 had enough of grey;
+        highlight UserTrailingWhitespace    ctermbg=230 guibg=palegoldenrod
+    else    " dark
         highlight UserDateComment   ctermfg=246 ctermbg=238 guifg=grey58 guibg=NONE
         highlight UserHashTag       ctermbg=240 guibg=grey35
-        highlight UserTrailingWhitespace    ctermbg=238 guibg=grey23
+        "highlight UserTrailingWhitespace    ctermbg=238 guibg=grey23
+        " 2023-05-13
+        highlight UserTrailingWhitespace    ctermbg=23 guibg=seagreen
     endif
 
     " UserHttpURI: if using non-syntax matches (matchadd/UserMatchAdd),
@@ -1878,7 +1882,7 @@ function! UserSafeUIHighlights()
     highlight SpellBad      ctermfg=NONE    ctermbg=cyan    cterm=NONE  gui=NONE
 
     " specifying ctermfg in case of a dark tty background
-    highlight StatusLine    ctermfg=black   ctermbg=darkcyan cterm=NONE  gui=NONE
+    highlight StatusLine    ctermfg=grey    ctermbg=black   cterm=NONE  gui=NONE
     highlight StatusLineNC  ctermfg=black   ctermbg=grey    cterm=NONE  gui=NONE
 endfunction     " UserSafeUIHighlights
 
@@ -1953,7 +1957,7 @@ function! UserColours256Light()
     "highlight LineNr            ctermbg=253
 
     highlight NonText           ctermfg=NONE    ctermbg=7
-    highlight SpecialKey        ctermfg=252     ctermbg=NONE
+    highlight SpecialKey        ctermfg=164     ctermbg=NONE
     highlight ColorColumn                       ctermbg=254                 "---+
     highlight StatusLine        ctermfg=0       ctermbg=152
     "highlight StatusLineNC      ctermfg=15      ctermbg=90
@@ -1985,9 +1989,9 @@ endfunction
 function! UserColours256Dark()
     "highlight LineNr            ctermbg=237
     highlight NonText           ctermfg=NONE    ctermbg=238
-    highlight SpecialKey        ctermfg=238     ctermbg=NONE
+    highlight SpecialKey        ctermfg=206     ctermbg=NONE
     highlight ColorColumn                       ctermbg=238
-    highlight StatusLine        ctermfg=0       ctermbg=6
+    highlight StatusLine        ctermfg=0       ctermbg=152
     let l:clr = [90, 60][-1]
     call UHcterm('StatusLineNC', 'ctermfg=15', 'ctermbg='.l:clr)
     call UHcterm('VertSplit', 'ctermfg='.l:clr, 'ctermbg='.l:clr)
@@ -2028,7 +2032,7 @@ function! UserColoursGuiLight()
     call UHgui('StatusLineNC', 'guifg=bg', 'guibg='.l:safflower, 'gui=NONE')
     call UHgui('VertSplit', 'guifg='.l:safflower, 'guibg='.l:safflower, 'gui=NONE')
     highlight Visual        cterm=NONE  guifg=NONE      guibg=#afd7ff
-    highlight CursorLine                guibg=PaleGoldenrod
+    highlight CursorLine                guibg=palegoldenrod
 
     " if we're using lucius, let it set the Normal colours and don't override.
     " for anything else, set our own foreground/background.
@@ -2051,7 +2055,7 @@ function! UserColoursGuiDark()
     call UHgui('StatusLineNC', 'guifg=fg', 'guibg='.l:safflower, 'gui=NONE')
     call UHgui('VertSplit', 'guifg='.l:safflower, 'guibg='.l:safflower, 'gui=NONE')
     highlight Visual        cterm=NONE  guifg=NONE      guibg=#005f87
-    highlight CursorLine                guibg=SeaGreen
+    highlight CursorLine                guibg=seagreen
 
     if !UserIsBlessedColorscheme()
         " for emergencies only
@@ -2298,9 +2302,16 @@ endif
 function! UserApplySyntaxRules()
     call UserLog('UserApplySyntaxRules enter win', winnr())
 
+    " to match only using
     syntax clear UserTrailingWhitespace
     syntax match UserTrailingWhitespace /\s\+$/
         \ display oneline containedin=ALLBUT,UserTrailingWhitespace
+    "
+    " to make them visible only on the current line, after the cursor:
+    " https://github.com/thoughtstream/Damian-Conway-s-Vim-Setup/blob/master/.vimrc
+    "   /InvisibleSpaces
+    "syntax match UserTrailingWhitespace /\S\@<=\s\+\%#\ze\s*$/
+    "    \ display oneline containedin=ALLBUT,UserTrailingWhitespace
 
     " reveal unicode whitespace; __UNIWS__
     "
@@ -3101,6 +3112,8 @@ endfunction
 
 function! UserTeeCmdLineX11Cb()
     let l:cmdl = getcmdline()
+    " also put in the unnamed register
+    let @" = l:cmdl
     try
         call UserWrX11Cb(l:cmdl)
     catch
@@ -3616,8 +3629,8 @@ command -bar Nolist     windo setl nolist
 " this can make trailing hard tabs invisible unless the SpecialKey highlight
 " accounts for that.
 command -bar ListHideTab    let &lcs = UserListchars('tab:NONE')
-command -bar ListShowTab    let &lcs = UserListchars('tab:'.g:user_lcs_p['tab'])
-command -bar ListShowTrail  let &lcs = UserListchars('trail:␠')
+command -bar ListShowTab    let &lcs = UserListchars('tab:'.g:user_lcs_def.tab)
+command -bar ListShowTrail  let &lcs = UserListchars('trail:'.g:user_lcs_def.trail)
 command -bar ListHideTrail  let &lcs = UserListchars('trail:NONE')
 
 
@@ -3917,7 +3930,7 @@ augroup UserVimRcSyntax
     autocmd Syntax      *       call UserApplySyntaxRules()
 
     " on colourscheme load/change, apply our colours, overriding the scheme.
-    autocmd ColorScheme *   call UserColours()
+    autocmd ColorScheme *       call UserColours()
 augroup end
 
 
