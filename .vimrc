@@ -1,4 +1,4 @@
-" Last-Modified: 2023-05-14T16:35:50.804802799+00:00
+" Last-Modified: 2023-05-16T19:58:26.624366489+00:00
 set nocompatible
 if version < 704
     nnoremap    s   <C-w>
@@ -9,6 +9,11 @@ endif
 set secure encoding=utf-8 fileencoding=utf-8 nobomb
 scriptencoding utf-8        " must go after 'encoding'
 
+" Change log:
+"
+" 2023-05-15 Replace ad-hoc color override conditions functions with
+" a global variable (g:user_co) and a set of bitfield checks. Now we can test
+" different colorschemes and overrides in an easier way.
 "
 " 2023-05-11 Lots of changes.
 "
@@ -349,6 +354,9 @@ set modeline
 " ----
 
 function! UserTermPrimitive()
+    if has('gui_running') || g:user_has_x11
+        return 0
+    endif
     return (&term ==# 'linux') || (&term ==# 'win32' && !has('vcon'))
 endfunction
 
@@ -522,7 +530,7 @@ set whichwrap=<,>,[,]
 
 " indentation
 " cindentation's a bit too intrusive for plaintext. smartindent too can be
-" annoying. have seen 'undeletable' (x doesn't work) tabs.
+" annoying. have seen 'undeletable' (ineffective x) tabs.
 set autoindent
 set colorcolumn=+1
 
@@ -604,12 +612,6 @@ set splitbelow splitright
 " 'equalalways' is default on; that's nice for vertical splits, don't want
 " it with horizontal splits.
 set eadirection=hor
-
-" if not gvim, do not connect to X; can slow down startup.
-" doesn't seem to be a problem on fedora, vim-enhanced doesn't have +X11
-if has('X11') && has('clipboard') && !has('gui_running')
-    set clipboard=exclude:.*
-endif
 
 if has('gui_running') || has('win32')
     set mouse=inv
@@ -707,8 +709,8 @@ function! UserRuntimeHas(pathspec)
 endfunction
 
 
-" set cell widths for unicode char ranges vim doesn't
-" know about
+" set cell widths for unicode char ranges vim doesn't know about
+
 function UserSetCellWidths()
     if v:version < 900
         return
@@ -902,6 +904,9 @@ function! UserSetupListchars() abort
     let g:user_lcs_ascii.trail = '_'
 
     let g:user_lcs = [g:user_lcs_def, g:user_lcs_p, g:user_lcs_ascii]
+
+    let &listchars = UserListchars(
+                \ UserTermPrimitive() ? g:user_lcs_ascii : g:user_lcs_p)
 endfunction
 
 set conceallevel=1
@@ -950,11 +955,11 @@ function! UserSetupFillchars()
     " fillchars stl/stlnc then.
     let l:fcs = {}
 
-    if has('gui_running') || g:user_has_x11
-       \ || &term =~# 'xterm' || &term =~# 'rxvt' || &term =~# 'putty'
-        " U+2504 - BOX DRAWINGS LIGHT TRIPLE DASH HORIZONTAL
+    if !UserTermPrimitive()
         " U+2502 - BOX DRAWINGS LIGHT VERTICAL
         "   (vert default: U+007C    VERTICAL LINE)
+        " U+2504 - BOX DRAWINGS LIGHT TRIPLE DASH HORIZONTAL
+        let l:fcs.vert = nr2char(0x2502)
         let l:fcs.fold = nr2char(0x2504)
 
         " for the statuslines:
@@ -974,7 +979,6 @@ function! UserSetupFillchars()
         " can cause windows gvim to crash.
         if 0 && has('patch-8.2.2569') && UserCanLoadColorscheme()
             " BOX DRAWINGS LIGHT HORIZONTAL
-            " maybe em dash instead?
             let l:hrz = nr2char(0x2500)
             let l:fcs.stl = l:hrz
             let l:fcs.stlnc = l:hrz
@@ -982,7 +986,7 @@ function! UserSetupFillchars()
     endif
 
     " set fillchars once we're done with all the if's.
-    return UserFillchars(l:fcs)
+    let &fillchars = UserFillchars(l:fcs)
 endfunction
 
 
@@ -1811,7 +1815,6 @@ function! UserCustomSyntaxHighlights()
     highlight UserHashTag term=NONE cterm=NONE gui=NONE
     " for URIs at top level, with syntax highlighting and not matchadd()
     highlight! default link UserHttpURI Normal
-
     " __UNIWS__
     highlight UserUnicodeWhitespace term=reverse ctermbg=red guibg=red
 
@@ -1824,48 +1827,52 @@ function! UserCustomSyntaxHighlights()
     if &background ==# 'light'
         highlight UserDateComment ctermfg=241 ctermbg=254 guifg=grey40 guibg=azure2
         "highlight UserHashTag ctermbg=194 guibg=#b9ebc4
-        " like the status line
+        " like StatusLine
         highlight UserHashTag ctermbg=152 guibg=#b0e0e6
-        "highlight UserTrailingWhitespace ctermbg=7 guibg=grey88
-        " 2023-05-13 had enough of grey;
-        highlight UserTrailingWhitespace    ctermbg=230 guibg=palegoldenrod
+        highlight UserTrailingWhitespace    ctermbg=252     guibg=#dee0e2
     else    " dark
         highlight UserDateComment   ctermfg=246 ctermbg=238 guifg=grey58 guibg=NONE
         highlight UserHashTag       ctermbg=240 guibg=grey35
-        "highlight UserTrailingWhitespace    ctermbg=238 guibg=grey23
-        " 2023-05-13
-        highlight UserTrailingWhitespace    ctermbg=23 guibg=seagreen
+        highlight UserTrailingWhitespace    ctermbg=237     guibg=#222527
     endif
 
-    " UserHttpURI: if using non-syntax matches (matchadd/UserMatchAdd),
-    " define a ctermbg to hide spell errors.
-    " f.ex. ctermbg=255 guibg=bg
+    " UserHttpURI: if using non-syntax matches (matchadd/UserMatchAdd), define
+    " a ctermbg to hide spell errors. f.ex. ctermbg=255 guibg=bg
+
 endfunction
 
 
 " bring some sanity to vim UI element colours.
 " remember; TERM(vt100, vt220) -> term, TERM(ansi, linux, xterm) -> cterm
+"
+" Only needs to run on non-gui, non-256-colour ttys.
 function! UserSafeUIHighlights()
-    "highlight ErrorMsg      term=standout
-    highlight ColorColumn   term=reverse ctermbg=7
-    highlight Ignore        NONE
-    "highlight LineNr        NONE
-    highlight MatchParen    NONE
-    " in some situations the default bold attribute of ModeMsg caused problems.
-    " clear the term attribute.
-    highlight ModeMsg       NONE
-    highlight CursorLine    NONE
-    highlight CursorLineNr  term=NONE cterm=NONE
-    highlight CursorColumn  NONE
-    "highlight Normal        ctermbg=NONE guibg=NONE
-    highlight EndOfBuffer   NONE
-    highlight SpellBad      NONE
+    if UserTermPrimitive()
+        highlight ColorColumn   term=reverse
+        highlight CursorColumn  NONE
+        highlight CursorLine    NONE
+        highlight CursorLineNr  term=NONE cterm=NONE
+        highlight EndOfBuffer   NONE
+        highlight ErrorMsg      term=standout
+        highlight Ignore        NONE
+        "highlight LineNr        NONE
+        highlight MatchParen    NONE
+        " in some situations the default bold attribute of ModeMsg caused
+        " problems. clear the term attribute.
+        highlight ModeMsg       NONE
+        highlight Normal        ctermbg=NONE
+        " for cterm with 8/16/88 colours
+        highlight Visual        term=reverse cterm=reverse ctermbg=NONE
+    endif
+
     highlight SpellCap      NONE
     highlight SpellLocal    NONE
     " decriminalise rare words
     highlight SpellRare     NONE
-    " for cterm with 8/16/88 colours
-    highlight Visual        term=reverse cterm=reverse ctermbg=NONE
+    if UserCO(g:cof.spell)
+        " we'll set our own later
+        highlight SpellBad      NONE
+    endif
 
     " we want to be safe for monochrome ttys, and at the same time
     " clear cterm and gui attributes that can be bad in 256 color and gui modes.
@@ -1875,15 +1882,15 @@ function! UserSafeUIHighlights()
     " NonText - by default used, among others, for the end-of-buffer tildes.
     " here, with low-color ttys in mind, we don't want to set a ctermbg.
     " listchars: eol, extends, precedes
-    highlight NonText       term=NONE ctermfg=NONE ctermbg=NONE cterm=NONE gui=NONE
+    highlight NonText       term=NONE ctermfg=NONE ctermbg=NONE cterm=NONE
     " listchars: tab, nbsp, trail (+ space, multispace, lead)
-    highlight SpecialKey    ctermfg=blue ctermbg=NONE cterm=NONE gui=NONE
+    highlight SpecialKey    ctermfg=blue ctermbg=NONE cterm=NONE
 
-    highlight SpellBad      ctermfg=NONE    ctermbg=cyan    cterm=NONE  gui=NONE
-
-    " specifying ctermfg in case of a dark tty background
-    highlight StatusLine    ctermfg=grey    ctermbg=black   cterm=NONE  gui=NONE
-    highlight StatusLineNC  ctermfg=black   ctermbg=grey    cterm=NONE  gui=NONE
+    if UserCO(g:cof.stat)
+        " specifying ctermfg in case of a dark tty background
+        highlight StatusLine    ctermfg=grey    ctermbg=black   cterm=NONE
+        highlight StatusLineNC  ctermfg=black   ctermbg=grey    cterm=NONE
+    endif
 endfunction     " UserSafeUIHighlights
 
 
@@ -1903,18 +1910,9 @@ function! UserClearContentHighlights()
 endfunction
 
 
-" meant for use when testing colorschemes, to see if a colorscheme has better
-" status line colours than my choices.
-function! UserOverrideUiColours()
-    return 1
-endfunction
-
-
-function! UserIsBlessedColorscheme()
-    return exists('g:colors_name') && (g:colors_name ==# 'lucius')
-endfunction
-
-
+" these utility functions have the undesirable effect of hiding the exact script
+" line where a highlight group was modified - as :verbose only goes back one
+" call frame.
 function! UHgui(...)
     let l:spec = ['highlight']
     call extend(l:spec, a:000)
@@ -1954,19 +1952,64 @@ endfunction
 " same ctermbg as StatusLineNC.
 
 function! UserColours256Light()
-    "highlight LineNr            ctermbg=253
+    if UserCO(g:cof.stat)
+        highlight StatusLine        ctermfg=0       ctermbg=152 cterm=NONE
+        let l:clr = [90, 60][-1]
+        call UHcterm('StatusLineNC', 'ctermfg=15', 'ctermbg='.l:clr, 'cterm=NONE')
+        call UHcterm('VertSplit', 'ctermfg='.l:clr, 'ctermbg='.l:clr, 'cterm=NONE')
+    endif
+    if UserCO(g:cof.spell)
+        highlight SpellBad              ctermbg=254
+    endif
+    if UserCO(g:cof.mode)
+        highlight ModeMsg   ctermfg=0   ctermbg=254     cterm=bold
+    endif
+    if UserCO(g:cof.ui)
+        "highlight LineNr            ctermbg=253
 
-    highlight NonText           ctermfg=NONE    ctermbg=7
-    highlight SpecialKey        ctermfg=164     ctermbg=NONE
-    highlight ColorColumn                       ctermbg=254                 "---+
-    highlight StatusLine        ctermfg=0       ctermbg=152
-    "highlight StatusLineNC      ctermfg=15      ctermbg=90
-    "highlight VertSplit         ctermfg=90      ctermbg=90
-    let l:clr = [90, 60][-1]
-    call UHcterm('StatusLineNC', 'ctermfg=15', 'ctermbg='.l:clr)
-    call UHcterm('VertSplit', 'ctermfg='.l:clr, 'ctermbg='.l:clr)
-    highlight Visual                            ctermbg=153 cterm=NONE
-    highlight CursorLine                        ctermbg=230
+        highlight NonText           ctermfg=NONE    ctermbg=7
+        highlight SpecialKey        ctermfg=164     ctermbg=NONE
+        highlight ColorColumn                       ctermbg=254             "---+
+        highlight Visual                            ctermbg=153 cterm=NONE
+        highlight CursorLine                        ctermbg=230
+    endif
+endfunction
+
+" dark backgrounds are quite common even if not desired.
+" must support.
+" things can look wrong if a colorscheme forces background to dark,
+" as when trying desert in a bright tty. the following function
+" will get run because bg's now dark, and the result can look wrong.
+function! UserColours256Dark()
+    if UserCO(g:cof.stat)
+        highlight StatusLine        ctermfg=0       ctermbg=152 cterm=NONE
+        let l:clr = [90, 60][-1]
+        call UHcterm('StatusLineNC', 'ctermfg=15', 'ctermbg='.l:clr, 'cterm=NONE')
+        call UHcterm('VertSplit', 'ctermfg='.l:clr, 'ctermbg='.l:clr, 'cterm=NONE')
+    endif
+    if UserCO(g:cof.spell)
+        highlight SpellBad              ctermbg=238
+    endif
+    if UserCO(g:cof.mode)
+        highlight ModeMsg   ctermfg=0   ctermbg=238     cterm=bold
+    endif
+    if UserCO(g:cof.ui)
+        "highlight LineNr            ctermbg=237
+        highlight NonText           ctermfg=NONE    ctermbg=238
+        highlight SpecialKey        ctermfg=206     ctermbg=NONE
+        highlight ColorColumn                       ctermbg=238
+        highlight Visual                            ctermbg=24  cterm=NONE
+        highlight CursorLine                        ctermbg=242
+    endif
+endfunction
+
+
+function! UserColours256Any()
+    if UserCO(g:cof.ui)
+        "highlight ErrorMsg          ctermfg=yellow  ctermbg=brown   cterm=bold
+        highlight MatchParen                        ctermbg=202
+        highlight EndOfBuffer                       ctermbg=NONE
+    endif
 
     " no point clearing 'Normal' here, vim doesn't seem to reset the
     " background colour to the tty background color. probably mentioned
@@ -1981,31 +2024,6 @@ function! UserColours256Light()
     highlight Normal ctermfg=NONE
 endfunction
 
-" dark backgrounds are quite common even if not desired.
-" must support.
-" things can look wrong if a colorscheme forces background to dark,
-" as when trying desert in a bright tty. the following function
-" will get run because bg's now dark, and the result can look wrong.
-function! UserColours256Dark()
-    "highlight LineNr            ctermbg=237
-    highlight NonText           ctermfg=NONE    ctermbg=238
-    highlight SpecialKey        ctermfg=206     ctermbg=NONE
-    highlight ColorColumn                       ctermbg=238
-    highlight StatusLine        ctermfg=0       ctermbg=152
-    let l:clr = [90, 60][-1]
-    call UHcterm('StatusLineNC', 'ctermfg=15', 'ctermbg='.l:clr)
-    call UHcterm('VertSplit', 'ctermfg='.l:clr, 'ctermbg='.l:clr)
-    highlight Visual                            ctermbg=24  cterm=NONE
-    highlight CursorLine                        ctermbg=242
-endfunction
-
-
-function! UserColours256Any()
-    "highlight ErrorMsg          ctermfg=yellow  ctermbg=brown   cterm=bold
-    highlight MatchParen                        ctermbg=202
-    highlight EndOfBuffer                       ctermbg=NONE
-endfunction
-
 
 " 'light' only
 " sea green ?
@@ -2018,26 +2036,35 @@ endfunction
 "
 function! UserColoursGuiLight()
     " DarkOrchid4: #68228b
-    " safflower: #5A4F74
     " https://en.wikipedia.org/wiki/Traditional_colors_of_Japan#Blue/blue_violet_series
     let l:safflower = '#5A4F74'
 
-    " my precious azure2...
-    highlight ColorColumn               guibg=azure2
-    call UHgui('NonText', 'guifg=NONE', 'guibg=grey88')
-    let l:dark_pink = '#AA336A'
-    call UHgui('SpecialKey', 'guifg='.l:dark_pink, 'guibg=bg')
-    highlight StatusLine    guifg=fg    guibg=#b0e0e6   gui=NONE
-    "highlight StatusLineNC  guifg=fg    guibg=#d8d8d8   gui=NONE
-    call UHgui('StatusLineNC', 'guifg=bg', 'guibg='.l:safflower, 'gui=NONE')
-    call UHgui('VertSplit', 'guifg='.l:safflower, 'guibg='.l:safflower, 'gui=NONE')
-    highlight Visual        cterm=NONE  guifg=NONE      guibg=#afd7ff
-    highlight CursorLine                guibg=palegoldenrod
+    if UserCO(g:cof.stat)
+        highlight StatusLine    guifg=fg    guibg=#b0e0e6   gui=NONE
+        call UHgui('StatusLineNC', 'guifg=bg', 'guibg='.l:safflower, 'gui=NONE')
+        call UHgui('VertSplit', 'guifg='.l:safflower, 'guibg='.l:safflower, 'gui=NONE')
+    endif
+    if UserCO(g:cof.spell)
+        " unobtrusive
+        highlight SpellBad  guifg=fg    guibg=grey91    gui=NONE    guisp=NONE
+    endif
+    if UserCO(g:cof.mode)
+        highlight ModeMsg   guifg=fg    guibg=#d8d8d8   gui=bold
+    endif
+    if UserCO(g:cof.ui)
+        " my precious azure2...
+        highlight ColorColumn               guibg=azure2
+        call UHgui('NonText', 'guifg=NONE', 'guibg=grey88')
+        let l:dark_pink = '#AA336A'
+        call UHgui('SpecialKey', 'guifg='.l:dark_pink, 'guibg=bg')
+        highlight Visual        cterm=NONE  guifg=NONE      guibg=#afd7ff
+        highlight CursorLine                guibg=palegoldenrod
+    endif
 
     " if we're using lucius, let it set the Normal colours and don't override.
     " for anything else, set our own foreground/background.
-    if !UserIsBlessedColorscheme()
-        " default gui forground/background
+    if UserCO(g:cof.normguibg)
+        " default gui foreground/background
         " was: whitesmoke; current - anti-flash white; see also #f2f3f4
         highlight Normal    guifg=black guibg=#f3f3f3
     endif
@@ -2045,29 +2072,48 @@ endfunction
 
 
 function! UserColoursGuiDark()
-    highlight NonText                       guibg=grey25
-    highlight SpecialKey    guifg=#515151   guibg=NONE
-    call UHgui('SpecialKey', 'guifg=#515151', 'guibg=bg')
-    let l:dark_pink = '#AA336A'
-    call UHgui('SpecialKey', 'guifg='.l:dark_pink, 'guibg=bg')
-    highlight StatusLine    guifg=black guibg=#b0e0e6   gui=NONE
     let l:safflower = '#5A4F74'
-    call UHgui('StatusLineNC', 'guifg=fg', 'guibg='.l:safflower, 'gui=NONE')
-    call UHgui('VertSplit', 'guifg='.l:safflower, 'guibg='.l:safflower, 'gui=NONE')
-    highlight Visual        cterm=NONE  guifg=NONE      guibg=#005f87
-    highlight CursorLine                guibg=seagreen
 
-    if !UserIsBlessedColorscheme()
-        " for emergencies only
-        highlight Normal            guifg=#d7d7d7   guibg=darkslategrey
+    if UserCO(g:cof.stat)
+        highlight StatusLine    guifg=black guibg=#b0e0e6   gui=NONE
+        call UHgui('StatusLineNC', 'guifg=fg', 'guibg='.l:safflower, 'gui=NONE')
+    endif
+    if UserCO(g:cof.spell)
+        highlight SpellBad  guifg=fg    guibg=grey25    gui=NONE    guisp=NONE
+    endif
+    if UserCO(g:cof.mode)
+        highlight ModeMsg   guifg=fg    guibg=grey40    gui=bold
+    endif
+    if UserCO(g:cof.ui)
+        highlight NonText                       guibg=grey25
+        highlight SpecialKey    guifg=#515151   guibg=NONE
+        call UHgui('SpecialKey', 'guifg=#515151', 'guibg=bg')
+        let l:dark_pink = '#AA336A'
+        call UHgui('SpecialKey', 'guifg='.l:dark_pink, 'guibg=bg')
+        call UHgui('VertSplit', 'guifg='.l:safflower, 'guibg='.l:safflower, 'gui=NONE')
+        highlight Visual        cterm=NONE  guifg=NONE      guibg=#005f87
+        highlight CursorLine                guibg=seagreen
     endif
 endfunction
 
 
 function! UserColoursGuiAny()
-    " regardless of bg light/dark
-    highlight EndOfBuffer       guifg=grey50    guibg=NONE
-    highlight MatchParen                        guibg=#ff8c00
+    if UserCO(g:cof.ui)
+        " regardless of bg light/dark
+        highlight EndOfBuffer       guifg=grey50    guibg=NONE
+        highlight MatchParen                        guibg=#ff8c00
+    endif
+
+    " a little monkeypatching. even if the colour override flags say we trust
+    " the colorscheme and should not force the Normal guibg, if it looks like
+    " we're in LuciusLight .. the background colour can be a bit too dark.
+    " override...
+
+    if !UserCO(g:cof.normguibg) &&
+                \ exists('*hlget') &&
+                \ hlget('Normal')[0]['guibg'] ==# '#eeeeee'
+        highlight Normal                guibg=#f3f3f3
+    endif
 endfunction
 
 
@@ -2088,6 +2134,24 @@ function! UserSetGuiFont()
     endif
 endfunction
 
+" 2022-12-08 - removing autoselect; gvim's like a terminal emulator anyway.
+" 2023-01-02 - just unnamedplus is no good for win32. doesn't fail early, but
+" breaks y/p.
+function! s:setupClipboard()
+    if has('gui_running') || has('win32')
+        set clipboard=unnamed
+        if has('unnamedplus')
+            " only under X
+            set clipboard=unnamedplus
+        endif
+    elseif has('X11') && has('clipboard')
+        " debian vim used to.. maybe bsds.
+        " if not gvim, do not connect to X; can slow down startup.
+        " doesn't seem to be a problem on fedora, vim-enhanced doesn't have +X11
+        set clipboard=exclude:.*
+    endif
+endfunction
+
 
 " Meant to run after a colorscheme we like is loaded. Overrides highlights
 " we don't agree with (StatusLine(NC), NonText, SpecialKey), defines good
@@ -2099,48 +2163,35 @@ function! UserColours()
     let l:bg_light = &background ==# 'light'
     let l:bg_dark = !l:bg_light
 
-    if UserOverrideUiColours()
+    " a color scheme might have been loaded - if we trust it and want to let it
+    " set the background colour, add g:cof.normguibg to g:user_co.
+
+    if exists('g:colors_name')
+        if g:colors_name ==# 'lucius'
+            let g:user_co = or(g:user_co, g:cof.normguibg)
+        endif
+    endif
+
+    if UserCOAny()
         " clean up UI colours
         call UserSafeUIHighlights()
 
         " apply our highlights
+        "
         " NB don't run 256-color code for gui. and, no support for 88 colors.
-        if User256()
-            if l:bg_light | call UserColours256Light() | endif
-            if l:bg_dark  | call UserColours256Dark()  | endif
-            call UserColours256Any()
-        endif
+        "
+        " 2023-05-16 re-ordered - win32 vcon supports termguicolors but t_Co
+        " is stuck at 256.
 
         if UserCanUseGuiColours()
             if l:bg_light | call UserColoursGuiLight() | endif
             if l:bg_dark  | call UserColoursGuiDark()  | endif
             call UserColoursGuiAny()
+        elseif User256()
+            if l:bg_light | call UserColours256Light() | endif
+            if l:bg_dark  | call UserColours256Dark()  | endif
+            call UserColours256Any()
         endif
-    endif
-
-    " unconditionally:
-
-    " spell check is often wrong - deemphasize.
-    " ModeMsg could use some more attention.
-    if l:bg_light
-        highlight SpellBad              ctermbg=254
-        highlight SpellBad  guifg=fg    guibg=grey91    gui=NONE    guisp=NONE
-        highlight ModeMsg   ctermfg=0   ctermbg=254     cterm=bold
-        highlight ModeMsg   guifg=fg    guibg=#d8d8d8   gui=bold
-    endif
-    if l:bg_dark
-        highlight SpellBad              ctermbg=238
-        highlight SpellBad  guifg=fg    guibg=grey25    gui=NONE    guisp=NONE
-        highlight ModeMsg   ctermfg=0   ctermbg=238     cterm=bold
-        highlight ModeMsg   guifg=fg    guibg=grey40    gui=bold
-    endif
-
-    if UserIsBlessedColorscheme() &&
-                \ exists('*hlget') &&
-                \ hlget('Normal')[0]['guibg'] ==# '#eeeeee'
-        " a little monkeypatching. we're in LuciusLight. background's a bit too
-        " dark, override.
-        highlight Normal                guibg=#f3f3f3
     endif
 
     " since we're handling a colorscheme change: pull in our custom colour and
@@ -2448,11 +2499,49 @@ function! UserColoursPrelude()
     endif
 endfunction
 
+" -- colorscheme control
+" mnemonic: co/CO == colour override
+" script-local
+"
+" useage example:
+"
+"   let user_co = cof.min | colo iceberg
+"
+function! UserInitColourOverride()
+    " mnemonic: cof == colour override flags
+    let g:cof = {}
+    let g:cof.none =       0    " don't override anything
+    let g:cof.stat =       1    " StatusLine* + VertSplit
+    let g:cof.spell =      2    " SpellBad
+    let g:cof.mode =       4    " ModeMsg
+    let g:cof.ui =         8    " the rest
+    let g:cof.normguibg = 16    " Normal guibg - gui background
 
-" syntax for text isn't worth the trouble but we like good UI colours.
-" for non-xterm-direct terminals (VTE, kitty) it might be necessary to
-" call UserColours() again after enabling termguicolors.
-" do all the ui/content color changes and loading of a color scheme.
+    let g:cof.min =        7    " sane minimum: stat + spell + mode
+    let g:cof.all =       31    " override all known
+
+    " control variable
+    let g:user_co = g:cof.all
+endfunction
+
+" bitwise check if a flag is set
+function! UserCO(p)
+    return and(g:user_co, a:p) == a:p
+endfunction
+
+function! UserCOAny()
+    return g:user_co != g:cof.none
+endfunction
+
+" -- end colorscheme control
+
+
+
+" syntax for text isn't worth the trouble but we like good UI colours. for
+" non-xterm-direct terminals (VTE, kitty) it might be necessary to call
+" UserColours() again after enabling termguicolors. do all the ui/content
+" color changes and loading of a color scheme.
+
 function! UserLoadColors()
 
     " most colorschemes don't pull their own weight. would be great if a
@@ -2486,7 +2575,7 @@ function! UserLoadColors()
 
     if UserCanLoadColorscheme()
         if UserRuntimeHas('colors/lucius.vim')
-            " perfect, A+; cterm only, not for tgc
+            " perfect, A+; cterm only, not for termguicolors.
             let g:lucius_no_term_bg = 1
 
             if UserCanUseGuiColours()
@@ -3425,15 +3514,13 @@ nnoremap    g<C-h>  <nop>
 nnoremap    q   :echo 'Temper temper / mon capitaine.'<cr>
 " -- end q-mappings adventure.
 
-" never used the tagstack.
-" on-site cat:
-" https://jijitanblog.com/construction/genbaneko-matome/
+" never used the tagstack. sometimes due to window focus i end up hitting
+" new-tab C-t in vim.
+"
+" on-site cat: https://jijitanblog.com/construction/genbaneko-matome/
 nnoremap    <C-t>   :echo 'ヨシ！'<cr>
+imap        <C-t>   <Esc><C-t>
 
-
-" verymagic
-"nnoremap    /       /\v
-"nnoremap    ?       ?\v
 
 " three-state switch for 'number' and 'relativenumber'.
 " 0 0, 1 0, 1 1, 0 0
@@ -3576,7 +3663,7 @@ command -bar NoShowBreak     set showbreak=NONE
 
 
 " helper for when a 'syntax off' -> 'syntax enable' wipes out our rules.
-command -bar Syn            call UserApplySyntaxRules()
+command -bar Syn            syntax enable | call UserApplySyntaxRules()
 command -bar SynSync        syntax sync fromstart
 " remember: https://vimhelp.org/usr_44.txt.html#44.10
 "   :syntax sync minlines=100
@@ -3588,14 +3675,12 @@ command -bar Unfold         normal! zR
 
 command -nargs=1 Ch         set cmdheight=<args>
 
-" query or set textwidth
-command -bar -nargs=?   Tw  if len(<q-args>) == 0
-    \ |     setlocal textwidth?
-    \ | else
+" query or set textwidth; if value given, set. always show.
+command -bar -nargs=?   Tw  if len(<q-args>) != 0
     \ |     setlocal textwidth=<args>
     \ | endif
+    \ | setlocal textwidth?
 
-command Colortest       runtime syntax/colortest.vim
 
 " kludge for 256 colour dark terminals
 " useful in a pinch for the gui too, when lucius is not around.
@@ -3774,6 +3859,7 @@ command -nargs=+ CexprSystem     :cexpr system(<q-args>, bufnr('%'))
 " use file(1) to determine if fn is a text file
 function! UserDetectTextFile(fn)
     if !has('unix') | return -1 | endif
+    if !executable('/usr/bin/file') | return -1 | endif
     let l:fnesc = shellescape(a:fn, 1)
     "echom 'passing to file:' l:fnesc
     silent let l:out = system('/usr/bin/file -b --mime ' . l:fnesc)
@@ -3982,29 +4068,16 @@ set redrawtime=700 synmaxcol=200
 " someone's really gone on a wild ride with the guicursor possibilities.
 set guicursor=a:block-blinkon0
 
-function! UserInit()
-    call UserRemoveVendorAugroups()
-    call UserSetCellWidths()
-    let &fillchars = UserSetupFillchars()
-    call UserSetupListchars()
-    let &listchars = UserListchars(
-                \ UserTermPrimitive() ? g:user_lcs_ascii : g:user_lcs_p, {})
-    call UserSetGuiFont()
-    call UserColoursPrelude()
-    call UserLoadColors()
-
-    " 2022-12-08 - removing autoselect; gvim's like a terminal emulator
-    " anyway.  2023-01-02 - just unnamedplus is no good for win32. doesn't
-    " fail early, but breaks y/p.
-
-    if has('gui_running') || has('win32')
-        set clipboard=unnamed
-        if has('unnamedplus')
-            set clipboard=unnamedplus
-        endif
-    endif
-endfunction
-call UserInit()
+" load things in order
+call UserRemoveVendorAugroups()
+call UserSetCellWidths()
+call UserSetupFillchars()
+call UserSetupListchars()
+call UserSetGuiFont()
+call UserColoursPrelude()
+call UserInitColourOverride()
+call UserLoadColors()
+call s:setupClipboard()
 
 " ~ fini ~
 
