@@ -3074,10 +3074,12 @@ inoremap    <C-u>   <C-g>u<C-u>
 inoremap    <C-w>   <C-g>u<C-w>
 
 "" insert timestamp
-"" nnoremap        <silent> <Leader>dt :put=UserDateTimeComment()<cr>
+" :put =<expr> is elegant, but working on the line below is disconcerting.
+nnoremap        <silent> <Leader>dt     "=UserDateTimeComment()<cr>p:put _<cr>
 inoremap <expr> <silent> <Leader>dt     UserDateTimeComment()
 "" ,dt is too complicated when tired/sleepy.
-inoremap <expr> <silent> <Leader>.      UserDateTimeComment()
+nmap        <Leader>.      <Leader>dt
+imap        <Leader>.      <Leader>dt
 
 "" insert date
 "" nnoremap        <silent> <Leader>dd :put=UserDate()<cr>
@@ -3529,16 +3531,15 @@ nnoremap            <Leader>f   q:
 " our own function instead.
 nnoremap    <C-g>   :echo UserLoc()<cr>
 
-nnoremap    H   ^
-vnoremap    H   ^
-nnoremap    L   $
-vnoremap    L   $
+noremap    H   ^
+noremap    L   $
 
-" disable select-mode mappings
-" doc Select-mode-mappings
+" disable mappings that enter select mode; doc: Select-mode-mapping
 nnoremap    gh      <nop>
 nnoremap    gH      <nop>
 nnoremap    g<C-h>  <nop>
+xnoremap    <C-g>   <nop>
+
 
 " 2022-07-22 haven't used macros/recording for over 20 years, not about to
 " start now. keeps getting in the way.
@@ -4025,13 +4026,14 @@ augroup UserVimRc
     " the idea is to not paste right into the command line, but do paste from
     " the clipboard into the command window - and inspect before running.
     "
-    " listchars is set to something that includes eol (g:user_lcs_def), which
+    " listchars is set to something that includes eol (g:u.lcs.def), which
     " is useful in the command window.
     "
     " doc cmdwin-char
-    autocmd CmdWinEnter :
-                    \ let &l:lcs = UserListchars(g:user_lcs_def, {})
-                    \ | setlocal list number norelativenumber
+    "
+    " 2023-05-20 local list/listchars seems surprising in iVim. but number/
+    " relativenumber is enough.
+    autocmd CmdWinEnter :   setlocal number norelativenumber
 
     " for iVim on iOS; by default, swap seems to be automatically disabled
     " for files loaded from iCloud Drive. we keep swap files at home (appdir),
@@ -4134,5 +4136,5 @@ call s:setupClipboard()
 
 " maybe warn if &encoding / &termencoding are not utf-8;
 
-" vim:tw=80 fo=croq:
+" vim:cc=80 fo=croq:
 
