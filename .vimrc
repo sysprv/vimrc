@@ -12,7 +12,7 @@ scriptencoding utf-8        " must go after 'encoding'
 " Change log:
 "
 " 2023-05-15 Replace ad-hoc color override conditions functions with
-" a global variable (g:user_co) and a set of bitfield checks. Now we can test
+" a global variable (g:u.co) and a set of bitfield checks. Now we can test
 " different colorschemes and overrides in an easier way.
 "
 " 2023-05-11 Lots of changes.
@@ -353,27 +353,28 @@ set modeline
 
 " ----
 
-function! UserTermPrimitive()
-    if has('gui_running') || g:user_has_x11
-        return 0
-    endif
-    return (&term ==# 'linux') || (&term ==# 'win32' && !has('vcon'))
-endfunction
-
+" my stuff
+let g:u = {}
 
 " U+21B3 - DOWNWARDS ARROW WITH TIP RIGHTWARDS
-let g:user_showbreak_char = '↳'
-lockvar g:user_showbreak_char
+let g:u.showbreak_char = '↳'
 
-let g:user_has_x11 = exists('$DISPLAY')
-lockvar g:user_has_x11
+let g:u.has_x11 = exists('$DISPLAY')
 
-let g:user_mark = '_'
-if !UserTermPrimitive()
-    " fence, guard; defend; idle time
-    let g:user_mark = nr2char(0x95F2)
+let g:u.term_primitive = 1
+if g:u.has_x11
+    let g:u.term_primitive = 0
+elseif has('gui_running')
+    let g:u.term_primitive = 0
+elseif has('vcon') && &term ==# 'win32'
+    let g:u.term_primitive = 0
 endif
-lockvar g:user_mark
+
+let g:u.mark = '_'
+if !g:u.term_primitive
+    " fence, guard; defend; idle time
+    let g:u.mark = nr2char(0x95F2)
+endif
 
 " would like to stick to the default behaviour of keeping undo files in the
 " same dir; but breaks badly on iOS when editing files on iCloud Drive -
@@ -384,12 +385,11 @@ lockvar g:user_mark
 " the way 'directory' does.
 " but no file extension's added for such files, unlike for swap files (.swp
 " is added even for centralised swap files. inconsistent for no reason.
-let g:user_undo_dir = expand('~/.vim/var/un')
-lockvar g:user_undo_dir
+let g:u.undo_dir = expand('~/.vim/var/un')
+
 
 " ditto; shouldn't have any trailing slashes - added later.
-let g:user_swap_dir = expand('~/.vim/var/swap')
-lockvar g:user_swap_dir
+let g:u.swap_dir = expand('~/.vim/var/swap')
 
 
 if !exists('$PARINIT')
@@ -456,11 +456,11 @@ endfunction
 " version5.txt:3726 /New variation for naming swap files:/
 "
 if has('unix') || has('win32')
-    call UserMkdirOnce(g:user_swap_dir)
-    if g:user_swap_dir ==# '.'
-        let &directory = g:user_swap_dir
+    call UserMkdirOnce(g:u.swap_dir)
+    if g:u.swap_dir ==# '.'
+        let &directory = g:u.swap_dir
     else
-        let &directory = g:user_swap_dir . '//'
+        let &directory = g:u.swap_dir . '//'
     endif
 endif
 set swapfile updatecount=10
@@ -471,8 +471,8 @@ set undolevels=20
 
 " few undo levels, might as well persist if possible.
 if has('persistent_undo')
-    call UserMkdirOnce(g:user_undo_dir)
-    let &undodir = g:user_undo_dir
+    call UserMkdirOnce(g:u.undo_dir)
+    let &undodir = g:u.undo_dir
     set undofile
 endif
 
@@ -509,7 +509,7 @@ set selectmode= keymodel=
 set laststatus=2
 
 " disabling 'ruler' makes 3<C-g> print more info.
-set ruler rulerformat=%=%M\ %{g:user_mark}
+set ruler rulerformat=%=%M\ %{g:u.mark}
 " would like to disable showmode; but with all the different modes in
 " vim...
 set showmode
@@ -539,9 +539,9 @@ set colorcolumn=+1
 "
 " highlight group: NonText
 
-let &showbreak = g:user_showbreak_char
+let &showbreak = g:u.showbreak_char
 
-if g:user_has_x11 || has('gui_running')
+if g:u.has_x11
     " yes, even for vim in X terminal emulators
     set title
 endif
@@ -567,7 +567,7 @@ set hidden
 set matchpairs+=<:>,«:»,｢:｣
 
 " ttyfast - seems to be about terminal capabilities and less about line speed.
-" can disable if exists('$SSH_CONNECTION') && !g:user_has_x11
+" can disable if exists('$SSH_CONNECTION') && !g:u.has_x11
 
 set endofline
 if exists('+fixendofline')
@@ -643,14 +643,12 @@ endif
 
 " echom's untenable for even print debugging.
 " do log if file exists; touch file == enable logging
-let g:user_log_file = expand('~/.vimlog')
-lockvar g:user_log_file
-let g:user_log_enabled = filewritable(g:user_log_file)
-lockvar g:user_log_enabled
+let g:u.log_file = expand('~/.vimlog')
+let g:u.log_enabled = filewritable(g:u.log_file)
 
 function! UserLog(...) abort
     " log when either our own file exists, or if verbose is enabled
-    let l:enabled = g:user_log_enabled
+    let l:enabled = g:u.log_enabled
     if !l:enabled && (&verbose == 0)
         return
     endif
@@ -683,7 +681,7 @@ function! UserLog(...) abort
     let l:logmsg = l:t . ' ' . l:msg . "\t" . l:stack
 
     if l:enabled
-        let l:fn = g:user_log_file
+        let l:fn = g:u.log_file
         try
             call writefile([l:logmsg], l:fn, 'a')
         catch /^Vim\%((\a\+)\)\=:E/
@@ -804,7 +802,7 @@ endfunction
 
 function! UserListchars(...) abort
     let l:exst = {}
-    if a:0 == 2
+    if a:0 == 2     " parameter count
         let l:lcs_exst = a:2
         if type(l:lcs_exst) == 1
             " 2nd parameter is a string - convert to dict and use
@@ -836,12 +834,13 @@ function! UserListchars(...) abort
 endfunction
 
 function! UserSetupListchars() abort
+    let g:u['lcs'] = {}
     " keep listchars in top-level data structures so that i can mess with them
     " easily.
     "
     " for win32 and X11 with a good font:
     " eol: U+21B2 DOWNWARDS ARROW WITH TIP LEFTWARDS
-    "   parity with g:user_showbreak_char
+    "   parity with g:u.showbreak_char
     " nbsp: U+263A WHITE SMILING FACE (mocking)
     "   other: U+2423 OPEN BOX
     "
@@ -861,11 +860,11 @@ function! UserSetupListchars() abort
     " these are most troublesome chars, displaying eol is usually just an
     " immense amount of clutter.
 
-    "let user_lcs_p = UserCoCoToDict('eol:NONE,nbsp:☺,tab:→ ,trail:_')
+    "let u.lcs.p = UserCoCoToDict('eol:NONE,nbsp:☺,tab:→ ,trail:_')
     " U+21E5 RIGHTWARDS ARROW TO BAR
-    "let user_lcs_p = UserCoCoToDict('eol:NONE,nbsp:☺,tab:⇥ ,trail:_')
+    "let u.lcs.p = UserCoCoToDict('eol:NONE,nbsp:☺,tab:⇥ ,trail:_')
     " guiellemet right - awkward but legible
-    "let user_lcs_p = UserCoCoToDict('eol:NONE,nbsp:☺,tab:»>,trail:_')
+    "let u.lcs.p = UserCoCoToDict('eol:NONE,nbsp:☺,tab:»>,trail:_')
     " it's important to make the whole tab visible, without using spaces,
     " to clearly separate it from actual spaces.
 
@@ -880,7 +879,7 @@ function! UserSetupListchars() abort
     " trailing chars can be very annoying, so let's try something cool.
     let l:trail = [ '␠', '❤' ][-1]
 
-    let g:user_lcs_def = {
+    let g:u.lcs.def = {
                        \ 'eol': '↲'
                        \ , 'extends': '>'
                        \ , 'nbsp': '␣'
@@ -891,22 +890,20 @@ function! UserSetupListchars() abort
                        \ }
 
     " same as def above, but without eol and trail (distracting)
-    let g:user_lcs_p = copy(g:user_lcs_def)
+    let g:u.lcs.p = copy(g:u.lcs.def)
     " ah, i liked having those bright little hearts..
     " but a bit too much with deep indenting and expandtabs.
-    let g:user_lcs_p.eol = 'NONE'
-    let g:user_lcs_p.trail = 'NONE'
+    let g:u.lcs.p.eol = 'NONE'
+    let g:u.lcs.p.trail = 'NONE'
 
     " for the linux console or old X bitmap fonts:
-    let g:user_lcs_ascii = copy(g:user_lcs_def)
-    let g:user_lcs_ascii.eol = 'NONE'
-    let g:user_lcs_ascii.nbsp = '?'
-    let g:user_lcs_ascii.trail = '_'
+    let g:u.lcs.ascii = copy(g:u.lcs.def)
+    let g:u.lcs.ascii.eol = 'NONE'
+    let g:u.lcs.ascii.nbsp = '?'
+    let g:u.lcs.ascii.trail = '_'
 
-    let g:user_lcs = [g:user_lcs_def, g:user_lcs_p, g:user_lcs_ascii]
-
-    let &listchars = UserListchars(
-                \ UserTermPrimitive() ? g:user_lcs_ascii : g:user_lcs_p)
+    let l:l = g:u.term_primitive ? g:u.lcs.ascii : g:u.lcs.p
+    let &listchars = UserListchars(l:l)
 endfunction
 
 set conceallevel=1
@@ -955,7 +952,7 @@ function! UserSetupFillchars()
     " fillchars stl/stlnc then.
     let l:fcs = {}
 
-    if !UserTermPrimitive()
+    if g:u.term_primitive
         " U+2502 - BOX DRAWINGS LIGHT VERTICAL
         "   (vert default: U+007C    VERTICAL LINE)
         " U+2504 - BOX DRAWINGS LIGHT TRIPLE DASH HORIZONTAL
@@ -1043,7 +1040,7 @@ endif
 " when paste is on, that's indicated, without displaying textwidth.
 " caveat - paste is global (status in all windows will change.)
 "
-"set stl=%f%<\ %n\ %{UserBufModStatus()},%{&paste?'!P':&tw}%R%W%Y%#Normal#%#ModeMsg#%{UserModeMsg()}%#Normal#%=%{g:user_mark}\ %l:%v
+"set stl=%f%<\ %n\ %{UserBufModStatus()},%{&paste?'!P':&tw}%R%W%Y%#Normal#%#ModeMsg#%{UserModeMsg()}%#Normal#%=%{g:u.mark}\ %l:%v
 " declaring defeat - the above worked, though noticeably slower than
 " native 'showmode'. but - though it worked, there's no getting around the fact
 " that there's always only one command window.
@@ -1137,7 +1134,7 @@ endfunction
 " NB last double quote starts a comment and preserves the trailing space.
 " vim indicates truncated names with a leading '<', so using something else
 " around %f/%t.
-set statusline=%n%<\ [%{UserStLnBufFlags()}%W%H]\ r%{v:register}%#StatusLineNC#\ %.30f%=\ %{g:user_mark}\ "
+set statusline=%n%<\ [%{UserStLnBufFlags()}%W%H]\ r%{v:register}%#StatusLineNC#\ %.30f%=\ %{g:u.mark}\ "
 
 " it's nice to see the the window size. or, the width.
 "
@@ -1152,15 +1149,15 @@ set statusline=%n%<\ [%{UserStLnBufFlags()}%W%H]\ r%{v:register}%#StatusLineNC#\
 "
 if has('patch-8.1.1372')
     function! UserStatusLine()
-        if !exists('g:user_statusline_level')
-            let g:user_statusline_level = 3
+        if !exists('g:u.statusline_level')
+            let g:u.statusline_level = 3
         endif
 
         " 2022-09-05 we can bump up the level depending on the window count
         " or buffer count. but really, the buffer name becomes necessary very
         " often.
 
-        let l:lvl = g:user_statusline_level
+        let l:lvl = g:u.statusline_level
 
         let l:stlparts = {}
         " * buffer number
@@ -1208,7 +1205,7 @@ if has('patch-8.1.1372')
             let l:stlparts[80] = "%#Normal#"
         endif
 
-        let l:stlparts[1000] = "%= " . g:user_mark . " "
+        let l:stlparts[1000] = "%= " . g:u.mark . " "
 
         let l:s = ''
         for l:key in sort(keys(l:stlparts), 'N')
@@ -1228,8 +1225,8 @@ if has('patch-8.1.1372')
 
         set statusline=%!UserStatusLine()
         let l:lvl = 3
-        if exists('g:user_statusline_level')
-            let l:lvl = g:user_statusline_level
+        if exists('g:u.statusline_level')
+            let l:lvl = g:u.statusline_level
         endif
 
         if type(a:lvl) == 1     " string
@@ -1244,7 +1241,7 @@ if has('patch-8.1.1372')
             let l:lvl = a:lvl
         endif
 
-        let g:user_statusline_level = l:lvl
+        let g:u.statusline_level = l:lvl
         redrawstatus!
     endfunction
 
@@ -1268,7 +1265,7 @@ endif   " has patch-8.1.1372
 " this way, the statusline can contain just window-specific info, with
 " buffer-specifics in the tabline.
 
-"set tabline=%n\ '%.50f'\ %{UserStLnBufFlags()}%W%H\ %=\ %{g:user_mark}\ "
+"set tabline=%n\ '%.50f'\ %{UserStLnBufFlags()}%W%H\ %=\ %{g:u.mark}\ "
 "set showtabline=0
 
 
@@ -1847,7 +1844,7 @@ endfunction
 "
 " Only needs to run on non-gui, non-256-colour ttys.
 function! UserSafeUIHighlights()
-    if UserTermPrimitive()
+    if g:u.term_primitive
         highlight ColorColumn   term=reverse
         highlight CursorColumn  NONE
         highlight CursorLine    NONE
@@ -1869,7 +1866,7 @@ function! UserSafeUIHighlights()
     highlight SpellLocal    NONE
     " decriminalise rare words
     highlight SpellRare     NONE
-    if UserCO(g:cof.spell)
+    if UserCO(g:u.coflags.spell)
         " we'll set our own later
         highlight SpellBad      NONE
     endif
@@ -1886,7 +1883,7 @@ function! UserSafeUIHighlights()
     " listchars: tab, nbsp, trail (+ space, multispace, lead)
     highlight SpecialKey    ctermfg=blue ctermbg=NONE cterm=NONE
 
-    if UserCO(g:cof.stat)
+    if UserCO(g:u.coflags.stat)
         " specifying ctermfg in case of a dark tty background
         highlight StatusLine    ctermfg=grey    ctermbg=black   cterm=NONE
         highlight StatusLineNC  ctermfg=black   ctermbg=grey    cterm=NONE
@@ -1952,19 +1949,19 @@ endfunction
 " same ctermbg as StatusLineNC.
 
 function! UserColours256Light()
-    if UserCO(g:cof.stat)
+    if UserCO(g:u.coflags.stat)
         highlight StatusLine        ctermfg=0       ctermbg=152 cterm=NONE
         let l:clr = [90, 60][-1]
         call UHcterm('StatusLineNC', 'ctermfg=15', 'ctermbg='.l:clr, 'cterm=NONE')
         call UHcterm('VertSplit', 'ctermfg='.l:clr, 'ctermbg='.l:clr, 'cterm=NONE')
     endif
-    if UserCO(g:cof.spell)
+    if UserCO(g:u.coflags.spell)
         highlight SpellBad              ctermbg=254
     endif
-    if UserCO(g:cof.mode)
+    if UserCO(g:u.coflags.mode)
         highlight ModeMsg   ctermfg=0   ctermbg=254     cterm=bold
     endif
-    if UserCO(g:cof.ui)
+    if UserCO(g:u.coflags.ui)
         "highlight LineNr            ctermbg=253
 
         highlight NonText           ctermfg=NONE    ctermbg=7
@@ -1981,19 +1978,19 @@ endfunction
 " as when trying desert in a bright tty. the following function
 " will get run because bg's now dark, and the result can look wrong.
 function! UserColours256Dark()
-    if UserCO(g:cof.stat)
+    if UserCO(g:u.coflags.stat)
         highlight StatusLine        ctermfg=0       ctermbg=152 cterm=NONE
         let l:clr = [90, 60][-1]
         call UHcterm('StatusLineNC', 'ctermfg=15', 'ctermbg='.l:clr, 'cterm=NONE')
         call UHcterm('VertSplit', 'ctermfg='.l:clr, 'ctermbg='.l:clr, 'cterm=NONE')
     endif
-    if UserCO(g:cof.spell)
+    if UserCO(g:u.coflags.spell)
         highlight SpellBad              ctermbg=238
     endif
-    if UserCO(g:cof.mode)
+    if UserCO(g:u.coflags.mode)
         highlight ModeMsg   ctermfg=0   ctermbg=238     cterm=bold
     endif
-    if UserCO(g:cof.ui)
+    if UserCO(g:u.coflags.ui)
         "highlight LineNr            ctermbg=237
         highlight NonText           ctermfg=NONE    ctermbg=238
         highlight SpecialKey        ctermfg=206     ctermbg=NONE
@@ -2005,7 +2002,7 @@ endfunction
 
 
 function! UserColours256Any()
-    if UserCO(g:cof.ui)
+    if UserCO(g:u.coflags.ui)
         "highlight ErrorMsg          ctermfg=yellow  ctermbg=brown   cterm=bold
         highlight MatchParen                        ctermbg=202
         highlight EndOfBuffer                       ctermbg=NONE
@@ -2039,19 +2036,19 @@ function! UserColoursGuiLight()
     " https://en.wikipedia.org/wiki/Traditional_colors_of_Japan#Blue/blue_violet_series
     let l:safflower = '#5A4F74'
 
-    if UserCO(g:cof.stat)
+    if UserCO(g:u.coflags.stat)
         highlight StatusLine    guifg=fg    guibg=#b0e0e6   gui=NONE
         call UHgui('StatusLineNC', 'guifg=bg', 'guibg='.l:safflower, 'gui=NONE')
         call UHgui('VertSplit', 'guifg='.l:safflower, 'guibg='.l:safflower, 'gui=NONE')
     endif
-    if UserCO(g:cof.spell)
+    if UserCO(g:u.coflags.spell)
         " unobtrusive
         highlight SpellBad  guifg=fg    guibg=grey91    gui=NONE    guisp=NONE
     endif
-    if UserCO(g:cof.mode)
+    if UserCO(g:u.coflags.mode)
         highlight ModeMsg   guifg=fg    guibg=#d8d8d8   gui=bold
     endif
-    if UserCO(g:cof.ui)
+    if UserCO(g:u.coflags.ui)
         " my precious azure2...
         highlight ColorColumn               guibg=azure2
         call UHgui('NonText', 'guifg=NONE', 'guibg=grey88')
@@ -2063,7 +2060,7 @@ function! UserColoursGuiLight()
 
     " if we're using lucius, let it set the Normal colours and don't override.
     " for anything else, set our own foreground/background.
-    if UserCO(g:cof.normguibg)
+    if UserCO(g:u.coflags.normguibg)
         " default gui foreground/background
         " was: whitesmoke; current - anti-flash white; see also #f2f3f4
         highlight Normal    guifg=black guibg=#f3f3f3
@@ -2074,17 +2071,17 @@ endfunction
 function! UserColoursGuiDark()
     let l:safflower = '#5A4F74'
 
-    if UserCO(g:cof.stat)
+    if UserCO(g:u.coflags.stat)
         highlight StatusLine    guifg=black guibg=#b0e0e6   gui=NONE
         call UHgui('StatusLineNC', 'guifg=fg', 'guibg='.l:safflower, 'gui=NONE')
     endif
-    if UserCO(g:cof.spell)
+    if UserCO(g:u.coflags.spell)
         highlight SpellBad  guifg=fg    guibg=grey25    gui=NONE    guisp=NONE
     endif
-    if UserCO(g:cof.mode)
+    if UserCO(g:u.coflags.mode)
         highlight ModeMsg   guifg=fg    guibg=grey40    gui=bold
     endif
-    if UserCO(g:cof.ui)
+    if UserCO(g:u.coflags.ui)
         highlight NonText                       guibg=grey25
         highlight SpecialKey    guifg=#515151   guibg=NONE
         call UHgui('SpecialKey', 'guifg=#515151', 'guibg=bg')
@@ -2098,7 +2095,7 @@ endfunction
 
 
 function! UserColoursGuiAny()
-    if UserCO(g:cof.ui)
+    if UserCO(g:u.coflags.ui)
         " regardless of bg light/dark
         highlight EndOfBuffer       guifg=grey50    guibg=NONE
         highlight MatchParen                        guibg=#ff8c00
@@ -2109,7 +2106,7 @@ function! UserColoursGuiAny()
     " we're in LuciusLight .. the background colour can be a bit too dark.
     " override...
 
-    if !UserCO(g:cof.normguibg) &&
+    if !UserCO(g:u.coflags.normguibg) &&
                 \ exists('*hlget') &&
                 \ hlget('Normal')[0]['guibg'] ==# '#eeeeee'
         highlight Normal                guibg=#f3f3f3
@@ -2164,11 +2161,11 @@ function! UserColours()
     let l:bg_dark = !l:bg_light
 
     " a color scheme might have been loaded - if we trust it and want to let it
-    " set the background colour, add g:cof.normguibg to g:user_co.
+    " set the background colour, add g:u.coflags.normguibg to g:u.co.
 
     if exists('g:colors_name')
         if g:colors_name ==# 'lucius'
-            let g:user_co = or(g:user_co, g:cof.normguibg)
+            let g:u.co = or(g:u.co, g:u.coflags.normguibg)
         endif
     endif
 
@@ -2505,32 +2502,32 @@ endfunction
 "
 " useage example:
 "
-"   let user_co = cof.min | colo iceberg
+"   let u.co = u.coflags.min | colo iceberg
 "
 function! UserInitColourOverride()
     " mnemonic: cof == colour override flags
-    let g:cof = {}
-    let g:cof.none =       0    " don't override anything
-    let g:cof.stat =       1    " StatusLine* + VertSplit
-    let g:cof.spell =      2    " SpellBad
-    let g:cof.mode =       4    " ModeMsg
-    let g:cof.ui =         8    " the rest
-    let g:cof.normguibg = 16    " Normal guibg - gui background
+    let g:u.coflags = {}
+    let g:u.coflags.none =       0    " don't override anything
+    let g:u.coflags.stat =       1    " StatusLine* + VertSplit
+    let g:u.coflags.spell =      2    " SpellBad
+    let g:u.coflags.mode =       4    " ModeMsg
+    let g:u.coflags.ui =         8    " the rest
+    let g:u.coflags.normguibg = 16    " Normal guibg - gui background
 
-    let g:cof.min =        7    " sane minimum: stat + spell + mode
-    let g:cof.all =       31    " override all known
+    let g:u.coflags.min =        7    " sane minimum: stat + spell + mode
+    let g:u.coflags.all =       31    " override all known
 
     " control variable
-    let g:user_co = g:cof.all
+    let g:u.co = g:u.coflags.all
 endfunction
 
 " bitwise check if a flag is set
 function! UserCO(p)
-    return and(g:user_co, a:p) == a:p
+    return and(g:u.co, a:p) == a:p
 endfunction
 
 function! UserCOAny()
-    return g:user_co != g:cof.none
+    return g:u.co != g:u.coflags.none
 endfunction
 
 " -- end colorscheme control
@@ -3016,14 +3013,7 @@ command -bar BB     Scratch | call append(0, UserGetInfoLines())
 
 
 " for misconfigured virtual serial lines with putty. better to set
-" TERM=putty-256color before starting (above mappings work then), instead of
-" working under 'vt220' or whatever.
-if 0
-    if &term !~# 'putty' && !g:user_has_x11 && !has('gui_running')
-        nnoremap <silent> <Esc>[11~  :call UserShowHelp()<cr>
-        inoremap <silent> <Esc>[11~  <Esc>:call UserShowHelp()<cr>
-    endif
-endif
+" TERM=putty-256color before starting (above mappings work then).
 
 " quickly toggle spellcheck
 " used to use F6 to toggle spell, but setl [no]spell is easier to remember.
@@ -3332,7 +3322,7 @@ endif " gui || win32
 " -- copying; separate definitions for tty vs. gui - write to the
 " clipboard in whatever way works best.
 
-if has('unix') && g:user_has_x11
+if has('unix') && g:u.has_x11
 
     " trim-select with visual mode:
     "   m` - set previous context mark,
@@ -3517,8 +3507,12 @@ nnoremap    q   :echo 'Temper temper / mon capitaine.'<cr>
 " never used the tagstack. sometimes due to window focus i end up hitting
 " new-tab C-t in vim.
 "
-" on-site cat: https://jijitanblog.com/construction/genbaneko-matome/
-nnoremap    <C-t>   :echo 'ヨシ！'<cr>
+if g:u.term_primitive
+    nnoremap    <C-t>   <nop>
+else
+    " on-site cat: https://jijitanblog.com/construction/genbaneko-matome/
+    nnoremap    <C-t>   :echo 'ヨシ！'<cr>
+endif
 imap        <C-t>   <Esc><C-t>
 
 
@@ -3658,7 +3652,7 @@ command -bar Mobile  Wr | setl tw=60 nonu nornu
 command -bar Poetry  setlocal tw=0 formatoptions-=ta ai nospell | Lousy
 
 
-command -bar ShowBreak       let &showbreak = g:user_showbreak_char
+command -bar ShowBreak       let &showbreak = g:u.showbreak_char
 command -bar NoShowBreak     set showbreak=NONE
 
 
@@ -3717,8 +3711,8 @@ command -bar Nolist     windo setl nolist
 " this can make trailing hard tabs invisible unless the SpecialKey highlight
 " accounts for that.
 command -bar ListHideTab    let &lcs = UserListchars('tab:NONE')
-command -bar ListShowTab    let &lcs = UserListchars('tab:'.g:user_lcs_def.tab)
-command -bar ListShowTrail  let &lcs = UserListchars('trail:'.g:user_lcs_def.trail)
+command -bar ListShowTab    let &lcs = UserListchars('tab:'.g:u.lcs.def.tab)
+command -bar ListShowTrail  let &lcs = UserListchars('trail:'.g:u.lcs.def.trail)
 command -bar ListHideTrail  let &lcs = UserListchars('trail:NONE')
 
 
