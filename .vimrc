@@ -1,4 +1,4 @@
-" Last-Modified: 2023-05-16T19:58:26.624366489+00:00
+" Last-Modified: 2023-05-22T21:43:05.662222818+00:00
 set nocompatible
 if version < 704
     nnoremap    s   <C-w>
