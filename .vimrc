@@ -3200,6 +3200,55 @@ function! UserTeeCmdLineX11Cb()
     return l:cmdl
 endfunction
 
+" url paste adapter - if pasting a url, often it's convenient to treat
+" it in line mode - repeated pastes etc. but urls copied from browsers
+" or mobile apps don't end with a newline, and the type of "+/"* remains
+" c(haracterwise). this function can sometimes help with that.
+"
+" this function expects the current line to contain nothing but a url. still
+" very much a quick hack, meant for a very narrow use case - right after
+" pasting a url, in a new line, at the end of the file.
+
+function! UserUrlPasteMunge()
+    let l:ln = getline('.')
+    if len(l:ln) == 0 | return -10 | endif
+
+    " save where we are
+    normal! mp
+    " get last changed text via register p; this way we don't depend
+    " on the clipboard or v:register.
+    normal! `[v`]"py
+    " return to where we were - otherwise our normal paste behaviour will
+    " break, as the visual yank above moves the cursor to the first non-blank
+    " character of the line.
+    normal! `p
+    let l:src = @p
+
+    if l:ln !=# l:src
+        " the current line isn't what we expect, bail out
+        return -30
+    endif
+
+    " nothing doing if not a url
+    if match(l:ln, '\v^https?://\S+$') != 0 | return -40 | endif
+
+    " if twitter - drop all query parameters
+    let l:is_tw = match(l:src, '^https://twitter.com/\w\+/status/\d\+?\w[[:alnum:]=%&]\+')
+    if l:is_tw == 0
+        " count the length of the query params and delete only as much as we
+        " need to.
+        let l:qm_idx = match(l:src, '?', l:is_tw)
+        let l:qp_len = len(l:src) - l:qm_idx
+        if l:qp_len < 1 | return -60 | endif
+        " echo l:qm_idx l:qp_len
+        execute "normal!" (l:qm_idx + 1) . "|"
+        execute "normal!" l:qp_len . '"_x'
+    endif
+
+    " append newline by :put from the black hole register
+    put _
+endfunction
+
 " works for both gui and tty since UserRdX11Cb() does (@+ or xsel).
 "
 " test:
@@ -3228,6 +3277,9 @@ endfunction
 " mappings to copy/paste using the X clipboard from tty vim, without resorting
 " to the +X11 vim feature.
 " doc :write_c
+"
+" the deciding factor is what's in 'clipboard', but we use other invariables
+" like gui_running or if running under X11.
 
 " pasting
 
@@ -3239,10 +3291,14 @@ endfunction
 
 " -- paste mappings - common to tty and gui.
 
-if has('unix') && g:user_has_x11
+if has('unix') && g:u.has_x11
 
     " ttys and bracketed paste cover this well
-    nnoremap    <silent>    <Leader>xp      :call UserReadX11CbPut()<cr>
+    nnoremap <silent>   <Leader>xp :call UserReadX11CbPut()
+                               \ \| call UserUrlPasteMunge()<cr>
+
+    imap                <Leader>xp  <C-o><Leader>xp
+    vmap                <Leader>xp  "-c<Leader>xp
 
     " visual mode, useful for replacing the current visual selection with
     " what's in the clipboard. "-c - cut selection to small delete register
@@ -3254,37 +3310,35 @@ if has('unix') && g:user_has_x11
     " copied data.  1. start visual selection, 2. copy from other app, 3.
     " paste in vim works.
 
-    vnoremap <Leader>xp     "-c<C-r>=UserRdX11Cb()<cr><Esc>
-
     " insert->normal->paste->[insert] does weird things with the cursor
     " location. insert->normal->read clipboard->[insert]->normal->put reg does
     " the right thing with regard to the cursor. but the register value better
     " not be stale.
-    "
-    " 2023-05-09: [undo branch][insert-normal][expr reg, fun, return][paste
-    " before]
-
-    inoremap <Leader>xp <C-g>u<C-\><C-o>"=UserRdX11Cb()<cr>gP
 
     " dangerous, but tty mappings and <C-r>+ etc. work anyway. defined for
     " completeness and consistency.
-
+    "
+    " cannot be a silent mapping.
+    "
     " literal insert - doc: c_CTRL-R_CTRL-R
-    cnoremap    <Leader>xp  <C-r><C-r>=UserRdX11Cb()<cr>
+    cnoremap                <Leader>xp  <C-r><C-r>=UserRdX11Cb()<cr>
 endif " unix && X11
 
 " gui vim any platform, or win32 including console
 if has('gui_running') || has('win32')
     " remember: UserReadX11CbPut() works in both gui and tty modes.
-    nnoremap    <Leader>xp      :call UserReadX11CbPut()<cr>
+    nnoremap <silent> <Leader>xp            :call UserReadX11CbPut()
+                                        \ \| call UserUrlPasteMunge()<cr>
 
-    vmap        <Leader>xp      "-c<Leader>xp
+    " insert mode paste by bouncing through normal mode.
+    " does not respect tw, fo - i.e. consistent.
+    imap        <silent>    <Leader>xp      <C-o><Leader>xp
+    vmap        <silent>    <Leader>xp      "-c<Leader>xp
 
-    " undo branch + insert. doc: i_CTRL-R ; respects tw, fo.
-    inoremap    <Leader>xp      <C-g>u<C-r>+
+    nnoremap    <silent>    p               p:call UserUrlPasteMunge()<cr>
 
     " doc: i_CTRL-R_CTRL-R -- literal insert
-    cnoremap    <Leader>xp      <C-r><C-r>+
+    cnoremap    <Leader>xp                  <C-r><C-r>+
 
     " paste in gui mode with <C-[S-]v>.
 
@@ -3335,35 +3389,36 @@ if has('unix') && g:u.has_x11
     "       /Note that after a characterwise yank command
     "   `` - jump back
     "   and pass the unnamed register contents to the X11 clipboard.
-    nnoremap    <Leader>xc  m`^vg_y``:call UserWrX11Cb(@")<cr>
+    nnoremap    <silent>    <Leader>xc  m`^vg_y``:call UserWrX11Cb(@")<cr>
 
     " for the visual selection (not necessarily linewise).
     " yank, then [in normal mode] pass the anonymous register
     " to the X11 clipboard.
-    vnoremap    <Leader>xc  m`zy``:call UserWrX11Cb(@")<cr>
+    vnoremap    <silent>    <Leader>xc  m`y``:call UserWrX11Cb(@")<cr>
 
     " define an ex command that takes a range and pipes to xsel
     " doc :write_c
     " use: :.,+10WX11
     command -range WX11     silent <line1>,<line2>:w !xsel -i -b
 
-    " copying the current command line to the clipboard.
+    " copy the current command line to the clipboard.
     " doc: getcmdline()
-    cnoremap    <Leader>xc  <C-\>eUserTeeCmdLineX11Cb()<cr>
+    cnoremap                <Leader>xc  <C-\>eUserTeeCmdLineX11Cb()<cr>
 endif " unix && X11
 
 if has('gui_running') || has('win32')
     " normal mode, copy current line - this includes the last newline,
     " makes unnamedplus linewise.
-    " nnoremap <silent> <Leader>xc      "+yy
-
+    " nnoremap  <silent>    <Leader>xc      "+yy
+    "
     " for details see ,xc mapping for ttys above.
-    nnoremap <Leader>xc                 m`^vg_"+y``
+    nnoremap    <silent>    <Leader>xc      m`^vg_"+y``
 
     command! -range WX11                <line1>,<line2>y +
 
     " visual mode, copy selection, not linewise; doc: v_zy
-    vnoremap <silent> <Leader>xc        "+zy
+    " zy and zp are rather new, not in iVim yet.
+    vnoremap    <silent>    <Leader>xc      "+y
 
     cnoremap    <Leader>xc  <C-\>eUserTeeCmdLineX11Cb()<cr>
 
@@ -3377,6 +3432,8 @@ if has('gui_running') || has('win32')
     endif
 endif " gui || win32
 
+" visually select the last modified (including pasted) text
+nnoremap    <Leader>lp      `[v`]
 
 " -- end copy/paste adventures.
 
