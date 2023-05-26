@@ -366,6 +366,8 @@ if g:u.has_x11
     let g:u.term_primitive = 0
 elseif has('gui_running')
     let g:u.term_primitive = 0
+elseif &term =~# '^xterm' || &term =~# '^putty'
+    let g:u.term_primitive = 0
 elseif has('vcon') && &term ==# 'win32'
     let g:u.term_primitive = 0
 endif
@@ -3692,7 +3694,8 @@ command -bar Poetry  setlocal tw=0 formatoptions-=ta ai nospell | Lousy
 
 
 command -bar ShowBreak       let &showbreak = g:u.showbreak_char
-command -bar NoShowBreak     set showbreak=NONE
+" vim 8.0 don't support NONE (showbreak gets set to "NONE")
+command -bar NoShowBreak     set showbreak=
 
 
 " helper for when a 'syntax off' -> 'syntax enable' wipes out our rules.
@@ -4108,8 +4111,8 @@ call UserSetCellWidths()
 call UserSetupFillchars()
 call UserSetupListchars()
 call UserSetGuiFont()
-call UserColoursPrelude()
 call UserInitColourOverride()
+call UserColoursPrelude()
 call UserLoadColors()
 call s:setupClipboard()
 
