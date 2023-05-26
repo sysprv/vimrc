@@ -1,4 +1,4 @@
-" Last-Modified: 2023-05-22T21:43:05.662222818+00:00
+" Last-Modified: 2023-05-26T16:50:09.268204465+00:00
 set nocompatible
 if version < 704
     nnoremap    s   <C-w>
@@ -3207,48 +3207,32 @@ endfunction
 " or mobile apps don't end with a newline, and the type of "+/"* remains
 " c(haracterwise). this function can sometimes help with that.
 "
-" this function expects the current line to contain nothing but a url. still
-" very much a quick hack, meant for a very narrow use case - right after
-" pasting a url, in a new line, at the end of the file.
+" not safe for insert mode, the visual backwards erase might eat data. otoh
+" twitter will be gone soon.
+"
+" maybe: redo as a filter called inside UserRdX11Cb().
 
 function! UserUrlPasteMunge()
-    let l:ln = getline('.')
-    if len(l:ln) == 0 | return -10 | endif
-
-    " save where we are
-    normal! mp
-    " get last changed text via register p; this way we don't depend
-    " on the clipboard or v:register.
-    normal! `[v`]"py
-    " return to where we were - otherwise our normal paste behaviour will
-    " break, as the visual yank above moves the cursor to the first non-blank
-    " character of the line.
-    normal! `p
-    let l:src = @p
-
-    if l:ln !=# l:src
-        " the current line isn't what we expect, bail out
-        return -30
+    " this chunk of code considers very little, ought to work no matter where
+    " in a line the tweet url is, when there are multiple urls (including
+    " duplicates).
+    " check if a tweet: set mark, search from cursor position, backwards.
+    let l:twurl = search(
+                \ 'twitter.com/\w\+/status/\d\+?\w[[:alnum:]=%&]\+',
+                \ 'bs', line('.'))
+    if l:twurl == line('.')
+        " match found, we were at the end of the url.
+        normal! `'
+        " visual mode, move to beginning of query params, cut to black hole
+        normal! vF?"_x
     endif
+    return
 
-    " nothing doing if not a url
-    if match(l:ln, '\v^https?://\S+$') != 0 | return -40 | endif
-
-    " if twitter - drop all query parameters
-    let l:is_tw = match(l:src, '^https://twitter.com/\w\+/status/\d\+?\w[[:alnum:]=%&]\+')
-    if l:is_tw == 0
-        " count the length of the query params and delete only as much as we
-        " need to.
-        let l:qm_idx = match(l:src, '?', l:is_tw)
-        let l:qp_len = len(l:src) - l:qm_idx
-        if l:qp_len < 1 | return -60 | endif
-        " echo l:qm_idx l:qp_len
-        execute "normal!" (l:qm_idx + 1) . "|"
-        execute "normal!" l:qp_len . '"_x'
+    " if it's any http url all alone, append a newline
+    if match(getline('.'), '\v^https?://\S+$') != -1
+        " :put from the black hole register
+        put _
     endif
-
-    " append newline by :put from the black hole register
-    put _
 endfunction
 
 " works for both gui and tty since UserRdX11Cb() does (@+ or xsel).
@@ -3296,11 +3280,9 @@ endfunction
 if has('unix') && g:u.has_x11
 
     " ttys and bracketed paste cover this well
-    nnoremap <silent>   <Leader>xp :call UserReadX11CbPut()
-                               \ \| call UserUrlPasteMunge()<cr>
-
-    imap                <Leader>xp  <C-o><Leader>xp
-    vmap                <Leader>xp  "-c<Leader>xp
+    nnoremap    <silent>    <Leader>xp  :call UserReadX11CbPut()<cr>
+    inoremap    <silent>    <Leader>xp  <C-o>:call UserReadX11CbPut()<cr>
+    vmap                    <Leader>xp  "-c<Leader>xp
 
     " visual mode, useful for replacing the current visual selection with
     " what's in the clipboard. "-c - cut selection to small delete register
@@ -3329,13 +3311,12 @@ endif " unix && X11
 " gui vim any platform, or win32 including console
 if has('gui_running') || has('win32')
     " remember: UserReadX11CbPut() works in both gui and tty modes.
-    nnoremap <silent> <Leader>xp            :call UserReadX11CbPut()
-                                        \ \| call UserUrlPasteMunge()<cr>
+    nnoremap    <silent>    <Leader>xp      :call UserReadX11CbPut()<cr>
 
     " insert mode paste by bouncing through normal mode.
     " does not respect tw, fo - i.e. consistent.
-    imap        <silent>    <Leader>xp      <C-o><Leader>xp
-    vmap        <silent>    <Leader>xp      "-c<Leader>xp
+    inoremap    <silent>    <Leader>xp      <C-o>:call UserReadX11CbPut()<cr>
+    vmap                    <Leader>xp      "-c<Leader>xp
 
     nnoremap    <silent>    p               p:call UserUrlPasteMunge()<cr>
 
