@@ -1,4 +1,4 @@
-" Last-Modified: 2023-05-26T16:50:09.268204465+00:00
+" Last-Modified: 2023-05-28T19:55:54.908339759+00:00
 set nocompatible
 if version < 704
     nnoremap    s   <C-w>
@@ -2987,6 +2987,9 @@ vnoremap <silent> <Leader>k     gw
 
 " -- begin copy/paste adventures.
 "
+" paste.vim for vim 7.0x:
+" https://github.com/vim/vim/blob/0fd9289de3079583cd19c88425277b99b5a15253/runtime/autoload/paste.vim
+"
 " other:
 " https://vim.fandom.com/wiki/Unconditional_linewise_or_characterwise_paste
 " https://github.com/inkarkat/vim-UnconditionalPaste
@@ -3072,22 +3075,47 @@ function! UserUrlPasteMunge()
     " this chunk of code considers very little, ought to work no matter where
     " in a line the tweet url is, when there are multiple urls (including
     " duplicates).
-    " check if a tweet: set mark, search from cursor position, backwards.
-    let l:twurl = search(
-                \ 'twitter.com/\w\+/status/\d\+?\w[[:alnum:]=%&]\+',
-                \ 'bs', line('.'))
-    if l:twurl == line('.')
-        " match found, we were at the end of the url.
-        normal! `'
-        " visual mode, move to beginning of query params, cut to black hole
-        normal! vF?"_x
-    endif
-    return
 
-    " if it's any http url all alone, append a newline
-    if match(getline('.'), '\v^https?://\S+$') != -1
-        " :put from the black hole register
-        put _
+    " save and restore 'clipboard' and 'virtualedit'
+    let l:cb = ''
+    if has('clipboard')
+        let l:cb = &clipboard
+        set clipboard=
+    endif
+    let l:ve = &virtualedit
+
+    " full virtualedit required to make use exclusive motions (F) and later to
+    " not fall down into an undecidable hell of col('.') vs. col('$').
+    set virtualedit=all
+
+    normal! l
+    " if the url's for a tweet, erase the query parameters.
+    if search('\vtwitter\.com\/\w+\/status\/\d+\?', 'bn', line('.')) == line('.')
+        " exclude anything that was already on the line after the url
+        " (the cursor would now be past the end of line or on any text that
+        " was already there).
+        "
+        " to the black hole register, delete backwards until (including) ?
+        " but excluding what the cursor was on.
+        normal! "_dF?
+        " this leaves the cursor after the cleaned url.
+    endif
+
+    if search('\vhttps?://\S+', 'bn', line('.')) == line('.')
+        " breaking a line is hard in normal mode.
+        "
+        " 2023-05-28 even with ve=onemore and cursor past eol, d$ will delete
+        " the last char of the line, a char that was not under the cursor.
+        " with ve=all that doesn't happen.
+        "
+        " there might be something after us. delete, put on next line.
+        normal! d$
+        put
+    endif
+
+    let &virtualedit = l:ve
+    if has('clipboard')
+        let &clipboard = l:cb
     endif
 endfunction
 
@@ -3104,7 +3132,7 @@ function! UserReadX11CbPut() abort
 
     " the clipboard text should now be in the unnamed register.
 
-    if col('.') == col('$') - 1 && &virtualedit !=# 'all'
+    if (col('.') == col('$') - 1) && (&virtualedit !=# 'all')
         " at end of line - put text after cursor.
         " test: multiple consecutive pastes.
         normal! gp
@@ -3171,10 +3199,11 @@ if has('gui_running') || has('win32')
 
     " insert mode paste by bouncing through normal mode.
     " does not respect tw, fo - i.e. consistent.
-    inoremap    <silent>    <Leader>xp      <C-o>:call UserReadX11CbPut()<cr>
+    inoremap    <silent>    <Leader>xp      <C-\><C-o>:call UserReadX11CbPut()<cr>
     vmap                    <Leader>xp      "-c<Leader>xp
 
     nnoremap    <silent>    p               p:call UserUrlPasteMunge()<cr>
+    nnoremap    <silent>    P               P:call UserUrlPasteMunge()<cr>
 
     " doc: i_CTRL-R_CTRL-R -- literal insert
     cnoremap    <Leader>xp                  <C-r><C-r>+
