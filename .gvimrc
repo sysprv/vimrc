@@ -24,53 +24,59 @@ if has('linux')
 endif
 vnoremap <silent> <C-z> <Esc>
 
+function! UserTrimMenus()
+    " doc:windows.txt.html#%3Asball
+    amenu &Misc.&Buffers\ to\ tabs  :tab sball<cr>g
+    " amenu &Misc.&Make\ session    :mksession!<cr>g
+    amenu &Misc.&Tab\ page          :tabnew<cr>g
+    amenu &Misc.Copy\ &all          :%WX11<cr>g
 
-" doc:windows.txt.html#%3Asball
-amenu &Misc.&Buffers\ to\ tabs  :tab sball<cr>g
-" amenu &Misc.&Make\ session    :mksession!<cr>g
-amenu &Misc.&Tab\ page          :tabnew<cr>g
-amenu &Misc.Copy\ &all          :%WX11<cr>g
+    " delete the autocmd that does the lazy loading -
+    " otherwise the autocmd will cause Edit and Tools menus to reappear.
+    " see menu.vim, au CursorHold,CursorHoldI
+    au! SetupLazyloadMenus
 
-" delete the autocmd that does the lazy loading -
-" otherwise the autocmd will cause Edit and Tools menus to reappear.
-" see menu.vim, au CursorHold,CursorHoldI
-au! SetupLazyloadMenus
+    " keep the Buffers menu, discard everything else.
+    " some open inconsistencies - https://github.com/vim/vim/issues/3563
+    aunmenu File
+    aunmenu Edit
+    aunmenu Tools
+    aunmenu Syntax
+    "aunmenu Window
+    aunmenu Help
+    " even when the gui toolbar's hidden, the definition stays
+    aunmenu ToolBar
 
-" keep the Buffers menu, discard everything else.
-" some open inconsistencies - https://github.com/vim/vim/issues/3563
-aunmenu File
-aunmenu Edit
-aunmenu Tools
-aunmenu Syntax
-"aunmenu Window
-aunmenu Help
-" even when the gui toolbar's hidden, the definition stays
-aunmenu ToolBar
+    " clear out trash added for the 'terminal' feature.
+    "
+    " "menu entries for all modes at once, except for Terminal mode."
+    " pretty ad-hoc. might need to be adjusted for new vim versions.
+    "
+    " 2022-07-04 - it seems menus can be added to terminal mode even
+    " when vim hasn't been built with the terminal feature. so doing
+    " 'tlunmenu' under has('terminal') won't clear these up.
+    try
+        tlunmenu Edit
+        if has('win32')
+            tlunmenu Tools
+            tlunmenu Syntax
+        endif
+        tlunmenu Help
+    catch /^Vim\%((\a\+)\)\=:E329:/
+        " ignore
+    endtry
 
-" clear out trash added for the 'terminal' feature.
-"
-" "menu entries for all modes at once, except for Terminal mode."
-" pretty ad-hoc. might need to be adjusted for new vim versions.
-"
-" 2022-07-04 - it seems menus can be added to terminal mode even
-" when vim hasn't been built with the terminal feature. so doing
-" 'tlunmenu' under has('terminal') won't clear these up.
-try
-    tlunmenu Edit
-    if has('win32')
-        tlunmenu Tools
-        tlunmenu Syntax
-    endif
-    tlunmenu Help
-catch /^Vim\%((\a\+)\)\=:E329:/
-    " ignore
-endtry
+    " doc:gui.txt.html#menu-priority
+    " default File menu has prio 10;
+    " add a new File menu before everything we've defined above.
+    1amenu &File.&Exit              :confirm qa<cr>g
+endfunction " UserTrimMenus
 
-" doc:gui.txt.html#menu-priority
-" default File menu has prio 10;
-" add a new File menu before everything we've defined above.
-1amenu &File.&Exit              :confirm qa<cr>g
-
+" reset menus - don't want shoddy/incomplete translations; vimrc
+" sets language but that seems too early. alternatively, just delete lang/
+"source $VIMRUNTIME/delmenu.vim
+"source $VIMRUNTIME/menu.vim
+call UserTrimMenus()
 
 " started with https://github.com/tlvince/vim-auto-commit, then
 " fixed modified/fixed some things.
