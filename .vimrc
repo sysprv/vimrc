@@ -1,4 +1,4 @@
-" Last-Modified: 2023-05-28T19:55:54.908339759+00:00
+" Last-Modified: 2023-05-30T23:04:35.687265960+00:00
 set nocompatible
 if version < 704
     nnoremap    s   <C-w>
@@ -10,6 +10,10 @@ set secure encoding=utf-8 fileencoding=utf-8 nobomb
 scriptencoding utf-8        " must go after 'encoding'
 
 " Change log:
+"
+" 2023-05-31 Better paste mappings using <expr> and a function that only
+" decides the normal-mode command to use, instead of direct buffer
+" manipulation.
 "
 " 2023-05-15 Replace ad-hoc color override conditions functions with
 " a global variable (g:u.co) and a set of bitfield checks. Now we can test
@@ -3167,21 +3171,48 @@ endfunction
 "   in normal mode, with cursor on char, pasting a line (end nl)
 "   should put the line after the char.
 "
+" https://www.dr-qubit.org/Evil_cursor_model.html
+" https://vi.stackexchange.com/questions/15565/mystery-cursor-motion
+" https://vi.stackexchange.com/questions/18137/determine-if-the-cursor-is-on-the-first-last-character-of-word
+" https://vi.stackexchange.com/questions/15565/mystery-cursor-motion
+" https://stackoverflow.com/questions/19542901/detect-if-the-caret-is-at-the-end-of-a-line-in-insert-mode
+" https://github.com/vim/vim/issues/9549 (!?)
 
-function! UserReadX11CbPut() abort
+" decide on which commands to use for pasting. to be used lated in expr
+" mappings or from other functions. helps with insert mode, where:
+"
+" 2023-05-30 bug related to whitespace inserted by autoindent. after
+" autoindent whitespace, <C-\><C-o>g[pP] works well - appends as expected.
+" This is what current paste.vim does.  But bouncing through command mode,
+" either a function call or :normal! gp, disregards autoindent whitespace and
+" pastes after the last non-blank character.
+
+" wretched - with virtualedit=all like in paste.vim, "gp" is no good. -
+" virtualedit creates a space and 'gp' puts after that.
+"
+" if at end of line or beginning of empty line - put text after cursor. test:
+" multiple consecutive pastes.
+"
+" if beginning/middle of line - put text before cursor. feels natural.
+
+function! UserPasteExpr()
+    return &ve == 'all' ? 'gP' : col('.') == col('$') - 1 ? 'gp' : 'gP'
+endfunction
+
+" unused, pending gc.
+function! UserReadX11CbPut()
     if UserRdX11Cb() == '' | return | endif
 
     " the clipboard text should now be in the unnamed register.
+    " [g]p/P does not respect tw. but autoformatting will format after paste.
 
-    if (col('.') == col('$') - 1) && (&virtualedit !=# 'all')
-        " at end of line - put text after cursor.
-        " test: multiple consecutive pastes.
-        normal! gp
-    else
-        " beginning/middle of line - put text before cursor.
-        " feels natural. same behaviour as paste.vim.
-        normal! gP
-    endif
+    execute 'normal!' UserPasteExpr()
+endfunction
+
+" a little helper for tty + xsel
+function! UserReadX11CbRetExpr()
+    if UserRdX11Cb() == '' | return "\<Ignore>" | endif
+    return UserPasteExpr()
 endfunction
 
 
@@ -3205,9 +3236,10 @@ endfunction
 if has('unix') && g:u.has_x11
 
     " ttys and bracketed paste cover this well
-    nnoremap    <silent>    <Leader>xp  :call UserReadX11CbPut()<cr>
-    inoremap    <silent>    <Leader>xp  <C-o>:call UserReadX11CbPut()<cr>
-    vmap                    <Leader>xp  "-c<Leader>xp
+    nnoremap    <expr>  <Leader>xp  UserReadX11CbRetExpr()
+
+    inoremap    <expr>  <Leader>xp  "\<C-\>\<C-o>" . UserReadX11CbRetExpr()
+    xmap                <Leader>xp  "-c<Leader>xp<Esc>
 
     " visual mode, useful for replacing the current visual selection with
     " what's in the clipboard. "-c - cut selection to small delete register
@@ -3218,11 +3250,6 @@ if has('unix') && g:u.has_x11
     " selection start] order, as vim clipboard grabbing can overwrite the
     " copied data.  1. start visual selection, 2. copy from other app, 3.
     " paste in vim works.
-
-    " insert->normal->paste->[insert] does weird things with the cursor
-    " location. insert->normal->read clipboard->[insert]->normal->put reg does
-    " the right thing with regard to the cursor. but the register value better
-    " not be stale.
 
     " dangerous, but tty mappings and <C-r>+ etc. work anyway. defined for
     " completeness and consistency.
@@ -3235,13 +3262,10 @@ endif " unix && X11
 
 " gui vim any platform, or win32 including console
 if has('gui_running') || has('win32')
-    " remember: UserReadX11CbPut() works in both gui and tty modes.
-    nnoremap    <silent>    <Leader>xp      :call UserReadX11CbPut()<cr>
+    nnoremap    <expr>  <Leader>xp      UserPasteExpr()
 
-    " insert mode paste by bouncing through normal mode.
-    " does not respect tw, fo - i.e. consistent.
-    inoremap    <silent>    <Leader>xp      <C-\><C-o>:call UserReadX11CbPut()<cr>
-    vmap                    <Leader>xp      "-c<Leader>xp
+    inoremap    <expr>  <Leader>xp      "\<C-\>\<C-o>" . UserPasteExpr()
+    xmap                <Leader>xp      "-c<Leader>xp<Esc>
 
     nnoremap    <silent>    p               p:call UserUrlPasteMunge()<cr>
     nnoremap    <silent>    P               P:call UserUrlPasteMunge()<cr>
@@ -3270,11 +3294,15 @@ if has('gui_running') || has('win32')
 
     if has('gui_running')
         nmap    <S-Insert>  <Leader>xp
-        vmap    <S-Insert>  <Leader>xp
+        xmap    <S-Insert>  <Leader>xp
         imap    <S-Insert>  <Leader>xp
         cmap    <S-Insert>  <Leader>xp
+        nmap    <S-kInsert>  <Leader>xp
+        xmap    <S-kInsert>  <Leader>xp
+        imap    <S-kInsert>  <Leader>xp
+        cmap    <S-kInsert>  <Leader>xp
         nmap    <C-S-v>     <Leader>xp
-        vmap    <C-S-v>     <Leader>xp
+        xmap    <C-S-v>     <Leader>xp
         imap    <C-S-v>     <Leader>xp
         cmap    <C-S-v>     <Leader>xp
     endif
@@ -3327,16 +3355,19 @@ if has('gui_running') || has('win32')
 
     " visual mode, copy selection, not linewise; doc: v_zy
     " zy and zp are rather new, not in iVim yet.
-    vnoremap    <silent>    <Leader>xc      "+y
+    xnoremap    <silent>    <Leader>xc      "+y
 
     cnoremap    <Leader>xc  <C-\>eUserTeeCmdLineX11Cb()<cr>
 
     if has('gui_running')
         nmap    <C-Insert>  <Leader>xc
-        vmap    <C-Insert>  <Leader>xc
+        xmap    <C-Insert>  <Leader>xc
         cmap    <C-Insert>  <Leader>xc
+        nmap    <C-kInsert>  <Leader>xc
+        xmap    <C-kInsert>  <Leader>xc
+        cmap    <C-kInsert>  <Leader>xc
         nmap    <C-S-c>     <Leader>xc
-        vmap    <C-S-c>     <Leader>xc
+        xmap    <C-S-c>     <Leader>xc
         cmap    <C-S-c>     <Leader>xc
     endif
 endif " gui || win32
