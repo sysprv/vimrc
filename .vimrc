@@ -224,6 +224,10 @@ scriptencoding utf-8        " must go after 'encoding'
 "   message output, the command window after system() output in gvim.
 "
 
+" string to list: split(str, '\zs')
+
+" weird little thing: copy modeless-selection: c_CTRL-Y
+
 " -- end tips
 "
 
@@ -322,17 +326,20 @@ endif
 " https://groups.google.com/g/vim_dev/c/idm621ixACU
 "
 " also https://github.com/tpope/vim-sensible/issues/115
-if executable('rg')
+if executable('/usr/bin/rg')
     " trailing /dev/null just helps when you forget %/filename
-    set grepprg=rg\ --vimgrep\ --no-heading\ --smart-case\ $*\ /dev/null
+    set grepprg=/usr/bin/rg\ --vimgrep\ --no-heading\ --smart-case\ $*\ /dev/null
     " use column number provided by ripgrep
     set grepformat=%f:%l:%c:%m
 endif
 
 
-" important for UserDateComment (language ctime)
+" important for UserDateComment (language time)
 if has('win64')
-    language en_US.UTF-8
+    language messages   en
+    language ctype      C
+    language time       en-US
+    language collate    en-US
 endif
 
 
@@ -615,8 +622,8 @@ set splitbelow splitright
 " it with horizontal splits.
 set eadirection=hor
 
-if has('gui_running') || has('win32')
-    set mouse=inv
+if has('gui_running')
+    set mouse=a
 else
     set mouse=
 endif
@@ -1133,9 +1140,12 @@ function! UserStLnBufFlags()
     return join(l:l, ',')
 endfunction
 
-" NB last double quote starts a comment and preserves the trailing space.
-" vim indicates truncated names with a leading '<', so using something else
-" around %f/%t.
+" NB last double quote starts a comment and preserves the trailing space. vim
+" indicates truncated names with a leading '<', so using something else around
+" %f/%t.
+"
+" to show column: \ %{col('.')}/%{col('$')}
+
 set statusline=%n%<\ [%{UserStLnBufFlags()}%W%H]\ r%{v:register}%#StatusLineNC#\ %.30f%=\ %{g:u.mark}\ "
 
 " it's nice to see the the window size. or, the width.
@@ -2133,20 +2143,25 @@ function! UserSetGuiFont()
     endif
 endfunction
 
-" 2022-12-08 - removing autoselect; gvim's like a terminal emulator anyway.
-" 2023-01-02 - just unnamedplus is no good for win32. doesn't fail early, but
-" breaks y/p.
+" 2022-12-08 - removing autoselect; too easy to unintentionally wipe the
+" clipboard that way. gvim's like a terminal emulator anyway - shouldn't work
+" too hard to be a good gui app.  2023-01-02 - just unnamedplus is no good for
+" win32. doesn't fail, but breaks y/p.
 function! s:setupClipboard()
     if has('gui_running') || has('win32')
         set clipboard=unnamed
         if has('unnamedplus')
-            " only under X
-            set clipboard=unnamedplus
+            " only when built for X11
+            set clipboard+=unnamedplus
         endif
     elseif has('X11') && has('clipboard')
-        " debian vim used to.. maybe bsds.
-        " if not gvim, do not connect to X; can slow down startup.
-        " doesn't seem to be a problem on fedora, vim-enhanced doesn't have +X11
+        " debian vim used to.. maybe BSDs still do.
+        "
+        " if not gvim or win32, do not connect to X; can slow down startup due
+        " to xauth/cookie issues etc.
+        "
+        " doesn't seem to be a problem on fedora, vim-enhanced doesn't have
+        " +X11
         set clipboard=exclude:.*
     endif
 endfunction
@@ -2930,9 +2945,12 @@ inoremap    <C-u>   <C-g>u<C-u>
 inoremap    <C-w>   <C-g>u<C-w>
 
 "" insert timestamp
+"
 " :put =<expr> is elegant, but working on the line below is disconcerting.
-nnoremap        <silent> <Leader>dt     "=UserDateTimeComment()<cr>p:put _<cr>
-inoremap <expr> <silent> <Leader>dt     UserDateTimeComment()
+nnoremap        <silent> <Leader>dt "=UserDateTimeComment()<cr>p:put _<cr>
+
+inoremap <expr> <silent> <Leader>dt "\<C-g>u" . UserDateTimeComment() . "\<C-g>u"
+
 "" ,dt is too complicated when tired/sleepy.
 nmap        <Leader>.      <Leader>dt
 imap        <Leader>.      <Leader>dt
@@ -2958,8 +2976,8 @@ inoremap <expr> <silent> <Leader>dU     UserUtcNow()
 "" http://www.softpanorama.org/Editors/Vimorama/vim_piping.shtml#Using_vi_as_a_simple_program_generator
 "" http://www.nicemice.net/par/par-doc.var
 
-if executable('par')
-    nnoremap        <Leader>j     {!}par 78<cr>}
+if executable('/usr/bin/par')
+    nnoremap        <Leader>j     {!}/usr/bin/par 78<cr>}
 endif
 
 " join paragraphs to one line, for sharing.
@@ -3066,8 +3084,7 @@ endfunction
 " or mobile apps don't end with a newline, and the type of "+/"* remains
 " c(haracterwise). this function can sometimes help with that.
 "
-" not safe for insert mode, the visual backwards erase might eat data. otoh
-" twitter will be gone soon.
+" safe for C-o insert mode, but no need for that.
 "
 " maybe: redo as a filter called inside UserRdX11Cb().
 
@@ -3076,7 +3093,7 @@ function! UserUrlPasteMunge()
     " in a line the tweet url is, when there are multiple urls (including
     " duplicates).
 
-    " save and restore 'clipboard' and 'virtualedit'
+    " save 'clipboard' and 'virtualedit' to restore later.
     let l:cb = ''
     if has('clipboard')
         let l:cb = &clipboard
@@ -3084,33 +3101,57 @@ function! UserUrlPasteMunge()
     endif
     let l:ve = &virtualedit
 
-    " full virtualedit required to make use exclusive motions (F) and later to
+    " virtualedit required to make use exclusive motions (F) and later to
     " not fall down into an undecidable hell of col('.') vs. col('$').
-    set virtualedit=all
-
-    normal! l
-    " if the url's for a tweet, erase the query parameters.
-    if search('\vtwitter\.com\/\w+\/status\/\d+\?', 'bn', line('.')) == line('.')
-        " exclude anything that was already on the line after the url
-        " (the cursor would now be past the end of line or on any text that
-        " was already there).
-        "
-        " to the black hole register, delete backwards until (including) ?
-        " but excluding what the cursor was on.
-        normal! "_dF?
-        " this leaves the cursor after the cleaned url.
-    endif
+    set virtualedit=onemore
 
     if search('\vhttps?://\S+', 'bn', line('.')) == line('.')
-        " breaking a line is hard in normal mode.
+
+        " if pasted in normal mode, the cursor stays beyond url - after eol or
+        " any text that was already present.
+        "
+        " but if pasted in insert mode and vim went to normal, the cursor
+        " moves to the last char of the url.
+        "
+        " so we move the the end of the last changed text - if we didn't do
+        " that, the normal! l below would be one l too much - and a char that
+        " may have been there from before would get deleted by the backwards
+        " delete that can happen later.
+
+        if getpos("']")[1] == line(".")
+            normal! `]
+        endif
+        normal! l
+
+        " if the url's for a tweet, erase the query parameters.
+        if search('\vtwitter\.com\/\w+\/status\/\d+\?', 'bn', line('.')) == line('.')
+            " to the black hole register, delete backwards until (including) ?
+            " but excluding what the cursor was on.
+            normal! "_dF?
+            " this leaves the cursor after the cleaned url.
+        endif
+
+
+        " breaking a line is hard in normal mode. there might be something
+        " after us. delete, put on next line.
         "
         " 2023-05-28 even with ve=onemore and cursor past eol, d$ will delete
         " the last char of the line, a char that was not under the cursor.
         " with ve=all that doesn't happen.
         "
-        " there might be something after us. delete, put on next line.
-        normal! d$
-        put
+        " 2023-05-28 back to column conditional delete and ve=onemore. with
+        " ve=all, some text already on the line, cursor past eol - d$ should
+        " delete nothing, but still successfully deletes a single space into
+        " @-/@". in contrast to ve=onemore, where d$ does delete the last real
+        " character. behaviour going back to vim7.. seems like a bug, can't
+        " find a doc reference. caught with listchars+trail.
+
+        if col('.') >= col('$')
+            put _
+        else
+            normal! d$
+            put
+        endif
     endif
 
     let &virtualedit = l:ve
