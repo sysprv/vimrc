@@ -1,4 +1,4 @@
-" Last-Modified: 2023-05-30T23:04:35.687265960+00:00
+" Last-Modified: 2023-05-31T19:29:56.267718370+00:00
 set nocompatible
 if version < 704
     nnoremap    s   <C-w>
@@ -232,6 +232,8 @@ scriptencoding utf-8        " must go after 'encoding'
 
 " weird little thing: copy modeless-selection: c_CTRL-Y
 
+" :file! doesn't truncate long filenames.
+
 " -- end tips
 "
 
@@ -373,6 +375,7 @@ let g:u.showbreak_char = '↳'
 let g:u.has_x11 = exists('$DISPLAY')
 
 let g:u.term_primitive = 1
+" test: env -u DISPLAY TERM=linux vim
 if g:u.has_x11
     let g:u.term_primitive = 0
 elseif has('gui_running')
@@ -1144,13 +1147,19 @@ function! UserStLnBufFlags()
     return join(l:l, ',')
 endfunction
 
-" NB last double quote starts a comment and preserves the trailing space. vim
-" indicates truncated names with a leading '<', so using something else around
-" %f/%t.
+" NB: last double quote starts a comment and preserves the trailing space. vim
+" indicates truncated names with a leading '<'.
 "
 " to show column: \ %{col('.')}/%{col('$')}
+"
+" current register: %{v:register}
 
-set statusline=%n%<\ [%{UserStLnBufFlags()}%W%H]\ r%{v:register}%#StatusLineNC#\ %.30f%=\ %{g:u.mark}\ "
+if !g:u.term_primitive
+" dingbat time - U+276C, U+276D
+set statusline=❬\ %n\ ❭%<❬\ %{UserStLnBufFlags()}%W%H\ ❭%#StatusLineNC#❬%t❭%=\ %{g:u.mark}\ "
+else
+set statusline=<\ %n\ >%<<\ %{UserStLnBufFlags()}%W%H\ >%#StatusLineNC#<%t>
+endif
 
 " it's nice to see the the window size. or, the width.
 "
@@ -1161,7 +1170,7 @@ set statusline=%n%<\ [%{UserStLnBufFlags()}%W%H]\ r%{v:register}%#StatusLineNC#\
 "   > 4     window width
 "   > 5     window height
 "
-" touching a myriad bits of state with disdain. non-trivial to cache.
+" touching a myriad bits of state with disdain.
 "
 if has('patch-8.1.1372')
     function! UserStatusLine()
@@ -1452,7 +1461,7 @@ function! UserBufferInfo()
     let l:bufp = { 'ai': &ai, 'et': &et, 'fo': &fo, 'ft': &ft,
         \ 'sts': &sts, 'sw': &sw,
         \ 'ts': &ts, 'tw': &tw }
-    return bufnr('%').': '.UserDictToStr(l:bufp)
+    return bufnr('%').': ['.UserStLnBufFlags().'] '.UserDictToStr(l:bufp)
 endfunction
 
 
@@ -2334,40 +2343,45 @@ endfunction
 function! UserColoursPrelude()
     " sometimes even works.
     set background&
-    if has('gui_running')
-        return
+    " vim background color detection is mostly broken:
+    " https://github.com/vim/vim/issues/869 . to give up and use dark
+    " terminals (to fit in with rainbow barf tools):
+
+    if 0 && has('linux') && !has('gui')
+        set background=dark
     endif
 
-    if has('termguicolors')
+    let l:done = 0
+
+    if has('gui_running')
+        let l:done = 1
+    endif
+
+    if !l:done && has('termguicolors')
         if &term ==# 'xterm-direct'
             " lovely; but, pretty much have to use gui colors.
             " unlike VTE, cterm colors and gui colors can't coexist here.
             set termguicolors
+            let l:done = 1
         elseif &term ==# 'win32' && has('vcon')
             " windows console since Windows 10 Insiders Build #14931 or whatever
             set termguicolors
             " but t_Co stays at 256. setting to 2**24 does something, but
             " t_Co itself stays at 256.
+            let l:done = 1
         elseif &term =~# '^xterm' && exists('$VTE_VERSION')
             " probably maybe VTE?
             " unlike xterm-direct, t_Co stays at 256. unlike vcon, can set it.
             set termguicolors t_Co=16777216
+            let l:done = 1
         endif
-    else
+    endif
 
-        " vim background color detection is mostly broken:
-        " https://github.com/vim/vim/issues/869 . to give up and use dark
-        " terminals (to fit in with rainbow barf tools):
-
-        if 0 && has('linux') && !has('gui')
-            set background=dark
-        endif
-
+    if !l:done && exists('&t_Co') && &t_Co == 8 && $TERM !~# '^Eterm'
         " good idea from tpope/sensible; bright without bold.
         " will take effect under screen(1) ($TERM == 'screen').
-        if exists('&t_Co') && &t_Co == 8 && $TERM !~# '^Eterm'
-            set t_Co=16
-        endif
+        set t_Co=16
+        let l:done = 1
     endif
 endfunction
 
@@ -2881,7 +2895,7 @@ inoremap    <silent> <F1>      <C-\><C-o>:call UserShowHelp()<cr>
 command -bar B      echo UserBufferInfo()
 
 " mnemonic: show buffer info
-nnoremap        <Leader>i   :echo UserBufferInfo()<cr>
+nnoremap        <Leader><Leader>   :echo UserBufferInfo()<cr>
 
 " show some info in a new scratch buffer (and not a popup window)
 command -bar BB     Scratch | call append(0, UserGetInfoLines())
@@ -3262,6 +3276,10 @@ endif " unix && X11
 
 " gui vim any platform, or win32 including console
 if has('gui_running') || has('win32')
+
+    " use gp/gP directly, with @* / @+ without bouncing through any other
+    " register. needs 'clipboard' to be set properly.
+
     nnoremap    <expr>  <Leader>xp      UserPasteExpr()
 
     inoremap    <expr>  <Leader>xp      "\<C-\>\<C-o>" . UserPasteExpr()
@@ -3530,6 +3548,9 @@ function! UserLineNumberSwitch()
 endfunction
 
 nnoremap    <silent> <Leader>n   :call UserLineNumberSwitch()<cr>
+
+" nosleep
+nnoremap    gs      <nop>
 
 " -- ~ eof-map ~ end of most mapping definitions
 
