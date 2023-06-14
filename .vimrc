@@ -1882,7 +1882,7 @@ function! UserColours256Light()
         highlight SpellBad              ctermbg=254
     endif
     if UserCO(g:u.coflags.mode)
-        highlight ModeMsg   ctermfg=0   ctermbg=254     cterm=bold
+        highlight ModeMsg   ctermfg=0   ctermbg=254     cterm=NONE
     endif
     if UserCO(g:u.coflags.ui)
         "highlight LineNr            ctermbg=253
@@ -1911,7 +1911,7 @@ function! UserColours256Dark()
         highlight SpellBad              ctermbg=238
     endif
     if UserCO(g:u.coflags.mode)
-        highlight ModeMsg   ctermfg=0   ctermbg=238     cterm=bold
+        highlight ModeMsg   ctermfg=253     ctermbg=238     cterm=NONE
     endif
     if UserCO(g:u.coflags.ui)
         "highlight LineNr            ctermbg=237
