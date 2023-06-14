@@ -1098,6 +1098,13 @@ function! UserStLnBufModStatus()
     return l:m
 endfunction
 
+
+function! UserStLnBufUndoCount()
+    let l:u = undotree()
+    let l:diff = l:u.seq_last - l:u.seq_cur
+    return l:diff > 0 ? 'un:' . l:diff : ''
+endfunction
+
 " if in paste mode, indicate that and not just the fact that paste mode
 " temporarily forces textwidth to 0.
 function! UserStLnTextWidth()
@@ -1149,6 +1156,7 @@ function! UserStLnBufFlags()
     call add(l:l, UserStLnTextWidth())
     call add(l:l, UserStLnFenc())
     call add(l:l, UserStLnFf())
+    call add(l:l, UserStLnBufUndoCount())
 
     " searching (for unicode whitespace) - costly
 
