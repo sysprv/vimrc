@@ -3462,7 +3462,7 @@ xnoremap    <C-g>   <nop>
 
 
 " 2022-07-22 haven't used macros/recording for over 20 years, not about to
-" start now. keeps getting in the way.
+" start now. i prefer ex/ed commands. the default keeps getting in the way.
 " https://vi.stackexchange.com/a/15466 is clever, but don't like the getchar().
 "function! s:q_reg_nop()
 "    let l:c = nr2char(getchar())
@@ -3847,7 +3847,9 @@ function! UserDetectTextFile(fn)
     "echom 'passing to file:' l:fnesc
     silent let l:out = system('/usr/bin/file -b --mime ' . l:fnesc)
     if v:shell_error
-        echoerr 'file(1) failed, status ' . v:shell_error
+        echohl Error
+        echo 'file(1) failed, status ' . v:shell_error
+        echohl None
         return -2
     endif
     " don't check the charset, but keep the output of file(1) in a buffer-local
