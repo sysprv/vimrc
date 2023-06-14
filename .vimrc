@@ -1,8 +1,9 @@
-" Last-Modified: 2023-05-31T19:29:56.267718370+00:00
+" Last-Modified: 2023-06-05T20:09:09.678368262+00:00
 set nocompatible
 if version < 704
     nnoremap    s   <C-w>
     set number list
+    set backupcopy=yes
     finish
 endif
 
