@@ -11,27 +11,34 @@ scriptencoding utf-8        " must go after 'encoding'
 
 " Change log:
 "
-" 2023-05-31 Better paste mappings using <expr> and a function that only
-" decides the normal-mode command to use, instead of direct buffer
+" 2023-06-05 More copy/paste cleanup. Dynamic statusline removed. Added
+" commands and mappings (,yp, ,yc) to read from and write to the X11 PRIMARY
+" selection.  To accomodate terminals like roxterm and sakura that make it a
+" little cumbersome to use the CLIPBOARD. map normal 'u' to nothing - undo
+" doesn't need to be so easily accessible.
+"
+" 2023-06-03 Set clipboard=
+"
+" 2023-05-31 Better paste mappings using <expr> and a function that
+" only decides the normal-mode command to use, instead of direct buffer
 " manipulation.
 "
-" 2023-05-15 Replace ad-hoc color override conditions functions with
-" a global variable (g:u.co) and a set of bitfield checks. Now we can test
-" different colorschemes and overrides in an easier way.
+" 2023-05-15 Replace ad-hoc color override conditions functions with a global
+" variable (g:u.co) and a set of bitfield checks. Now we can test different
+" colorschemes and overrides in an easier way.
 "
 " 2023-05-11 Lots of changes.
 "
 " Refactored copy/paste handling. Can now copy the current command line.
 "
-" listchars/fillchars setup:
-"   listchars: support tab:NONE as two spaces.
-"   fillchars: support NONE like UserListchars.
+" listchars/fillchars setup: listchars: support tab:NONE as two spaces.
+" fillchars: support NONE like UserListchars.
 "
-" statusline: static by default, use the status line function only when needed,
-" with the SL/StatusLevel user command.
+" statusline: static by default, use the status line function only when
+" needed, with the SL/StatusLevel user command.
 "
-" Introduce b:user_noautomod for nonsensical file formats like
-" markdown and yaml. Currently only controls the stripping of trailing spaces.
+" Introduce b:user_noautomod for nonsensical file formats like markdown and
+" yaml. Currently only controls the stripping of trailing spaces.
 "
 " Small utility functions for defining gui highlight groups.
 "
@@ -63,8 +70,8 @@ scriptencoding utf-8        " must go after 'encoding'
 "
 " 2023-02-01 Reduce highlight rules a little.
 "
-" 2023-01-14 disable list; take another look at undodir and dir.
-" redo ,n mapping for switching between line number display formats.
+" 2023-01-14 disable list; take another look at undodir and dir. redo ,n
+" mapping for switching between line number display formats.
 "
 " 2022-09-27 (rip)grep cleanup, unicode whitespace notes.
 "
@@ -79,8 +86,9 @@ scriptencoding utf-8        " must go after 'encoding'
 " 2022-08-26 filetype removed from statusline, added to on-demand buffer info.
 " refactor statusline function.
 "
-" 2022-08-17 indicate on statusline if no swapfile, ref. iVim and iCloud Drive.
-" command (StatusLevel) to easily control how much info the status line shows.
+" 2022-08-17 indicate on statusline if no swapfile, ref. iVim and iCloud
+" Drive. command (StatusLevel) to easily control how much info the status line
+" shows.
 "
 " 2022-08-16 bring back window size in the statusline.
 "
@@ -373,6 +381,8 @@ let g:u = {}
 let g:u.showbreak_char = '↳'
 
 let g:u.has_x11 = exists('$DISPLAY')
+let g:u.has_cb_builtin = has('gui_running') || has('win32')
+let g:u.has_cb_tty = has('unix') && g:u.has_x11 && executable('/usr/bin/xsel')
 
 let g:u.term_primitive = 1
 " test: env -u DISPLAY TERM=linux vim
@@ -2161,7 +2171,14 @@ endfunction
 " too hard to be a good gui app.  2023-01-02 - just unnamedplus is no good for
 " win32. doesn't fail, but breaks y/p.
 function! s:setupClipboard()
-    if has('gui_running') || has('win32')
+    " pasting from the system clipboard is nice, but all small cuts and pastes
+    " going to the system clipboard is not great.
+    set clipboard=
+    return
+
+    " previously,
+    if 0
+    if g:u.has_cb_builtin
         set clipboard=unnamed
         if has('unnamedplus')
             " only when built for X11
@@ -2176,6 +2193,7 @@ function! s:setupClipboard()
         " doesn't seem to be a problem on fedora, vim-enhanced doesn't have
         " +X11
         set clipboard=exclude:.*
+    endif
     endif
 endfunction
 
@@ -2603,7 +2621,9 @@ function! UserSpoolEx(cmd)
         echom 'cannot write -' &buftype
     catch /^Vim\%((\a\+)\)\=:E/
         " echoerr throws; messy.
-        echom v:exception
+        echohl Error
+        echom 'unexpected error' v:exception
+        echohl None
     finally
         if l:close
             " something went wrong before l:close could be set to zero,
@@ -2870,8 +2890,8 @@ nnoremap        k       gk
 nnoremap        j       gj
 nmap            <Up>    k
 nmap            <Down>  j
-vnoremap        k       gk
-vnoremap        j       gj
+xnoremap        k       gk
+xnoremap        j       gj
 vmap            <Up>    k
 vmap            <Down>  j
 
@@ -3018,7 +3038,7 @@ nnoremap        <Leader>1       {!}<bs>join<cr>
 
 " format paragraph without formatprg/formatexpr. k's just close to , .
 nnoremap <silent> <Leader>k     gwip
-vnoremap <silent> <Leader>k     gw
+xnoremap <silent> <Leader>k     gw
 
 
 " -- begin copy/paste adventures.
@@ -3515,20 +3535,24 @@ xnoremap    <C-g>   <nop>
 "
 " vile's 'q' (quoted motion) is interesting.
 "nnoremap    q   <nop>
-nnoremap    q   :echo 'Temper temper / mon capitaine.'<cr>
+" nnoremap    q   :echo 'Temper temper / mon capitaine.'<cr>
+nmap    <silent>    q       <Leader>xp:call UserUrlPasteMunge()<cr>
 " -- end q-mappings adventure.
 
 " never used the tagstack. sometimes due to window focus i end up hitting
-" new-tab C-t in vim.
-"
+" new-tab C-t in vim. we could conditionally enable it for help buffers and
+" anything else with tags by checking taglist('.') BufReadPost. Maybe later.
+
 if g:u.term_primitive
-    nnoremap    <C-t>   <nop>
+    nnoremap    <C-t>           <nop>
+    nnoremap    <C-LeftMouse>   <nop>
 else
     " on-site cat: https://jijitanblog.com/construction/genbaneko-matome/
-    nnoremap    <C-t>   :echo 'ヨシ！'<cr>
+    nnoremap    <C-t>           :echo 'ヨシ！'<cr>
+    nnoremap    <C-LeftMouse>   :echo 'ヨシ！'<cr>
 endif
-imap        <C-t>   <Esc><C-t>
-
+imap            <C-t>           <Esc><C-t>
+imap            <C-LeftMouse>   <Esc><C-LeftMouse>
 
 " three-state switch for 'number' and 'relativenumber'.
 " 0 0, 1 0, 1 1, 0 0
@@ -3721,6 +3745,9 @@ command -bar Stws        call UserStripTrailingWhitespace()
 " possible alternative - preview windows (:pedit); seems more limited.
 " doc scratch-buffer
 command -bar Scratch new | setlocal buftype=nofile noswapfile | setfiletype text
+
+" pretty-print g:u
+command -bar PrintU Scratch | put =json_encode(g:u) | .! jq --sort-keys .
 
 " like :Explore
 command Index       call UserOpenIndexFile()
