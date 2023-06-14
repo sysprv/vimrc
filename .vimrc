@@ -1552,8 +1552,6 @@ function! UserGetInfoLines()
 
     " reminders, which have to be manually maintained for now.
     " damian conway has his own documented mappings; not yet worth the trouble.
-    call add(l:lines, '--')
-    call add(l:lines, 'g;    g,')
 
     return l:lines
 endfunction
