@@ -2943,48 +2943,72 @@ xnoremap <silent> <Leader>k     gw
 "
 " works for both gui and tty (@+ or xsel).
 
-function! UserWrX11Cb(txt)
+function! UserWrCb(txt, destination)
     if a:txt == '' | return | endif
 
-    if has('gui_running') || has('win32')
-        let @+ = a:txt
-    elseif has('unix') && executable('/usr/bin/xsel')
-        silent call system('/usr/bin/xsel -b -i', a:txt)
+    " default destination - CLIPBOARD
+    let l:dest_reg = '+'
+    let l:dest_cmd = '/usr/bin/xsel -b -i'
+    if a:destination ==# 'PRIMARY'
+        let l:dest_reg = '*'
+        let l:dest_cmd = '/usr/bin/xsel -p -i'
+    endif
+
+    if g:u.has_cb_builtin
+        " vim automatically sets regtype v or V (latter if the string ends
+        " with a newline)
+        call setreg(l:dest_reg, a:txt)
+    elseif g:u.has_cb_tty
+        silent call system(l:dest_cmd, a:txt)
         if v:shell_error
-            echoerr 'xsel invocation failed, code' v:shell_error
+            echohl Error
+            echo 'xsel invocation failed, code' v:shell_error
+            echohl None
         endif
     else
         echohl Error
-        echo 'do not know how to write to clipboard'
+        echo 'do not know how to write to' a:destination
         echohl None
     endif
 endfunction
 
-" read text from the clipboard.
-" works for both gui and tty (@+ or xsel).
 
-function! UserRdX11Cb()
-    " win32 - reg:+ exists and works even in console vim,
-    " but has('unnamedplus') is false.
-    if has('gui_running') || has('win32')
-        let l:clp = @+
-    elseif has('unix') && executable('/usr/bin/xsel')
-        silent let l:clp = system('/usr/bin/xsel -b -o')
+" return a register name, like v:register.
+function! UserGetCbReg(src)
+    " by default, work with the X CLIPBOARD
+    let l:src_reg = '+'
+    let l:src_cmd = '/usr/bin/xsel -b -o'
+    let l:result = { 'status': -1 }
+
+    if a:src ==# 'PRIMARY'
+        let l:src_reg = '*'
+        let l:src_cmd = '/usr/bin/xsel -p -o'
+    endif
+
+    if g:u.has_cb_builtin
+        let l:result = { 'reg': l:src_reg, 'status': 0 }
+    elseif g:u.has_cb_tty
+        silent let l:clp = system(l:src_cmd)
         if v:shell_error
-            echoerr 'xsel invocation failed, code' v:shell_error
-            return ''
+            echohl Error
+            echo 'xsel invocation failed, code' v:shell_error
+            echohl None
+
+            let l:result = { 'status': -2 }
+        else
+            " put into a register + return register name
+            let l:dest_reg = 'u'
+            call setreg(l:dest_reg, l:clp)
+            let l:result = { 'reg': l:dest_reg, 'status': 0 }
         endif
     else
         echohl Error
-        echo 'do not know how to read from clipboard'
+        echo 'do not know how to read from' a:src
         echohl None
-        return ''
-    endif
 
-    " dump into register, always characterwise.
-    " can't use '+' register in tty mode without dragging in too much.
-    call setreg(v:register, l:clp, 'c')
-    return l:clp
+        let l:result = { 'status': -3 }
+    endif
+    return l:result
 endfunction
 
 " used for copying the current command line to the clipboard. requires a
@@ -2994,16 +3018,257 @@ endfunction
 "
 " swallows errors.
 
-function! UserTeeCmdLineX11Cb()
+function! UserTeeCmdLineCb(destination)
     let l:cmdl = getcmdline()
-    " also put in the unnamed register
-    let @" = l:cmdl
-    try
-        call UserWrX11Cb(l:cmdl)
-    catch
-    endtry
+    " also put in the unnamed register, as a yank would.
+    call setreg('', l:cmdl)
+
+    if a:destination ==# 'PRIMARY' || a:destination ==# 'CLIPBOARD'
+        try
+            call UserWrCb(l:cmdl, a:destination)
+        catch
+            " ignored - we probably don't want to put any error messages in
+            " the command line.
+        endtry
+    endif
+
     return l:cmdl
 endfunction
+
+" works for both gui and tty since UserGetCbReg() does (@+ or xsel).
+"
+" test:
+"   put a single char on column 1,
+"   in normal mode, with cursor on char, pasting a line (end nl)
+"   should put the line after the char.
+"
+" https://www.dr-qubit.org/Evil_cursor_model.html
+" https://vi.stackexchange.com/questions/15565/mystery-cursor-motion
+" https://vi.stackexchange.com/questions/18137/determine-if-the-cursor-is-on-the-first-last-character-of-word
+" https://vi.stackexchange.com/questions/15565/mystery-cursor-motion
+" https://stackoverflow.com/questions/19542901/detect-if-the-caret-is-at-the-end-of-a-line-in-insert-mode
+" https://github.com/vim/vim/issues/9549 (!?)
+
+" decide on which commands to use for pasting. to be used lated in expr
+" mappings or from other functions. helps with insert mode, where:
+"
+" 2023-05-30 bug related to whitespace inserted by autoindent. after
+" autoindent whitespace, <C-\><C-o>g[pP] works well - appends as expected.
+" This is what current paste.vim does.  But bouncing through command mode,
+" either a function call or :normal! gp, disregards autoindent whitespace and
+" pastes after the last non-blank character.
+
+" wretched - with virtualedit=all like in paste.vim, "gp" is no good. -
+" virtualedit creates a space and 'gp' puts after that.
+"
+" if at end of line or beginning of empty line - put text after cursor. test:
+" multiple consecutive pastes.
+"
+" if beginning/middle of line - put text before cursor. feels natural.
+
+function! UserPasteExpr()
+    return &ve == 'all' ? 'gP' : col('.') == col('$') - 1 ? 'gp' : 'gP'
+endfunction
+
+" a little helper for tty + xsel
+function! UserReadCbRetExpr(src)
+    let l:reg = UserGetCbReg(a:src)
+    if l:reg.status < 0 | return "\<Ignore>" | endif
+
+    " now we'll be using @", not @*/@+. so, no register prefix is needed -
+    " but we have it, should use it anyway.
+    "
+    " the following makes an expression like: ""gP
+    return '"' . l:reg.reg . UserPasteExpr()
+endfunction
+
+
+" mappings to copy/paste using the X clipboard from tty vim, without resorting
+" to the +X11 vim feature.
+" doc :write_c
+"
+" the deciding factor is what's in 'clipboard', but we use other invariables
+" like gui_running or if running under X11.
+
+" -- pasting
+
+" when a piece of text has newlines, <C-r><C-r>= (expression register) use
+" in tty vim doesn't break lines, but inserts all keys in one line and
+" shows the linebreaks as ^@. but when the text is put into a register and
+" <C-r><C-r><reg, no=> is done, the newlines seem interpreted, escaping other
+" control codes as <C-r><C-r> should do.
+
+" gui vim any platform, or win32 including console
+if g:u.has_cb_builtin
+
+    " use gp/gP directly, with @* / @+ without bouncing through any other
+    " register. needs 'clipboard' to be set properly.
+
+    nnoremap    <expr>  <Leader>yp      "\"*" . UserPasteExpr()
+    nnoremap    <expr>  <Leader>xp      "\"+" . UserPasteExpr()
+
+    command!    RDPR    put *
+    command!    RDCB    put +
+
+    inoremap    <expr>  <Leader>yp      "\<C-\>\<C-o>\"*" . UserPasteExpr()
+    inoremap    <expr>  <Leader>xp      "\<C-\>\<C-o>\"+" . UserPasteExpr()
+
+    xmap                <Leader>yp      "-c<Leader>yp<Esc>
+    xmap                <Leader>xp      "-c<Leader>xp<Esc>
+
+    " doc: i_CTRL-R_CTRL-R -- literal insert
+    cnoremap    <Leader>yp                  <C-r><C-r>*
+    cnoremap    <Leader>xp                  <C-r><C-r>+
+
+    " paste in gui mode with <C-[S-]v>.
+
+    " pretty indispensable; unix: sadly the shift seems to depend on
+    " modifyOtherKeys even for builtin_gui? test and make sure that C-v keeps
+    " working to insert literally and for visual block select - not paste.
+    "
+    " win32, gvim: seems gvim can't see the shift anyway. the following maps
+    " breaks C-v.
+    "
+    " win32 console: C-S-v seems to be handled outside vim; forces a paste,
+    " doing the wrong thing in normal mode.
+    "
+    " win32 console vim (has('win32')) sees insert but can't map it?
+    "
+    " win32 gvim seems to map S-Insert by itself.
+    "
+    " just have to stick with ,xp, get used to C-q (emacs quoted-insert),
+    " keeping xon/xoff flow control in mind.
+
+    if has('gui_running')
+        nmap    <S-Insert>  <Leader>xp
+        xmap    <S-Insert>  <Leader>xp
+        imap    <S-Insert>  <Leader>xp
+        cmap    <S-Insert>  <Leader>xp
+        nmap    <S-kInsert>  <Leader>xp
+        xmap    <S-kInsert>  <Leader>xp
+        imap    <S-kInsert>  <Leader>xp
+        cmap    <S-kInsert>  <Leader>xp
+        nmap    <C-S-v>     <Leader>xp
+        xmap    <C-S-v>     <Leader>xp
+        imap    <C-S-v>     <Leader>xp
+        cmap    <C-S-v>     <Leader>xp
+    endif
+elseif g:u.has_cb_tty
+
+    " ttys and bracketed paste cover this well...
+    nnoremap    <expr>  <Leader>yp  UserReadCbRetExpr('PRIMARY')
+    nnoremap    <expr>  <Leader>xp  UserReadCbRetExpr('CLIPBOARD')
+
+    command     RDPR    execute 'put' UserGetCbReg('PRIMARY').reg
+    command     RDCB    execute 'put' UserGetCbReg('CLIPBOARD').reg
+
+    inoremap    <expr>  <Leader>yp  "\<C-\>\<C-o>" . UserReadCbRetExpr('PRIMARY')
+    inoremap    <expr>  <Leader>xp  "\<C-\>\<C-o>" . UserReadCbRetExpr('CLIPBOARD')
+
+    " visual mode, useful for replacing the current visual selection with
+    " what's in the clipboard. "-c - cut selection to small delete register
+    " and go to insert mode
+    "
+
+    xmap                <Leader>yp  "-c<Leader>yp<Esc>
+    xmap                <Leader>xp  "-c<Leader>xp<Esc>
+
+    " !! beware clipboard autoselect/guioption a (go-a) and [other copy/visual
+    " selection start] order, as vim clipboard grabbing can overwrite the
+    " copied data.  1. start visual selection, 2. copy from other app, 3.
+    " paste in vim works.
+
+    " dangerous, but tty mappings and <C-r>+ etc. work anyway. defined for
+    " completeness and consistency.
+    "
+    " cannot be a silent mapping.
+    "
+    " literal insert - doc: c_CTRL-R_CTRL-R
+    cnoremap <expr> <Leader>yp "\<C-r>\<C-r>" . UserGetCbReg('PRIMARY').reg
+    cnoremap <expr> <Leader>xp "\<C-r>\<C-r>" . UserGetCbReg('SECONDARY').reg
+else
+    nnoremap    <expr>  <Leader>xp      UserPasteExpr()
+    inoremap    <expr>  <Leader>xp      "\<C-\>\<C-o>" . UserPasteExpr()
+    xmap                <Leader>xp      "-c<Leader>xp<Esc>
+    cnoremap            <Leader>xp      <C-r><C-r>"
+endif
+
+
+" -- copying; separate definitions for tty vs. gui - write to the
+" clipboard in whatever way works best.
+
+if g:u.has_cb_builtin
+    " normal mode, copy current line - this includes the last newline,
+    " makes unnamedplus linewise.
+    " nnoremap  <silent>    <Leader>xc      "+yy
+    "
+    " for details see ,xc mapping for ttys above.
+    nnoremap    <silent>    <Leader>yc      m`^vg_"*y``
+    nnoremap    <silent>    <Leader>xc      m`^vg_"+y``
+
+    command! -range WRPR    <line1>,<line2>y *
+    command! -range WRCB    <line1>,<line2>y +
+
+    " visual mode, copy selection, not linewise; doc: v_zy
+    " zy and zp are rather new, not in iVim yet.
+    xnoremap    <silent>    <Leader>yc      "*y
+    xnoremap    <silent>    <Leader>xc      "+y
+
+    cnoremap    <Leader>yc  <C-\>eUserTeeCmdLineCb('PRIMARY')<cr>
+    cnoremap    <Leader>xc  <C-\>eUserTeeCmdLineCb('CLIPBOARD')<cr>
+
+    if has('gui_running')
+        nmap    <C-Insert>  <Leader>xc
+        xmap    <C-Insert>  <Leader>xc
+        cmap    <C-Insert>  <Leader>xc
+        nmap    <C-kInsert>  <Leader>xc
+        xmap    <C-kInsert>  <Leader>xc
+        cmap    <C-kInsert>  <Leader>xc
+        nmap    <C-S-c>     <Leader>xc
+        xmap    <C-S-c>     <Leader>xc
+        " no C-c / C-S-c for the command line
+    endif
+elseif g:u.has_cb_tty
+
+    " trim-select with visual mode:
+    "   m` - set previous context mark,
+    "   ^ - go to first non-blank char,
+    "   v - visual,
+    "   g_ - go to last non-blank char,
+    "   y - yank
+    "       this moves the cursor.
+    "       https://github.com/vim/vim/blob/master/runtime/doc/change.txt
+    "       /Note that after a characterwise yank command
+    "   `` - jump back
+    "   and pass the unnamed register contents to the X11 selection.
+    nnoremap    <silent>    <Leader>yc  m`^vg_y``:call UserWrCb(@", 'PRIMARY')<cr>
+    nnoremap    <silent>    <Leader>xc  m`^vg_y``:call UserWrCb(@", 'CLIPBOARD')<cr>
+
+    " define an ex command that takes a range and pipes to xsel
+    " doc :write_c
+    "R use: :.,+10WRCB
+    command -range WRPR     silent <line1>,<line2>:w !/usr/bin/xsel/xsel -p -i
+    command -range WRCB     silent <line1>,<line2>:w !/usr/bin/xsel/xsel -b -i
+
+    " for the visual selection (not necessarily linewise).
+    " yank, then [in normal mode] pass the anonymous register
+    " to the X11 selection.
+    xnoremap    <silent>    <Leader>yc  m`y``:call UserWrCb(@", 'PRIMARY')<cr>
+    xnoremap    <silent>    <Leader>xc  m`y``:call UserWrCb(@", 'CLIPBOARD')<cr>
+
+    " copy the current command line.
+    " doc: getcmdline()
+    cnoremap                <Leader>yc  <C-\>eUserTeeCmdLineCb('PRIMARY')<cr>
+    cnoremap                <Leader>xc  <C-\>eUserTeeCmdLineCb('CLIPBOARD')<cr>
+else
+    nnoremap                <Leader>xc  m`^vg_y``
+    xnoremap                <Leader>xc  m`y``
+    cnoremap                <Leader>xc  <C-\>eUserTeeCmdLineCb('SELF')<cr>
+endif
+
+
+" visually select the last modified (including pasted) text
+"nnoremap    <Leader>lp      `[v`]
 
 " url paste adapter - if pasting a url, often it's convenient to treat
 " it in line mode - repeated pastes etc. but urls copied from browsers
@@ -3012,7 +3277,7 @@ endfunction
 "
 " safe for C-o insert mode, but no need for that.
 "
-" maybe: redo as a filter called inside UserRdX11Cb().
+" maybe: redo as a filter called inside UserGetCbReg().
 
 function! UserUrlPasteMunge()
     " this chunk of code considers very little, ought to work no matter where
@@ -3049,12 +3314,15 @@ function! UserUrlPasteMunge()
         endif
         normal! l
 
+        let l:cleaned = 0
         " if the url's for a tweet, erase the query parameters.
         if search('\vtwitter\.com\/\w+\/status\/\d+\?', 'bn', line('.')) == line('.')
             " to the black hole register, delete backwards until (including) ?
             " but excluding what the cursor was on.
             normal! "_dF?
             " this leaves the cursor after the cleaned url.
+            " put the cleaned version back in the clipboard
+            WRCB
         endif
 
 
@@ -3078,6 +3346,8 @@ function! UserUrlPasteMunge()
             normal! d$
             put
         endif
+
+        silent update
     endif
 
     let &virtualedit = l:ve
@@ -3086,220 +3356,6 @@ function! UserUrlPasteMunge()
     endif
 endfunction
 
-" works for both gui and tty since UserRdX11Cb() does (@+ or xsel).
-"
-" test:
-"   put a single char on column 1,
-"   in normal mode, with cursor on char, pasting a line (end nl)
-"   should put the line after the char.
-"
-" https://www.dr-qubit.org/Evil_cursor_model.html
-" https://vi.stackexchange.com/questions/15565/mystery-cursor-motion
-" https://vi.stackexchange.com/questions/18137/determine-if-the-cursor-is-on-the-first-last-character-of-word
-" https://vi.stackexchange.com/questions/15565/mystery-cursor-motion
-" https://stackoverflow.com/questions/19542901/detect-if-the-caret-is-at-the-end-of-a-line-in-insert-mode
-" https://github.com/vim/vim/issues/9549 (!?)
-
-" decide on which commands to use for pasting. to be used lated in expr
-" mappings or from other functions. helps with insert mode, where:
-"
-" 2023-05-30 bug related to whitespace inserted by autoindent. after
-" autoindent whitespace, <C-\><C-o>g[pP] works well - appends as expected.
-" This is what current paste.vim does.  But bouncing through command mode,
-" either a function call or :normal! gp, disregards autoindent whitespace and
-" pastes after the last non-blank character.
-
-" wretched - with virtualedit=all like in paste.vim, "gp" is no good. -
-" virtualedit creates a space and 'gp' puts after that.
-"
-" if at end of line or beginning of empty line - put text after cursor. test:
-" multiple consecutive pastes.
-"
-" if beginning/middle of line - put text before cursor. feels natural.
-
-function! UserPasteExpr()
-    return &ve == 'all' ? 'gP' : col('.') == col('$') - 1 ? 'gp' : 'gP'
-endfunction
-
-" unused, pending gc.
-function! UserReadX11CbPut()
-    if UserRdX11Cb() == '' | return | endif
-
-    " the clipboard text should now be in the unnamed register.
-    " [g]p/P does not respect tw. but autoformatting will format after paste.
-
-    execute 'normal!' UserPasteExpr()
-endfunction
-
-" a little helper for tty + xsel
-function! UserReadX11CbRetExpr()
-    if UserRdX11Cb() == '' | return "\<Ignore>" | endif
-    return UserPasteExpr()
-endfunction
-
-
-" mappings to copy/paste using the X clipboard from tty vim, without resorting
-" to the +X11 vim feature.
-" doc :write_c
-"
-" the deciding factor is what's in 'clipboard', but we use other invariables
-" like gui_running or if running under X11.
-
-" pasting
-
-" when a piece of text has newlines, <C-r><C-r>= (expression register) use
-" in tty vim doesn't break lines, but inserts all keys in one line and
-" shows the linebreaks as ^@. but when the text is put into a register and
-" <C-r><C-r><reg, no=> is done, the newlines seem interpreted, escaping other
-" control codes as <C-r><C-r> should do.
-
-" -- paste mappings - common to tty and gui.
-
-if has('unix') && g:u.has_x11
-
-    " ttys and bracketed paste cover this well
-    nnoremap    <expr>  <Leader>xp  UserReadX11CbRetExpr()
-
-    inoremap    <expr>  <Leader>xp  "\<C-\>\<C-o>" . UserReadX11CbRetExpr()
-    xmap                <Leader>xp  "-c<Leader>xp<Esc>
-
-    " visual mode, useful for replacing the current visual selection with
-    " what's in the clipboard. "-c - cut selection to small delete register
-    " and go to insert mode doc: v_c <Esc> - go to normal mode then paste
-    " (using virtualedit).
-    "
-    " !! beware clipboard autoselect/guioption a (go-a) and [other copy/visual
-    " selection start] order, as vim clipboard grabbing can overwrite the
-    " copied data.  1. start visual selection, 2. copy from other app, 3.
-    " paste in vim works.
-
-    " dangerous, but tty mappings and <C-r>+ etc. work anyway. defined for
-    " completeness and consistency.
-    "
-    " cannot be a silent mapping.
-    "
-    " literal insert - doc: c_CTRL-R_CTRL-R
-    cnoremap                <Leader>xp  <C-r><C-r>=UserRdX11Cb()<cr>
-endif " unix && X11
-
-" gui vim any platform, or win32 including console
-if has('gui_running') || has('win32')
-
-    " use gp/gP directly, with @* / @+ without bouncing through any other
-    " register. needs 'clipboard' to be set properly.
-
-    nnoremap    <expr>  <Leader>xp      UserPasteExpr()
-
-    inoremap    <expr>  <Leader>xp      "\<C-\>\<C-o>" . UserPasteExpr()
-    xmap                <Leader>xp      "-c<Leader>xp<Esc>
-
-    nnoremap    <silent>    p               p:call UserUrlPasteMunge()<cr>
-    nnoremap    <silent>    P               P:call UserUrlPasteMunge()<cr>
-
-    " doc: i_CTRL-R_CTRL-R -- literal insert
-    cnoremap    <Leader>xp                  <C-r><C-r>+
-
-    " paste in gui mode with <C-[S-]v>.
-
-    " pretty indispensable; unix: sadly the shift seems to depend on
-    " modifyOtherKeys even for builtin_gui? test and make sure that C-v keeps
-    " working to insert literally and for visual block select - not paste.
-    "
-    " win32, gvim: seems gvim can't see the shift anyway. the following maps
-    " breaks C-v.
-    "
-    " win32 console: C-S-v seems to be handled outside vim; forces a paste,
-    " doing the wrong thing in normal mode.
-    "
-    " win32 console vim (has('win32')) sees insert but can't map it?
-    "
-    " win32 gvim seems to map S-Insert by itself.
-    "
-    " just have to stick with ,xp, get used to C-q (emacs quoted-insert),
-    " keeping xon/xoff flow control in mind.
-
-    if has('gui_running')
-        nmap    <S-Insert>  <Leader>xp
-        xmap    <S-Insert>  <Leader>xp
-        imap    <S-Insert>  <Leader>xp
-        cmap    <S-Insert>  <Leader>xp
-        nmap    <S-kInsert>  <Leader>xp
-        xmap    <S-kInsert>  <Leader>xp
-        imap    <S-kInsert>  <Leader>xp
-        cmap    <S-kInsert>  <Leader>xp
-        nmap    <C-S-v>     <Leader>xp
-        xmap    <C-S-v>     <Leader>xp
-        imap    <C-S-v>     <Leader>xp
-        cmap    <C-S-v>     <Leader>xp
-    endif
-
-endif " gui || win32
-
-
-" -- copying; separate definitions for tty vs. gui - write to the
-" clipboard in whatever way works best.
-
-if has('unix') && g:u.has_x11
-
-    " trim-select with visual mode:
-    "   m` - set previous context mark,
-    "   ^ - go to first non-blank char,
-    "   v - visual,
-    "   g_ - go to last non-blank char,
-    "   y - yank
-    "       this moves the cursor.
-    "       https://github.com/vim/vim/blob/master/runtime/doc/change.txt
-    "       /Note that after a characterwise yank command
-    "   `` - jump back
-    "   and pass the unnamed register contents to the X11 clipboard.
-    nnoremap    <silent>    <Leader>xc  m`^vg_y``:call UserWrX11Cb(@")<cr>
-
-    " for the visual selection (not necessarily linewise).
-    " yank, then [in normal mode] pass the anonymous register
-    " to the X11 clipboard.
-    vnoremap    <silent>    <Leader>xc  m`y``:call UserWrX11Cb(@")<cr>
-
-    " define an ex command that takes a range and pipes to xsel
-    " doc :write_c
-    " use: :.,+10WX11
-    command -range WX11     silent <line1>,<line2>:w !xsel -i -b
-
-    " copy the current command line to the clipboard.
-    " doc: getcmdline()
-    cnoremap                <Leader>xc  <C-\>eUserTeeCmdLineX11Cb()<cr>
-endif " unix && X11
-
-if has('gui_running') || has('win32')
-    " normal mode, copy current line - this includes the last newline,
-    " makes unnamedplus linewise.
-    " nnoremap  <silent>    <Leader>xc      "+yy
-    "
-    " for details see ,xc mapping for ttys above.
-    nnoremap    <silent>    <Leader>xc      m`^vg_"+y``
-
-    command! -range WX11                <line1>,<line2>y +
-
-    " visual mode, copy selection, not linewise; doc: v_zy
-    " zy and zp are rather new, not in iVim yet.
-    xnoremap    <silent>    <Leader>xc      "+y
-
-    cnoremap    <Leader>xc  <C-\>eUserTeeCmdLineX11Cb()<cr>
-
-    if has('gui_running')
-        nmap    <C-Insert>  <Leader>xc
-        xmap    <C-Insert>  <Leader>xc
-        cmap    <C-Insert>  <Leader>xc
-        nmap    <C-kInsert>  <Leader>xc
-        xmap    <C-kInsert>  <Leader>xc
-        cmap    <C-kInsert>  <Leader>xc
-        nmap    <C-S-c>     <Leader>xc
-        xmap    <C-S-c>     <Leader>xc
-        cmap    <C-S-c>     <Leader>xc
-    endif
-endif " gui || win32
-
-" visually select the last modified (including pasted) text
-nnoremap    <Leader>lp      `[v`]
 
 " -- end copy/paste adventures.
 
