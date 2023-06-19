@@ -1,4 +1,4 @@
-" Last-Modified: 2023-06-05T20:09:09.678368262+00:00
+" Last-Modified: 2023-06-19T17:30:14.12396718+00:00
 set nocompatible
 if version < 704
     nnoremap    s   <C-w>
@@ -3315,7 +3315,6 @@ function! UserUrlPasteMunge()
         endif
         normal! l
 
-        let l:cleaned = 0
         " if the url's for a tweet, erase the query parameters.
         if search('\vtwitter\.com\/\w+\/status\/\d+\?', 'bn', line('.')) == line('.')
             " to the black hole register, delete backwards until (including) ?
@@ -3347,8 +3346,6 @@ function! UserUrlPasteMunge()
             normal! d$
             put
         endif
-
-        silent update
     endif
 
     let &virtualedit = l:ve
@@ -3481,7 +3478,7 @@ xnoremap    <C-g>   <nop>
 " vile's 'q' (quoted motion) is interesting.
 "nnoremap    q   <nop>
 " nnoremap    q   :echo 'Temper temper / mon capitaine.'<cr>
-nmap    <silent>    q       <Leader>xp:call UserUrlPasteMunge()<cr>
+nmap    <silent> q <Leader>xp:call UserUrlPasteMunge()<cr>:silent update<cr>
 " -- end q-mappings adventure.
 
 " never used the tagstack. sometimes due to window focus i end up hitting
