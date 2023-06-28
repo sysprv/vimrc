@@ -1,4 +1,4 @@
-" Last-Modified: 2023-06-19T17:30:14.12396718+00:00
+" Last-Modified: 2023-06-22T13:10:31.534290632+00:00
 set nocompatible
 if version < 704
     nnoremap    s   <C-w>
@@ -418,7 +418,6 @@ let g:u.undo_dir = expand('~/.vim/var/un')
 " ditto; shouldn't have any trailing slashes - added later.
 let g:u.swap_dir = expand('~/.vim/var/swap')
 
-
 if !exists('$PARINIT')
     let $PARINIT = "rTbgqR B=.,?'_A_a_@ Q=_s>|#"
 endif
@@ -462,10 +461,13 @@ set nojoinspaces
 " wrapmargin adds <EOL>s, never use.
 
 " http://stackoverflow.com/a/26779916/1183357
-set backup backupdir=~/.backup
-" backupskip is a list of patterns - beware of ignorecase.
-set backupskip+=COMMIT_EDITMSG,NOTES-*.txt
+set backup backupdir^=~/.backup
+" just to save the default to be reused later; since &backupdir is always
+" global.
+let g:u.backup_dir = &backupdir
 
+" backupskip is a list of patterns - beware of ignorecase.
+set backupskip+=NOTES-*.txt
 
 function! UserMkdirOnce(dir)
     if a:dir == '.'
@@ -1587,11 +1589,10 @@ function! UserShowHelp()
 endfunction
 
 
-
 " compute backupdir and backupext that should be used for automatic backups.
 " $HOME is very long on iOS.
-" this function has no side-effects, so doesn't care if the file would be backed
-" up or not.
+"
+" would be nice to use RCS for this, but incurs setup overhead.
 function! UserBufferBackupLoc(fn) abort
     let l:filepath = fnamemodify(a:fn, ':p:h')
 
@@ -1604,22 +1605,25 @@ function! UserBufferBackupLoc(fn) abort
     let l:backup_root = expand('~/.backup')
     let l:tm = localtime()
 
-    " like: ~/.backup/example.com/yyyy-mm-dd/path.../file~hhmmss~
+    " like: ~/.backup/example.com/yyyy-mm-dd/path.../file.ext.<runnr>
     " keeps related changes within a day together.
     "
     " the slash between strftime() and l:filepath makes for two slashes
     " in unix, but windows requires it (no slash before drive letter).
-    let l:dir = l:backup_root
+    let l:dir = simplify(expand(l:backup_root
         \ . '/' . hostname()
         \ . '/' . strftime('%F', l:tm)
-        \ . '/' . l:filepath
+        \ . '/' . l:filepath))
 
-    if exists('*simplify')
-        let l:dir = simplify(l:dir)
-    endif
+    call UserMkdirOnce(l:dir)
 
-    " tildes are a bit superfluous here
-    let l:ext = strftime('.%H%M', l:tm)
+    " 2023-06-22 used to set the extension to hhmm, keeping just one backup
+    " per minute. but it's not satisfactory. let's really have a backup per
+    " write, starting from 0. it'll be limited per day by the timestamp in the
+    " backup path.
+
+    let l:target = l:dir . '/' . fnamemodify(a:fn, ':t') . '*'
+    let l:ext = '.' . len(glob(l:target, 1, 1))
 
     return [l:dir, l:ext]
 endfunction
@@ -1644,7 +1648,6 @@ function! UserTestBackupskip(fn) abort
     return 0
 endfunction
 
-"
 " update options backupdir and backupext so that a full backup of each file will
 " be kept under ~/.backup/<hostname>/ including the absolute path to the file.
 "
@@ -1657,12 +1660,13 @@ endfunction
 " https://www.vim.org/scripts/script.php?script_id=563
 " https://stackoverflow.com/a/38479550
 "
-function! UserUpdateBackupOptions() abort
-    let l:fn = expand('<amatch>')
-    if !filereadable(l:fn)
-        " file hasn't been written for the first time yet, nothing to backup
-        return
-    endif
+" args:
+"   fn: a filename, usually <amatch>
+function! UserUpdateBackupOptions(fn) abort
+    let l:fn = a:fn
+
+    " if filename matches 'backupskip', file won't be backed up. no point
+    " doing a lot of work to setup backupdir and backupext.
     if UserTestBackupskip(l:fn) != 0
         " writing a new file - no backup will be written by vim,
         " no need to create directories.
@@ -1671,12 +1675,21 @@ function! UserUpdateBackupOptions() abort
 
     let [l:dir, l:ext] = UserBufferBackupLoc(l:fn)
 
-    call UserMkdirOnce(l:dir)
+    " 'set backupdir' can get messy with paths that contain spaces; and these
+    " settings are always global, &l: / setlocal means nothing.
+    " filename escape + comma...
+    let l:diresc = escape(fnameescape(l:dir), ',')
 
-    let &l:backupdir = l:dir
-    let &l:backupext = l:ext
-    " echom 'backup-options' &bdir &bex
-    let b:user_last_backup =  l:dir . '/' . fnamemodify(l:fn, ':t') . l:ext
+    " manual combining, without ^=, with original global backupdir, to prevent
+    " accumulation when crossing midnight.
+    let l:backupdir = l:diresc . ',' . g:u.backup_dir
+
+    execute 'setlocal' 'backupext=' . l:ext 'backupdir=' . l:backupdir
+
+    " echom 'backup-options' &bex &bdir
+    " expand() to fix up path separators
+    let b:user_last_backup =  expand(l:dir . '/' . fnamemodify(l:fn, ':t') . l:ext)
+
     " echom 'b' pathshorten(b:user_last_backup)
 endfunction
 
@@ -3948,7 +3961,7 @@ augroup UserVimRc
     autocmd FileType *commit    setlocal spell tw=78 cc=50,78
 
     autocmd BufWritePre *   call UserStripTrailingWhitespace()
-    autocmd BufWritePre *   call UserUpdateBackupOptions()
+    autocmd BufWritePre *   call UserUpdateBackupOptions(expand('<amatch>'))
 
     " no persistent undo info for temporary files
     autocmd BufWritePre /tmp*,~/tmp/*   setlocal noundofile
