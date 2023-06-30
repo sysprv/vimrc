@@ -1912,7 +1912,7 @@ function! UserColours256Light()
         "highlight LineNr            ctermbg=253
 
         highlight NonText           ctermfg=NONE    ctermbg=7
-        highlight SpecialKey        ctermfg=164     ctermbg=NONE
+        highlight SpecialKey        ctermfg=164     ctermbg=254
         highlight ColorColumn                       ctermbg=254             "---+
         highlight Visual                            ctermbg=153 cterm=NONE
         highlight CursorLine                        ctermbg=230
@@ -1940,7 +1940,8 @@ function! UserColours256Dark()
     if UserCO(g:u.coflags.ui)
         "highlight LineNr            ctermbg=237
         highlight NonText           ctermfg=NONE    ctermbg=238
-        highlight SpecialKey        ctermfg=206     ctermbg=NONE
+        " orange/amber
+        highlight SpecialKey        ctermfg=214     ctermbg=235
         highlight ColorColumn                       ctermbg=238
         highlight Visual                            ctermbg=24  cterm=NONE
         highlight CursorLine                        ctermbg=242
@@ -2000,7 +2001,7 @@ function! UserColoursGuiLight()
         highlight ColorColumn               guibg=azure2
         call UHgui('NonText', 'guifg=NONE', 'guibg=grey88')
         let l:dark_pink = '#AA336A'
-        call UHgui('SpecialKey', 'guifg='.l:dark_pink, 'guibg=bg')
+        call UHgui('SpecialKey', 'guifg='.l:dark_pink, 'guibg=grey88')
         highlight Visual        cterm=NONE  guifg=NONE      guibg=#afd7ff
         highlight CursorLine                guibg=palegoldenrod
     endif
@@ -2030,10 +2031,7 @@ function! UserColoursGuiDark()
     endif
     if UserCO(g:u.coflags.ui)
         highlight NonText                       guibg=grey25
-        highlight SpecialKey    guifg=#515151   guibg=NONE
-        call UHgui('SpecialKey', 'guifg=#515151', 'guibg=bg')
-        let l:dark_pink = '#AA336A'
-        call UHgui('SpecialKey', 'guifg='.l:dark_pink, 'guibg=bg')
+        call UHgui('SpecialKey', 'guifg=orange', 'guibg=grey25')
         call UHgui('VertSplit', 'guifg='.l:safflower, 'guibg='.l:safflower, 'gui=NONE')
         highlight Visual        cterm=NONE  guifg=NONE      guibg=#005f87
         highlight CursorLine                guibg=seagreen
