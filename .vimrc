@@ -904,11 +904,13 @@ function! UserSetupListchars() abort
     " but - leave it out, so that our UserTrailingWhitespace syntax match
     " takes effect.
 
-    let l:tab = [ '|_>', '├─›', '→ ' ][-1]   " box drawing
+    " high uni chars that take 3 bytes sometimes seem to raise E834 - f.ex.
+    " debian serial tty putty-256color screen final TERM = screen.linux
+    let l:tab = '· ·'
     " old vims < 8.1.0759 don't support 3-char tab. patch made 2014, applied 2019.
-    if !has('patch-8.1.0759') | let l:tab = '├─' | endif
+    if !has('patch-8.1.0759') | let l:tab = '· ' | endif
     " trailing chars can be very annoying, so let's try something cool.
-    let l:trail = [ '␠', '❤' ][-1]
+    let l:trail = [ '␠', '❤' ][1]
 
     let g:u.lcs.def = {
                        \ 'eol': '↲'
@@ -929,12 +931,14 @@ function! UserSetupListchars() abort
 
     " for the linux console or old X bitmap fonts:
     let g:u.lcs.ascii = copy(g:u.lcs.def)
-    let g:u.lcs.ascii.eol = 'NONE'
-    let g:u.lcs.ascii.nbsp = '?'
+    " better that and have the key (eol).
+    let g:u.lcs.ascii.eol = '$'
+    let g:u.lcs.ascii.nbsp = '!'
+    let g:u.lcs.ascii.tab = 'NONE'
     let g:u.lcs.ascii.trail = '_'
 
-    let l:l = g:u.term_primitive ? g:u.lcs.ascii : g:u.lcs.p
-    let &listchars = UserListchars(l:l)
+    let g:u.lcs.cur = g:u.term_primitive ? g:u.lcs.ascii : g:u.lcs.p
+    let &listchars = UserListchars(g:u.lcs.cur)
 endfunction
 
 set conceallevel=1
@@ -983,12 +987,11 @@ function! UserSetupFillchars()
     " fillchars stl/stlnc then.
     let l:fcs = {}
 
-    if g:u.term_primitive
+    if !g:u.term_primitive
         " U+2502 - BOX DRAWINGS LIGHT VERTICAL
         "   (vert default: U+007C    VERTICAL LINE)
         " U+2504 - BOX DRAWINGS LIGHT TRIPLE DASH HORIZONTAL
         let l:fcs.vert = nr2char(0x2502)
-        let l:fcs.fold = nr2char(0x2504)
 
         " for the statuslines:
         " U+23BD HORIZONTAL SCAN LINE-9 is nice, but not quite low enough.
@@ -3710,13 +3713,23 @@ command -bar PrintU Scratch | put =json_encode(g:u) | .! jq --sort-keys .
 " like :Explore
 command Index       call UserOpenIndexFile()
 
-command -bar Nolist     windo setl nolist
+command -bar Nolist         windo setlocal nolist
+command -bar ListDef        let g:u.lcs.cur = g:u.lcs.def
+    \ | let &lcs = UserListchars(g:u.lcs.cur)
+command -bar ListP          let g:u.lcs.cur = g:u.lcs.p
+    \ | let &lcs = UserListchars(g:u.lcs.cur)
+command -bar ListAscii      let g:u.lcs.cur = g:u.lcs.ascii
+    \ | let &lcs = UserListchars(g:u.lcs.cur)
+
+" runtime changes to listchars via an anonymous dictionary.
 " this can make trailing hard tabs invisible unless the SpecialKey highlight
 " accounts for that.
+command -bar ListShowTab    let &lcs = UserListchars('tab:' . g:u.lcs.cur.tab)
 command -bar ListHideTab    let &lcs = UserListchars('tab:NONE')
-command -bar ListShowTab    let &lcs = UserListchars('tab:'.g:u.lcs.def.tab)
-command -bar ListShowTrail  let &lcs = UserListchars('trail:'.g:u.lcs.def.trail)
+command -bar ListShowTrail  let &lcs = UserListchars('trail:' . g:u.lcs.cur.trail)
 command -bar ListHideTrail  let &lcs = UserListchars('trail:NONE')
+command -bar ListShowEol    let &lcs = UserListchars('eol:' . g:u.lcs.cur.eol)
+command -bar ListHideEol    let &lcs = UserListchars('eol:NONE')
 
 
 " search for the nbsps that 'list' also uses
