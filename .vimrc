@@ -3322,7 +3322,10 @@ function! UserUrlPasteMunge()
     " not fall down into an undecidable hell of col('.') vs. col('$').
     set virtualedit=onemore
 
-    if search('\vhttps?://\S+', 'bn', line('.')) == line('.')
+    let l:copy_back = 0
+    let l:urlpos = searchpos('\vhttps?://\S+', 'bn', line('.'))
+    lockvar l:urlpos
+    if l:urlpos[0] == line('.')
 
         " if pasted in normal mode, the cursor stays beyond url - after eol or
         " any text that was already present.
@@ -3345,9 +3348,7 @@ function! UserUrlPasteMunge()
             " to the black hole register, delete backwards until (including) ?
             " but excluding what the cursor was on.
             normal! "_dF?
-            " this leaves the cursor after the cleaned url.
-            " put the cleaned version back in the clipboard
-            WRCB
+            let l:copy_back = 1
         endif
 
 
@@ -3370,6 +3371,23 @@ function! UserUrlPasteMunge()
         else
             normal! d$
             put
+        endif
+
+        " if we modified the url, and url is at the beginning of the line,
+        " copy back. copying just the url when some other text precedes it...
+        " going against the grain of line orientation and cursor movement is
+        " hard.
+        if l:copy_back
+            " go to line above,
+            " normal with mappings:
+            " 0 - go to first column
+            " count-| to go right to the first char of the url (doc: bar)
+            " v - start visual mode
+            " $ - to the end of the line
+            " ,xc - copy [using <Leader> is cumbersome]
+            " j - go back down
+            " 0 - beginning of line
+            execute "normal" "-0" . l:urlpos[1] . "|v$,xcj0"
         endif
     endif
 
