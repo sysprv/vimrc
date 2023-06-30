@@ -2275,7 +2275,7 @@ function! UserColoursPrelude()
     " https://github.com/vim/vim/issues/869 . to give up and use dark
     " terminals (to fit in with rainbow barf tools):
 
-    if 0 && has('linux') && !has('gui')
+    if has('unix') && !g:u.has_x11
         set background=dark
     endif
 
