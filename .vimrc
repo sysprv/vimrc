@@ -1,4 +1,4 @@
-" Last-Modified: 2023-06-22T13:10:31.534290632+00:00
+" Last-Modified: 2023-06-29T13:54:31.487058635+00:00
 set nocompatible
 if version < 704
     nnoremap    s   <C-w>
@@ -11,6 +11,9 @@ set secure encoding=utf-8 fileencoding=utf-8 nobomb
 scriptencoding utf-8        " must go after 'encoding'
 
 " Change log:
+"
+" 2023-06-29 Better SpecialKey visibility, mappings/function to add local
+" time, better URL copy back, listchars/fillchars cleanup.
 "
 " 2023-06-05 More copy/paste cleanup. Dynamic statusline removed. Added
 " commands and mappings (,yp, ,yc) to read from and write to the X11 PRIMARY
