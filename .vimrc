@@ -395,6 +395,8 @@ elseif &term =~# '^xterm' || &term =~# '^putty'
     let g:u.term_primitive = 0
 elseif has('vcon') && &term ==# 'win32'
     let g:u.term_primitive = 0
+elseif &term ==# 'screen-256color-bce'
+    let g:u.term_primitive = 0
 endif
 
 let g:u.mark = '_'
@@ -863,7 +865,7 @@ function! UserListchars(...) abort
 endfunction
 
 function! UserSetupListchars() abort
-    let g:u['lcs'] = {}
+    let g:u.lcs = {}
     " keep listchars in top-level data structures so that i can mess with them
     " easily.
     "
@@ -1714,6 +1716,7 @@ function! UserStripTrailingWhitespace()
     endif
 endfunction
 
+command -bar NoAutomod  let b:user_noautomod = 1
 
 " if a file named 'index' exists, load it; don't create it.
 " living without command-t, CtrlP etc.
@@ -3216,7 +3219,7 @@ if g:u.has_cb_builtin
     " makes unnamedplus linewise.
     " nnoremap  <silent>    <Leader>xc      "+yy
     "
-    " for details see ,xc mapping for ttys above.
+    " for details see ,xc mapping for ttys below.
     nnoremap    <silent>    <Leader>yc      m`^vg_"*y``
     nnoremap    <silent>    <Leader>xc      m`^vg_"+y``
 
