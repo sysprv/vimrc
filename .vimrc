@@ -1,4 +1,4 @@
-" Last-Modified: 2023-06-29T13:54:31.487058635+00:00
+" Last-Modified: 2023-07-01T17:47:37.470572855+00:00
 set nocompatible
 if version < 704
     nnoremap    s   <C-w>
@@ -11,6 +11,8 @@ set secure encoding=utf-8 fileencoding=utf-8 nobomb
 scriptencoding utf-8        " must go after 'encoding'
 
 " Change log:
+"
+" 2023-07-01 Color schemes and term backgrounds. Move from Lucius to Iceberg.
 "
 " 2023-06-29 Better SpecialKey visibility, mappings/function to add local
 " time, better URL copy back, listchars/fillchars cleanup.
@@ -246,6 +248,8 @@ scriptencoding utf-8        " must go after 'encoding'
 
 " :file! doesn't truncate long filenames.
 
+" \V - very nomagic.
+
 " -- end tips
 "
 
@@ -297,7 +301,8 @@ filetype plugin indent on
 
 " i.e., redhat/fedora /etc/vimrc duplicates some of defaults.vim, things that
 " are meant to be pulled in only when the user has no .vimrc. this seems to
-" interfere with jumping to the last location on some files.
+" interfere with jumping to the last location on some files. anybody remember
+" /etc/skel?
 "
 " at least the worst is in a named augroup. viml parsing is extra picky with
 " au/aug (re-opening an augroup just to do autocmd! and then having <aug>
@@ -394,11 +399,11 @@ if g:u.has_x11
     let g:u.term_primitive = 0
 elseif has('gui_running')
     let g:u.term_primitive = 0
-elseif &term =~# '^xterm' || &term =~# '^putty'
+elseif &term =~# '^xterm' || &term =~# '^rxvt-unicode' || &term =~# '^putty'
     let g:u.term_primitive = 0
 elseif has('vcon') && &term ==# 'win32'
     let g:u.term_primitive = 0
-elseif &term ==# 'screen-256color-bce'
+elseif &term =~# 'screen'
     let g:u.term_primitive = 0
 endif
 
@@ -1757,13 +1762,14 @@ endfunction
 " per each window switch.)
 function! UserCustomSyntaxHighlights()
     " basically just the definitions
-    highlight UserDateComment term=NONE cterm=italic gui=italic
+    " 2023-06-30 cterm italic can break easily (freebsd termcap)
+    highlight UserDateComment term=NONE cterm=NONE gui=italic
     highlight UserTrailingWhitespace term=standout ctermbg=grey guibg=grey
     highlight UserHashTag term=NONE cterm=NONE gui=NONE
     " for URIs at top level, with syntax highlighting and not matchadd()
     highlight! default link UserHttpURI Normal
     " __UNIWS__
-    highlight UserUnicodeWhitespace term=reverse ctermbg=red guibg=red
+    highlight UserUnicodeWhitespace term=standout ctermbg=red guibg=red
 
     if !UserCanUseGuiColours() && !User256()
         " no colours, but the highlights are defined above, so it's safe to
@@ -1774,13 +1780,12 @@ function! UserCustomSyntaxHighlights()
     if &background ==# 'light'
         highlight UserDateComment ctermfg=241 ctermbg=254 guifg=grey40 guibg=azure2
         "highlight UserHashTag ctermbg=194 guibg=#b9ebc4
-        " like StatusLine
-        highlight UserHashTag ctermbg=152 guibg=#b0e0e6
+        highlight UserHashTag               ctermbg=152     guibg=#b0e0e6
         highlight UserTrailingWhitespace    ctermbg=252     guibg=#dee0e2
     else    " dark
-        highlight UserDateComment   ctermfg=246 ctermbg=238 guifg=grey58 guibg=NONE
-        highlight UserHashTag       ctermbg=240 guibg=grey35
-        highlight UserTrailingWhitespace    ctermbg=237     guibg=#222527
+        highlight UserDateComment ctermfg=246 guifg=grey70 guibg=darkslategrey
+        highlight UserHashTag ctermbg=24 guibg=#005f5f
+        highlight UserTrailingWhitespace    ctermbg=235     guibg=#1e2132
     endif
 
     " UserHttpURI: if using non-syntax matches (matchadd/UserMatchAdd), define
@@ -1807,7 +1812,7 @@ function! UserSafeUIHighlights()
         " in some situations the default bold attribute of ModeMsg caused
         " problems. clear the term attribute.
         highlight ModeMsg       NONE
-        highlight Normal        ctermbg=NONE
+        highlight Normal        NONE
         " for cterm with 8/16/88 colours
         highlight Visual        term=reverse cterm=reverse ctermbg=NONE
     endif
@@ -1856,24 +1861,6 @@ function! UserClearContentHighlights()
     highlight Constant term=bold cterm=bold gui=bold
 endfunction
 
-
-" these utility functions have the undesirable effect of hiding the exact script
-" line where a highlight group was modified - as :verbose only goes back one
-" call frame.
-function! UHgui(...)
-    let l:spec = ['highlight']
-    call extend(l:spec, a:000)
-    call extend(l:spec, ['ctermfg=NONE', 'ctermbg=NONE', 'cterm=NONE'])
-    execute join(l:spec, ' ')
-endfunction
-
-function! UHcterm(...)
-    let l:spec = ['highlight']
-    call extend(l:spec, a:000)
-    call extend(l:spec, ['guifg=NONE', 'guibg=NONE', 'gui=NONE'])
-    execute join(l:spec, ' ')
-endfunction
-
 "
 " Tip: set tty (xterm, rxvt-unicode, VTE) colour 12 to azure2/#e0eeee.
 " For mlterm: ~/.mlterm/color, 12 = #e0eeee;
@@ -1898,81 +1885,6 @@ endfunction
 " Old vims don't know EndOfBuffer, just NonText. So NonText shouldn't use the
 " same ctermbg as StatusLineNC.
 
-function! UserColours256Light()
-    if UserCO(g:u.coflags.stat)
-        highlight StatusLine        ctermfg=0       ctermbg=152 cterm=NONE
-        let l:clr = [90, 60][-1]
-        call UHcterm('StatusLineNC', 'ctermfg=15', 'ctermbg='.l:clr, 'cterm=NONE')
-        call UHcterm('VertSplit', 'ctermfg='.l:clr, 'ctermbg='.l:clr, 'cterm=NONE')
-    endif
-    if UserCO(g:u.coflags.spell)
-        highlight SpellBad              ctermbg=254
-    endif
-    if UserCO(g:u.coflags.mode)
-        highlight ModeMsg   ctermfg=0   ctermbg=254     cterm=NONE
-    endif
-    if UserCO(g:u.coflags.ui)
-        "highlight LineNr            ctermbg=253
-
-        highlight NonText           ctermfg=NONE    ctermbg=7
-        highlight SpecialKey        ctermfg=164     ctermbg=254
-        highlight ColorColumn                       ctermbg=254             "---+
-        highlight Visual                            ctermbg=153 cterm=NONE
-        highlight CursorLine                        ctermbg=230
-    endif
-endfunction
-
-" dark backgrounds are quite common even if not desired.
-" must support.
-" things can look wrong if a colorscheme forces background to dark,
-" as when trying desert in a bright tty. the following function
-" will get run because bg's now dark, and the result can look wrong.
-function! UserColours256Dark()
-    if UserCO(g:u.coflags.stat)
-        highlight StatusLine        ctermfg=0       ctermbg=152 cterm=NONE
-        let l:clr = [90, 60][-1]
-        call UHcterm('StatusLineNC', 'ctermfg=15', 'ctermbg='.l:clr, 'cterm=NONE')
-        call UHcterm('VertSplit', 'ctermfg='.l:clr, 'ctermbg='.l:clr, 'cterm=NONE')
-    endif
-    if UserCO(g:u.coflags.spell)
-        highlight SpellBad              ctermbg=238
-    endif
-    if UserCO(g:u.coflags.mode)
-        highlight ModeMsg   ctermfg=253     ctermbg=238     cterm=NONE
-    endif
-    if UserCO(g:u.coflags.ui)
-        "highlight LineNr            ctermbg=237
-        highlight NonText           ctermfg=NONE    ctermbg=238
-        " orange/amber
-        highlight SpecialKey        ctermfg=214     ctermbg=235
-        highlight ColorColumn                       ctermbg=238
-        highlight Visual                            ctermbg=24  cterm=NONE
-        highlight CursorLine                        ctermbg=242
-    endif
-endfunction
-
-
-function! UserColours256Any()
-    if UserCO(g:u.coflags.ui)
-        "highlight ErrorMsg          ctermfg=yellow  ctermbg=brown   cterm=bold
-        highlight MatchParen                        ctermbg=202
-        highlight EndOfBuffer                       ctermbg=NONE
-    endif
-
-    " no point clearing 'Normal' here, vim doesn't seem to reset the
-    " background colour to the tty background color. probably mentioned
-    " somewhere in `help :hi-normal-cterm'.
-    "
-    " instead - either choose a colorscheme that can work without modifying
-    " Normal-ctermbg like lucius, or wrap it like our own iceberg-wrapper.vim.
-    "
-    " 2022-07-09 lucius can be set to not touch ctermbg, but still sets
-    " ctermfg.
-
-    highlight Normal ctermfg=NONE
-endfunction
-
-
 " 'light' only
 " sea green ?
 "
@@ -1981,86 +1893,6 @@ endfunction
 " and the Diana F+ camera body.
 " guibg=#grey82 (typo) produced a nice colour, probably #efdf82
 " also dark turquoise.
-"
-function! UserColoursGuiLight()
-    " DarkOrchid4: #68228b
-    " https://en.wikipedia.org/wiki/Traditional_colors_of_Japan#Blue/blue_violet_series
-    let l:safflower = '#5A4F74'
-
-    if UserCO(g:u.coflags.stat)
-        highlight StatusLine    guifg=fg    guibg=#b0e0e6   gui=NONE
-        call UHgui('StatusLineNC', 'guifg=bg', 'guibg='.l:safflower, 'gui=NONE')
-        call UHgui('VertSplit', 'guifg='.l:safflower, 'guibg='.l:safflower, 'gui=NONE')
-    endif
-    if UserCO(g:u.coflags.spell)
-        " unobtrusive
-        highlight SpellBad  guifg=fg    guibg=grey91    gui=NONE    guisp=NONE
-    endif
-    if UserCO(g:u.coflags.mode)
-        highlight ModeMsg   guifg=fg    guibg=#d8d8d8   gui=bold
-    endif
-    if UserCO(g:u.coflags.ui)
-        " my precious azure2...
-        highlight ColorColumn               guibg=azure2
-        call UHgui('NonText', 'guifg=NONE', 'guibg=grey88')
-        let l:dark_pink = '#AA336A'
-        call UHgui('SpecialKey', 'guifg='.l:dark_pink, 'guibg=grey88')
-        highlight Visual        cterm=NONE  guifg=NONE      guibg=#afd7ff
-        highlight CursorLine                guibg=palegoldenrod
-    endif
-
-    " if we're using lucius, let it set the Normal colours and don't override.
-    " for anything else, set our own foreground/background.
-    if UserCO(g:u.coflags.normguibg)
-        " default gui foreground/background
-        " was: whitesmoke; current - anti-flash white; see also #f2f3f4
-        highlight Normal    guifg=black guibg=#f3f3f3
-    endif
-endfunction
-
-
-function! UserColoursGuiDark()
-    let l:safflower = '#5A4F74'
-
-    if UserCO(g:u.coflags.stat)
-        highlight StatusLine    guifg=black guibg=#b0e0e6   gui=NONE
-        call UHgui('StatusLineNC', 'guifg=fg', 'guibg='.l:safflower, 'gui=NONE')
-    endif
-    if UserCO(g:u.coflags.spell)
-        highlight SpellBad  guifg=fg    guibg=grey25    gui=NONE    guisp=NONE
-    endif
-    if UserCO(g:u.coflags.mode)
-        highlight ModeMsg   guifg=fg    guibg=grey40    gui=bold
-    endif
-    if UserCO(g:u.coflags.ui)
-        highlight NonText                       guibg=grey25
-        call UHgui('SpecialKey', 'guifg=orange', 'guibg=grey25')
-        call UHgui('VertSplit', 'guifg='.l:safflower, 'guibg='.l:safflower, 'gui=NONE')
-        highlight Visual        cterm=NONE  guifg=NONE      guibg=#005f87
-        highlight CursorLine                guibg=seagreen
-    endif
-endfunction
-
-
-function! UserColoursGuiAny()
-    if UserCO(g:u.coflags.ui)
-        " regardless of bg light/dark
-        highlight EndOfBuffer       guifg=grey50    guibg=NONE
-        highlight MatchParen                        guibg=#ff8c00
-    endif
-
-    " a little monkeypatching. even if the colour override flags say we trust
-    " the colorscheme and should not force the Normal guibg, if it looks like
-    " we're in LuciusLight .. the background colour can be a bit too dark.
-    " override...
-
-    if !UserCO(g:u.coflags.normguibg) &&
-                \ exists('*hlget') &&
-                \ hlget('Normal')[0]['guibg'] ==# '#eeeeee'
-        highlight Normal                guibg=#f3f3f3
-    endif
-endfunction
-
 
 function! UserSetGuiFont()
     if has('linux')
@@ -2111,6 +1943,17 @@ function! s:setupClipboard()
 endfunction
 
 
+" works, but again, loses context. verbose hi shows the line number within
+" this function as the modification location, not the callsite of this
+" function.
+function! UserCopyHiAttr(from_hl, to_hl, attr) abort
+    let l:src = hlget(a:from_hl, v:true)[0]
+    let l:dest = hlget(a:to_hl)[0]
+    let l:dest[a:attr] = l:src[a:attr]
+    call hlset([l:dest])
+endfunction
+
+
 " Meant to run after a colorscheme we like is loaded. Overrides highlights
 " we don't agree with (StatusLine(NC), NonText, SpecialKey), defines good
 " highlights in case the colorscheme file might not be available (Visual).
@@ -2118,42 +1961,13 @@ endfunction
 " mlterm starts with t_Co 8, later changes to 256.
 function! UserColours()
     call UserLog('UserColours enter win', winnr())
-    let l:bg_light = &background ==# 'light'
-    let l:bg_dark = !l:bg_light
+    " 'background' at the time this function ran - save to inspect later
+    let g:u.user_colours_last_bg = &background
 
-    " a color scheme might have been loaded - if we trust it and want to let it
-    " set the background colour, add g:u.coflags.normguibg to g:u.co.
-
-    if exists('g:colors_name')
-        if g:colors_name ==# 'lucius'
-            let g:u.co = or(g:u.co, g:u.coflags.normguibg)
-        endif
-    endif
-
-    if UserCOAny()
-        " clean up UI colours
-        call UserSafeUIHighlights()
-
-        " apply our highlights
-        "
-        " NB don't run 256-color code for gui. and, no support for 88 colors.
-        "
-        " 2023-05-16 re-ordered - win32 vcon supports termguicolors but t_Co
-        " is stuck at 256.
-
-        if UserCanUseGuiColours()
-            if l:bg_light | call UserColoursGuiLight() | endif
-            if l:bg_dark  | call UserColoursGuiDark()  | endif
-            call UserColoursGuiAny()
-        elseif User256()
-            if l:bg_light | call UserColours256Light() | endif
-            if l:bg_dark  | call UserColours256Dark()  | endif
-            call UserColours256Any()
-        endif
-    endif
-
-    " since we're handling a colorscheme change: pull in our custom colour and
-    " syntax definitions. these are original highlights, not overrides.
+    " 2023-07-01 our colorscheme overrides are now in an external colorscheme
+    " file. overrides depend on the scheme, no point in keeping them in this
+    " vimrc as long as we depend on another external file (the colorscheme)
+    " anyway.
 
     call UserCustomSyntaxHighlights()
 endfunction
@@ -2227,29 +2041,9 @@ function! UserApplySyntaxRules()
     syntax match UserHttpURI =\v<https?://\S+= contains=@NoSpell
     " contained:
     syntax match UserHttpURI =\v<https?://\S+=
-        \ transparent contained containedin=ALLBUT,UserHttpURI contains=@NoSpell
-endfunction
-
-
-function! UserHS(...)
-    let l:forced = a:0 > 0 && a:1 == 1
-
-    call UserLog(printf('UserHS winnr=%d forced=%d syn_on=%d'
-        \, winnr()
-        \, l:forced
-        \, exists('g:syntax_on')))
-
-    " don't enable if syntax is globally disabled
-    " but do enable if called with arg 1 == 1
-    "
-    " todo - perhaps remove the guard, be independent of syntax highlighting
-    if exists('g:syntax_on') || l:forced
-        call UserCustomSyntaxHighlights()
-        " 2022-07-13 - matches instead of syntax
-        " call UserMatchAdd()
-        " 2022-07-26 back to syntax items
-        call UserApplySyntaxRules()
-    endif
+                \ transparent contained
+                \ containedin=ALLBUT,UserHttpURI
+                \ contains=@NoSpell
 endfunction
 
 
@@ -2272,21 +2066,44 @@ endfunction
 
 
 function! UserColoursPrelude()
-    " sometimes even works.
-    set background&
-    " vim background color detection is mostly broken:
-    " https://github.com/vim/vim/issues/869 . to give up and use dark
-    " terminals (to fit in with rainbow barf tools):
 
-    if has('unix') && !g:u.has_x11
-        set background=dark
-    endif
+    " 2023-06-30 background light/dark detection seems to work as documented,
+    " though maybe not bg&.
+    "
+    " a possible race - vim starts up with bg=light, and bg may get changed to
+    " dark while a colorscheme runs. some colorschemes (lucius, hybrid) do a
+    " set bg with the bg at the time the colorscheme started running - setting
+    " dark bg back to light.
 
     let l:done = 0
 
-    if has('gui_running')
+    if !l:done && has('gui_running')
         let l:done = 1
     endif
+
+    " hints for when the defaults or vim's guessing fails.
+    " https://www.freedesktop.org/software/systemd/man/sd_session_get_type.html#
+    " can't check tty(1), screen(1) -> devpts. maybe things to check:
+    " XDG_SESSION_TYPE (tty, incl. for ssh with X), SSH_CONNECTION
+    "
+    " no COLORFGBG over serial or across ssh.
+    "
+    " redhat /etc/vimrc - not much thought goes on there. 8.x loads the desert
+    " colorscheme. that in turn sets bg=dark. seems impossible to fix - set
+    " all& just sets bg to light.
+    "
+    " there doesn't seem to be a way to re-trigger vim's detection
+    " (may_req_bg_color). this is what set bg& should have done. workaround,
+    " use an external command that does something like:
+    "
+    " printf '\033]11;?\007' > /dev/tty read -rs -t 0.2 -d "" < /dev/tty if
+    " cat -A <<< "$REPLY" | grep 'rgb:0000/0000/0000' > /dev/null; then
+    "
+    " https://www.unix.com/shell-programming-and-scripting/276281-problem-reading-terminal-response-string-zsh.html#post303010590
+    " https://stackoverflow.com/questions/47938109/reading-answer-to-control-string-sent-to-xterm
+    " https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h3-Operating-System-Commands
+    " https://stackoverflow.com/a/38287998
+    " https://github.com/vim/vim/issues/869
 
     if !l:done && has('termguicolors')
         if &term ==# 'xterm-direct'
@@ -2307,6 +2124,9 @@ function! UserColoursPrelude()
             let l:done = 1
         endif
     endif
+
+    " could also enable tgc for PuTTY; seems default on now. but
+    " terminfo/termcap might not have caught up yet.
 
     if !l:done && exists('&t_Co') && &t_Co == 8 && $TERM !~# '^Eterm'
         " good idea from tpope/sensible; bright without bold.
@@ -2352,8 +2172,6 @@ endfunction
 
 " -- end colorscheme control
 
-
-
 " syntax for text isn't worth the trouble but we like good UI colours. for
 " non-xterm-direct terminals (VTE, kitty) it might be necessary to call
 " UserColours() again after enabling termguicolors. do all the ui/content
@@ -2366,60 +2184,40 @@ function! UserLoadColors()
     " a file on disk.  And seperate user interface component highlights from
     " text content highlights.
     "
-    " order's significant here; whether bg& before or after depends on what
-    " the scheme does.
-    "
-    " test tip: COLORFGBG='15;0' xterm -tn xterm-vt220 -fg \#ffb000 -bg grey10
-    " desert for dark, shine for light. with modifications to not touch
-    " important highlights and not modify 'background'.
-    "
     " start by erasing the default highlights, which are very annoying,
-    " specially on terminals with few colours.
+    " specially on terminals with few colours. we do this whether we have a
+    " colorscheme or not.
 
     if exists('g:syntax_on')
         call UserClearContentHighlights()
     endif
 
-    " 2022-03-09 lucius light and white modes seem to trigger a bug in gvim on
-    " Linux. The command window rendering becomes subtly broken, selected text
-    " almost invisible.
-    "
-    " 2022-06-30 gvim command window under lucius looks good again.
-    "
     " in any case, the default vim syntax definitions are maybe 60% good
     " anyway. setting non-tty-fg dark colours on "normal" text bothers me a
     " little too.
 
     if UserCanLoadColorscheme()
-        if UserRuntimeHas('colors/lucius.vim')
-            " perfect, A+; cterm only, not for termguicolors.
-            let g:lucius_no_term_bg = 1
-
-            if UserCanUseGuiColours()
-
-                " the Lucius... commands also do a 'colorscheme', causing the
-                " ColorScheme autocommand to fire again. So instead of invoking
-                " LuciusLight, we set the scheme settings first as SetLucius()
-                " would.
-
-                let g:lucius_style = 'light'
-                let g:lucius_contrast = 'normal'
-                let g:lucius_contrast_bg = 'normal'
-
-            endif
-            colorscheme lucius
+        " load iceberg with our overrides.
+        if UserRuntimeHas('colors/iceberg~.vim')
+            colorscheme iceberg~
         endif
-        " other good: iceberg, PaperColor?
+
+        " other good: PaperColor?
+        "
         " honorable mention:
+        "
         "   monochromenote - https://github.com/koron/vim-monochromenote
+        "
+        " zenchrome (https://github.com/g0xA52A2A/zenchrome.vim/) is a nice,
+        " comprehensive framework; should integrate it into this vimrc
+        " someday.
+
     endif
 
     " if no colorscheme found/loaded, the ColorScheme autocmd won't fire. load
     " our UI colour overrides.
 
-    if !exists('g:colors_name') || g:colors_name ==? 'default'
-        call UserColours()
-    endif
+    if !exists('g:colors_name') | call UserColours() | endif
 endfunction
 
 
@@ -3707,9 +3505,11 @@ command -bar -nargs=?   Tw  if len(<q-args>) != 0
 
 
 " kludge for 256 colour dark terminals
-" useful in a pinch for the gui too, when lucius is not around.
-command -bar Dark       set background=dark  | call UserColours()
-command -bar Light      set background=light | call UserColours()
+" and for when 'background' changes some time after initialization.
+command -bar Dark       set background=dark
+            \ | if !exists('g:colors_name') | call UserColours() | endif
+command -bar Light      set background=light
+            \ | if !exists('g:colors_name') | call UserColours() | endif
 
 " useful when testing in verbose mode
 command -bar -nargs=+ Log    call UserLog(<args>)
@@ -4055,6 +3855,23 @@ augroup UserVimRcSyntax
 
     " on colourscheme load/change, apply our colours, overriding the scheme.
     autocmd ColorScheme *       call UserColours()
+
+    if exists('##OptionSet')
+        autocmd OptionSet background
+                    \ echom UserDateTime() 'background set to' v:option_new
+
+        " quick hack - if 'background' changes after vim's finished loading,
+        " reload our highlights. not needed for gvim, helps with places
+        " where we don't have a colorscheme - no colorscheme loaded -> the
+        " ColorScheme autocmd won't fire.
+
+        autocmd OptionSet background
+                    \
+                    \ if has_key(g:u, 'user_colours_last_bg')
+                    \   && (v:option_new !=# g:u.user_colours_last_bg)
+                    \ |     noautocmd call UserCustomSyntaxHighlights()
+                    \ | endif
+    endif
 augroup end
 
 
