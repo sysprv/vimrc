@@ -949,7 +949,7 @@ function! UserSetupListchars() abort
     let &listchars = UserListchars(g:u.lcs.cur)
 endfunction
 
-set conceallevel=1
+set conceallevel=0
 " beware spooky action at a distance with cursorline and syntax matches.
 set concealcursor=nvi
 
@@ -2274,7 +2274,6 @@ function! UserBufCloseKeepWin()
 endfunction
 
 command XB                  call UserBufCloseKeepWin()
-nnoremap    <Leader>q       :call UserBufCloseKeepWin()<cr>
 
 
 " Run a vim command and drop the output into a new window.
@@ -3557,7 +3556,8 @@ command -bar ListShowTrail  let &lcs = UserListchars('trail:' . g:u.lcs.cur.trai
 command -bar ListHideTrail  let &lcs = UserListchars('trail:NONE')
 command -bar ListShowEol    let &lcs = UserListchars('eol:' . g:u.lcs.cur.eol)
 command -bar ListHideEol    let &lcs = UserListchars('eol:NONE')
-
+command -bar ListShowConceal let &lcs = UserListchars('conceal:' . g:u.lcs.cur.conceal)
+command -bar ListHideConceal let &lcs = UserListchars('conceal:NONE')
 
 " search for the nbsps that 'list' also uses
 " but vim isn't great for this; use perl5:
@@ -3838,6 +3838,27 @@ augroup UserVimRc
         " forget :q!/:qall! ; clearing must run after viminfo's loaded.
         autocmd VimEnter * call histdel(':', '\v^w?q')
     endif
+
+    " test: fires under:
+    "
+    " xterm -tn xterm-256color -fg white -bg black (no COLORFGBG)
+    "
+    " dark VTE terminal (sakura) with both COLORFGBG and COLORTERM
+
+    if exists('##OptionSet')
+        autocmd OptionSet background
+                    \ echom UserDateTime() 'background set to' v:option_new
+    endif
+
+    " bg heuristic: i don't use screen(1) when not under duress; if in screen
+    " and there's been no response (yet) for the terminal background colour
+    " request, assume dark.
+
+    autocmd VimEnter *
+                    \ if &background ==# 'light' && &term =~# 'screen' &&
+                    \ (!exists('v:termrbgresp') || len(v:termrbgresp) == 0)
+                    \ | set background=dark
+                    \ | endif
 augroup end
 
 " autogroup for my weird syntax dealings
@@ -3857,8 +3878,6 @@ augroup UserVimRcSyntax
     autocmd ColorScheme *       call UserColours()
 
     if exists('##OptionSet')
-        autocmd OptionSet background
-                    \ echom UserDateTime() 'background set to' v:option_new
 
         " quick hack - if 'background' changes after vim's finished loading,
         " reload our highlights. not needed for gvim, helps with places
