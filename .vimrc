@@ -619,7 +619,7 @@ if exists('&modelineexpr')
 endif
 
 set wildmenu
-" don't complete until unique
+" don't complete until unique (be like default bash behaviour)
 set wildmode=list:longest,list
 set wildignorecase
 " don't complete swap, undo files and others.
@@ -666,6 +666,11 @@ if has('folding')
     set foldclose=
 endif
 
+
+if v:version >= 801
+    set completeopt+=noinsert
+    set completeopt+=noselect
+endif
 " contemporary
 if v:version >= 900
     " display completion matches in a popup menu
