@@ -1918,16 +1918,17 @@ endfunction
 " also dark turquoise.
 
 function! UserSetGuiFont()
-    if has('linux')
-        " assuming gtk
-        let &guifont = 'Iosevka Fixed Slab Extended 11'
+    if has('linux') && has('gui_gtk')
+        let &guifont = 'Iosevka Fixed Slab 11'
     elseif has('win64')
         " default cANSI:qDRAFT
-        set guifont=Iosevka_Fixed_Slab_Lt_Ex:h11:cDEFAULT:qCLEARTYPE
-        set guifont+=Consolas:h12
+        set guifont=Iosevka_Fixed_Slab:h11:cDEFAULT:qCLEARTYPE
+        set guifont+=Cascadia_Mono:h11
+        set guifont+=Consolas:h11
         " more cleartype; no hidpi here.
         " 2023-03-02 have hidpi now.
-        "set renderoptions=type:directx,taamode:1
+        " 2023-07-09 not everywhere (ultrawide at work)
+        set renderoptions=type:directx,taamode:1
     elseif has('ios')
         " iVim, iPhone
         set guifont=Menlo:h11.0
