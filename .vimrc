@@ -1760,41 +1760,57 @@ endfunction
 " 256 colors to rgb codes and x11 color names:
 " https://jonasjacek.github.io/colors/
 
-" define the highlight groups used by our own syntax rules.
-" kept apart from the UserColours() colour-overriding hierarchy because
-" this method can be called more often (f.ex., per new window or even
-" per each window switch.)
-function! UserCustomSyntaxHighlights()
-    " basically just the definitions
-    " 2023-06-30 cterm italic can break easily (freebsd termcap)
-    highlight UserDateComment term=NONE cterm=NONE gui=italic
-    highlight UserTrailingWhitespace term=standout ctermbg=grey guibg=grey
-    highlight UserHashTag term=NONE cterm=NONE gui=NONE
-    " for URIs at top level, with syntax highlighting and not matchadd()
-    highlight! default link UserHttpURI Normal
-    " __UNIWS__
-    highlight UserUnicodeWhitespace term=standout ctermbg=red guibg=red
 
-    if !UserCanUseGuiColours() && !User256()
-        " no colours, but the highlights are defined above, so it's safe to
-        " return. syntax items will work.
-        return
+" fallback definitions for the highlight groups used by our own syntax rules,
+" in case our colorscheme wrapper isn't present.
+function! UserDefineSyntaxHighlightGroups()
+    let l:hl = {}
+
+    " unlike for :syntax list, :filter works for :highlight. but :filter's not
+    " old enough to be available everywhere.
+    "
+    " highlight groups may have been cleared (but still left defined) by a
+    " colorscheme reload. we don't treat these as present. i.e. we only want
+    " to select User highlight groups that haven't been cleared.
+
+    for l:ln in split(UserRun('silent highlight'), "\n")
+        let l:matchresult = matchstr(l:ln, '^User\w\+')
+        if l:matchresult !=# '' && match(l:ln, ' cleared$') == -1
+            let l:hl[l:matchresult] = 1
+        endif
+    endfor
+
+    " because we don't want to put the UserUnicodeWhitespace in a colorscheme
+    " override, we don't do a quick exhaustive check here (like we do for
+    " syntax items).
+
+    if !has_key(l:hl, 'UserDateComment')
+        " 2023-06-30 cterm italic can break easily (freebsd termcap)
+        highlight UserDateComment ctermbg=grey guibg=grey
     endif
 
-    if &background ==# 'light'
-        highlight UserDateComment ctermfg=241 ctermbg=254 guifg=grey40 guibg=azure2
-        "highlight UserHashTag ctermbg=194 guibg=#b9ebc4
-        highlight UserHashTag               ctermbg=152     guibg=#b0e0e6
-        highlight UserTrailingWhitespace    ctermbg=252     guibg=#dee0e2
-    else    " dark
-        highlight UserDateComment ctermfg=246 guifg=grey70 guibg=darkslategrey
-        highlight UserHashTag ctermbg=24 guibg=#005f5f
-        highlight UserTrailingWhitespace    ctermbg=235     guibg=#1e2132
+    if !has_key(l:hl, 'UserTrailingWhitespace')
+        highlight UserTrailingWhitespace term=standout ctermbg=grey guibg=grey
+    endif
+
+    if !has_key(l:hl, 'UserHashTag')
+        highlight UserHashTag ctermbg=grey guibg=grey
+    endif
+
+    " for URIs at top level, with syntax highlighting and not matchadd()
+    if !has_key(l:hl, 'UserHttpURI')
+        highlight! default link UserHttpURI Normal
+    endif
+
+    " __UNIWS__; this isn't something we want to put in a colorscheme override
+    " file, maybe - unless we work with a red background. blinking would have
+    " been nice, if hi start/stop worked everywhere.
+    if !has_key(l:hl, 'UserUnicodeWhitespace')
+        highlight UserUnicodeWhitespace term=standout ctermbg=red guibg=orange
     endif
 
     " UserHttpURI: if using non-syntax matches (matchadd/UserMatchAdd), define
     " a ctermbg to hide spell errors. f.ex. ctermbg=255 guibg=bg
-
 endfunction
 
 
@@ -1821,10 +1837,6 @@ function! UserSafeUIHighlights()
         highlight Visual        term=reverse cterm=reverse ctermbg=NONE
     endif
 
-    highlight SpellCap      NONE
-    highlight SpellLocal    NONE
-    " decriminalise rare words
-    highlight SpellRare     NONE
     if UserCO(g:u.coflags.spell)
         " we'll set our own later
         highlight SpellBad      NONE
@@ -1973,17 +1985,61 @@ function! UserColours()
     " vimrc as long as we depend on another external file (the colorscheme)
     " anyway.
 
-    call UserCustomSyntaxHighlights()
+    " vim spell isn't worth suffering this much over.
+    highlight clear SpellCap
+    highlight clear SpellLocal
+    " decriminalise rare words
+    highlight clear SpellRare
+
+    " define the highlight groups for our custom syntax items. these will get
+    " cleared on colorscheme changes etc.
+    call UserDefineSyntaxHighlightGroups()
 endfunction
 
 
-" reason for syntax clear - syntax match is additive, and there's no good way
-" (short of running :syntax list and capturing the output) to see if syntax
-" rules are present. synIDattr() works as long as highlight groups are defined.
+let g:UserCustomSynHash = { 'UserTrailingWhitespace': 1,
+            \ 'UserUnicodeWhitespace': 1,
+            \ 'UserDateComment': 1,
+            \ 'UserHashTag': 1,
+            \ 'UserHttpURI': 1 }
+
+" define custom syntax items for things we want highlighted.
+"
+" we want these to run even when syntax highlighting is globally off.
 function! UserApplySyntaxRules()
     call UserLog('UserApplySyntaxRules enter win', winnr())
 
-    " to match only using
+    " no good way to check if just a syntax item's defined (hlID/hlexists pass
+    " for either syntax item or highlight group). and execute()'s rather new.
+    "
+    " :filter doesn't work either - i.e. :filter /^User/ syntax list doesn't
+    " exclude anything.
+    "
+    " we don't want to be too smart and keep any buffer-local var for this -
+    " syntax items can get invalidated due to reasons like colorscheme
+    " changes.
+
+    let l:syn = {}
+    for l:ln in split(UserRun('silent syntax list'), "\n")
+        let l:matchresult = matchstr(l:ln, '^User\w\+')
+        if l:matchresult !=# ''
+            let l:syn[l:matchresult] = 1
+        endif
+    endfor
+
+    if len(l:syn) != 0 && l:syn == g:UserCustomSynHash
+        " everything's already defined
+        return
+    endif
+
+    " some or none of our custom syntax items are defined. clear and define
+    " all of them.
+    "
+    " reason for syntax clear <name>: syntax item definitions are always
+    " additive.
+    "
+    " we could wrap each of the definitions in an if has_key...
+
     syntax clear UserTrailingWhitespace
     syntax match UserTrailingWhitespace /\s\+$/
         \ display oneline containedin=ALLBUT,UserTrailingWhitespace
@@ -2006,7 +2062,6 @@ function! UserApplySyntaxRules()
                 \ . ' UserUnicodeWhitespace'
                 \ . ' /' . UserGetUnicodeWhitespaceRegexp() . '/'
                 \ . ' display oneline containedin=ALLBUT,UserUnicodeWhitespace'
-
     syntax clear UserUnicodeWhitespace
     execute l:expr_synmatch_uniws
 
@@ -3487,7 +3542,9 @@ command -bar ShowBreak       let &showbreak = g:u.showbreak_char
 command -bar NoShowBreak     set showbreak=
 
 
-" helper for when a 'syntax off' -> 'syntax enable' wipes out our rules.
+" helper for when a 'syntax off' -> 'syntax enable' wipes out our rules. and,
+" we want our syntax rules enabled even in empty buffers or plain text files,
+" where the Syntax autocommand won't fire.
 command -bar Syn            syntax enable | call UserApplySyntaxRules()
 command -bar SynSync        syntax sync fromstart
 " remember: https://vimhelp.org/usr_44.txt.html#44.10
@@ -3880,21 +3937,6 @@ augroup UserVimRcSyntax
 
     " on colourscheme load/change, apply our colours, overriding the scheme.
     autocmd ColorScheme *       call UserColours()
-
-    if exists('##OptionSet')
-
-        " quick hack - if 'background' changes after vim's finished loading,
-        " reload our highlights. not needed for gvim, helps with places
-        " where we don't have a colorscheme - no colorscheme loaded -> the
-        " ColorScheme autocmd won't fire.
-
-        autocmd OptionSet background
-                    \
-                    \ if has_key(g:u, 'user_colours_last_bg')
-                    \   && (v:option_new !=# g:u.user_colours_last_bg)
-                    \ |     noautocmd call UserCustomSyntaxHighlights()
-                    \ | endif
-    endif
 augroup end
 
 
