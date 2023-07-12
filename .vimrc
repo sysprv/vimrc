@@ -359,10 +359,9 @@ endif
 
 " important for UserDateComment (language time)
 if has('win64')
-    language messages   en
-    language ctype      C
-    language time       en-US
-    language collate    en-US
+    language en
+    " no idea what'll happen here; ctype C.utf8 fails on windows 11, E197.
+    language ctype en.utf8
 endif
 
 
