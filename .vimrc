@@ -1,4 +1,5 @@
-" Last-Modified: 2023-07-01T17:47:37.470572855+00:00
+" Last-Modified: 2023-07-12T15:11:48.840193168+00:00
+" vim:tw=80 fo=croq noml:
 set nocompatible
 if version < 704
     nnoremap    s   <C-w>
@@ -11,6 +12,12 @@ set secure encoding=utf-8 fileencoding=utf-8 nobomb
 scriptencoding utf-8        " must go after 'encoding'
 
 " Change log:
+"
+" 2023-07-11 Change custome highlight and syntax definition to check for their
+" existence in a more robust way. Change 'completeopt' to tell auto completion
+" to not insert anything by default. Windows language settings - do less.
+" Colorscheme overriding - reinstate SpellCap/SpellLocal/SpellRare
+" destagmatization.
 "
 " 2023-07-01 Color schemes and term backgrounds. Move from Lucius to Iceberg.
 "
@@ -3997,8 +4004,3 @@ call UserLoadColors()
 call s:setupClipboard()
 
 " ~ fini ~
-
-" maybe warn if &encoding / &termencoding are not utf-8;
-
-" vim:cc=80 fo=croq:
-
