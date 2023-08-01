@@ -365,7 +365,7 @@ endif
 
 
 " important for UserDateComment (language time)
-if has('win64')
+if has('win32')
     language en
     " no idea what'll happen here; ctype C.utf8 fails on windows 11, E197.
     language ctype en.utf8
@@ -1920,9 +1920,9 @@ endfunction
 function! UserSetGuiFont()
     if has('linux') && has('gui_gtk')
         let &guifont = 'Iosevka Fixed Slab 11'
-    elseif has('win64')
+    elseif has('win32')
         " default cANSI:qDRAFT
-        set guifont=Iosevka_Fixed_Slab:h11:cDEFAULT:qCLEARTYPE
+        set guifont=Iosevka_Fixed_Slab:h11
         set guifont+=Cascadia_Mono:h11
         set guifont+=Consolas:h11
         " more cleartype; no hidpi here.
