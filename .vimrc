@@ -3507,6 +3507,8 @@ command -bar Proper  setlocal softtabstop=8 shiftwidth=8 noexpandtab
 command -bar Lousy   setlocal softtabstop=4 shiftwidth=4 expandtab
 " for lisps
 command -bar Lisp    setlocal softtabstop=2 shiftwidth=2 expandtab
+" shift by 4 spaces, with hard tabs
+command -bar T4x4    setlocal softtabstop=4 shiftwidth=4 noexpandtab
 
 " rtfm'ed - :retab! uses % as the range by default.
 
@@ -3528,8 +3530,8 @@ function! UserWr()
     endif
     setlocal spell
     FoText
-    " 4-denting
-    Lousy
+    " 4-denting + hard tabs
+    T4x4
 endfunction
 
 command -bar Wr      call UserWr()
@@ -3851,7 +3853,7 @@ augroup UserVimRc
     autocmd FileType        c,conf,bash,go,sh,zsh   Proper
     "autocmd FileType        c,bash,go,sh,zsh        ListHideTab
     " 2023-04-17 became a 4-denter
-    autocmd FileType        text                    Lousy
+    autocmd FileType        text                    T4x4
         \ | setlocal linebreak nonumber
     autocmd FileType        perl,python,vim         Lousy
     autocmd FileType        ruby,eruby              Lousy
