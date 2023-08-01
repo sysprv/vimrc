@@ -3914,6 +3914,8 @@ augroup UserVimRc
     "
     " xterm -tn xterm-256color -fg white -bg black (no COLORFGBG)
     "
+    " xterm -tn xterm-direct -fg white -bg black (no COLORFGBG, truecolor)
+    "
     " dark VTE terminal (sakura) with both COLORFGBG and COLORTERM
 
     if exists('##OptionSet')
