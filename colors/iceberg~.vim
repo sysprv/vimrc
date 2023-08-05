@@ -41,6 +41,10 @@ function! ColorOverrideIceberg() abort
         highlight UserTrailingWhitespace    ctermbg=254     guibg=grey91
     else
         " background ==# 'dark'
+
+        " don't like the dark blue of iceberg
+        highlight Normal guibg=#000000
+
         if UserCO(g:u.coflags.stat)
             highlight StatusLine ctermfg=0 ctermbg=152 cterm=NONE guifg=#000000 guibg=#b0e0e6 gui=NONE
             highlight StatusLineNC ctermfg=15 ctermbg=60 cterm=NONE guifg=fg guibg=#5a4f74 gui=NONE
@@ -56,7 +60,7 @@ function! ColorOverrideIceberg() abort
             highlight SpecialKey ctermfg=214 ctermbg=235 guifg=orange guibg=#1e2132
             " TODO Visual?
         endif
-        highlight UserDateComment ctermfg=246 guifg=grey70 guibg=darkslategrey gui=italic
+        highlight UserDateComment ctermfg=246 guifg=grey70 guibg=#1e2132 gui=italic
         highlight UserHashTag ctermbg=24 guibg=#005f5f
         " trailing whitespace same as SpellBad
         highlight UserTrailingWhitespace    ctermbg=235     guibg=grey25
