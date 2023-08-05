@@ -1,4 +1,4 @@
-" Last-Modified: 2023-07-12T15:11:48.840193168+00:00
+" Last-Modified: 2023-08-05T20:08:56.784621213+00:00
 " vim:tw=80 fo=croq noml:
 set nocompatible
 if version < 704
@@ -12,6 +12,8 @@ set secure encoding=utf-8 fileencoding=utf-8 nobomb
 scriptencoding utf-8        " must go after 'encoding'
 
 " Change log:
+"
+" 2023-08-05 RIP Bram
 "
 " 2023-07-11 Change custome highlight and syntax definition to check for their
 " existence in a more robust way. Change 'completeopt' to tell auto completion
