@@ -46,9 +46,10 @@ function! ColorOverrideIceberg() abort
         highlight Normal guibg=#000000
 
         if UserCO(g:u.coflags.stat)
-            highlight StatusLine ctermfg=0 ctermbg=152 cterm=NONE guifg=#000000 guibg=#b0e0e6 gui=NONE
-            highlight StatusLineNC ctermfg=15 ctermbg=60 cterm=NONE guifg=fg guibg=#5a4f74 gui=NONE
-            highlight VertSplit ctermfg=60 ctermbg=60 cterm=NONE guifg=#5a4f74 guibg=#5a4f74 gui=NONE
+            " amber: #fc9505
+            highlight StatusLine ctermfg=NONE ctermbg=0 cterm=NONE guifg=fg guibg=#000000 gui=NONE
+            highlight StatusLineNC ctermfg=NONE ctermbg=52 cterm=NONE guifg=grey75 guibg=firebrick4 gui=NONE
+            highlight VertSplit ctermfg=52 ctermbg=52 cterm=NONE guifg=firebrick4 guibg=firebrick4 gui=NONE
         endif
         if UserCO(g:u.coflags.spell)
             highlight SpellBad term=NONE ctermfg=NONE ctermbg=235 cterm=NONE guifg=fg guibg=grey25 gui=NONE guisp=NONE
