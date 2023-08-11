@@ -484,8 +484,6 @@ set backup backupdir^=~/.backup
 " global.
 let g:u.backup_dir = &backupdir
 
-" backupskip is a list of patterns - beware of ignorecase.
-set backupskip+=NOTES-*.txt
 
 function! UserMkdirOnce(dir)
     if a:dir == '.'
@@ -510,13 +508,12 @@ if has('unix') || has('win32')
         let &directory = g:u.swap_dir . '//'
     endif
 endif
-set swapfile updatecount=10
+set swapfile updatecount=10 updatetime=2666
 " to see current swap file path: ':sw[apname]' / swapname('%')
 
 " it's great that vim can undo more, but i can't remember that much history.
-set undolevels=20
+"set undolevels=20
 
-" few undo levels, might as well persist if possible.
 if has('persistent_undo')
     call UserMkdirOnce(g:u.undo_dir)
     let &undodir = g:u.undo_dir
