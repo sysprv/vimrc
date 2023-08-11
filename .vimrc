@@ -2740,17 +2740,13 @@ cnoremap    <C-e>       <End>
 
 " map backspace to turn hlsearch off; from Damian Conway.
 "nnoremap    <BS>   :nohlsearch<cr>
-" can also set v:hlsearch = 0
-if exists('v:hlsearch')
-    nnoremap    <silent>    <BS>    :if v:hlsearch <bar>
-                                    \ nohlsearch <bar>
-                                    \ endif<cr>
-                                    \<BS>
-else
-    nnoremap    <silent>    <BS>    :nohlsearch<cr><BS>
-endif
+" can also let v:hlsearch = 0; <C-u> to erase line range (count in command
+" mode); "\b" is <bs>; all this to get a mapping that supports a count, that
+" won't complain about E481; unsure why "\<bs>" doesn't work here - exe normal
+" in command mode through mapping?
+nnoremap    <silent> <bs>   :<C-u>nohls <bar> exe "normal!" v:count1 . "\b"<cr>
 
-xnoremap    <BS>    x
+xnoremap    <bs>    x
 
 
 " 2022-02-14 from defaults.vim - delete to beginning, with undo
