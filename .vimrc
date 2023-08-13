@@ -3208,7 +3208,7 @@ function! UserUrlPasteMunge()
         normal! l
 
         " if the url's for a tweet, erase the query parameters.
-        if search('\vtwitter\.com\/\w+\/status\/\d+\?', 'bn', line('.')) == line('.')
+        if search('\v//%(x|twitter)\.com/\w+/status/\d+\?', 'bn', line('.')) == line('.')
             " to the black hole register, delete backwards until (including) ?
             " but excluding what the cursor was on.
             normal! "_dF?
