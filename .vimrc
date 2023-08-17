@@ -1,4 +1,4 @@
-" Last-Modified: 2023-08-11T00:02:13.720037307+00:00
+" Last-Modified: 2023-08-16T17:16:53.599985355+00:00
 " vim:tw=80 fo=croq noml:
 set nocompatible
 if version < 704
@@ -2096,22 +2096,45 @@ function! UserApplySyntaxRules()
     syntax match UserHashTag /\v✚'%([^✚'\\]|\\.){-1,30}'/
         \ display oneline containedin=ALLBUT,UserHashTag
 
-    " make URIs effectively invisible; if contained, highlight like the
+    " make URIs effectively transparent; if contained, highlight like the
     " container. if at toplevel, highlight like the Normal hl group.
     " see hl definition of UserHttpURI.
+    "
     " canary:
     "https://web.archive.org/web/20010301154434/http://www.vim.org/"
     if 0
         https://web.archive.org/web/20010301154434/http://www.vim.org/
     endif
     syntax clear UserHttpURI
+
+    " < (\v<) - match at beginning of word; help /\<
+    "
+    " > - match at end of word; help /\>
+    "
+    " this regexp isn't universal; it's important to not include quote chars
+    " (", ' even though it's allowed in STD 66, browsers seem to pctencode
+    " it), to prevent syntax highlighting from breaking.
+    "
+    " pchar / sub-delims / ispunct() / [:punct:] might be:
+    "
+    "   !"#$%&'()*+,-./:;<=>?@[\]^_`{|}~
+    "
+    " parens/brackets are common in query strings, but i don't need them in my
+    " files often. so: !#$%&*+,\-\./:;<=>?@^_~
+    "
+    " 2023-08-16 consider turning the whole thing off. spell checking is not
+    " extremely helpful (we attenuate the colour anyway). synmaxcol applies
+    " to the rules below but doesn't apply for spell checking (SpellBad
+    " highlighting happens beyond synmaxcol).
+
+    let l:uri_re = '\v<https?://\w[-\.[:alnum:]]*\w%(:\d+)?%(/[-\.[:alnum:]_~%:/]*)?%(\?[[:alnum:]!#$%&*+,\-\./:;<=>?@^_~]*)?%(#[[:alnum:]!#$%&*+,\-\./:;<=>?@^_~]*)?>'
+    " with delimiters for syntax match:
+    let l:s = '=' . l:uri_re . '='
+
     " toplevel:
-    syntax match UserHttpURI =\v<https?://\S+= contains=@NoSpell
-    " contained:
-    syntax match UserHttpURI =\v<https?://\S+=
-                \ transparent contained
-                \ containedin=ALLBUT,UserHttpURI
-                \ contains=@NoSpell
+    execute 'syntax match UserHttpURI' l:s 'contains=@NoSpell'
+    " contained in other syntax matches:
+    execute 'syntax match UserHttpURI' l:s 'transparent contained containedin=ALLBUT,UserHttpURI contains=@NoSpell'
 endfunction
 
 
