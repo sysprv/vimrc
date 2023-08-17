@@ -3448,6 +3448,10 @@ nnoremap    <silent> <Leader>n   :call UserLineNumberSwitch()<cr>
 " nosleep
 nnoremap    gs      <nop>
 
+" demo - for searching with strings with f.ex. many forward slashes;
+" use :g with a non-/ delimiter, and : (null ex command).
+nnoremap    <Leader>/   :global ==:<Left><Left>
+
 " -- ~ eof-map ~ end of most mapping definitions
 
 
