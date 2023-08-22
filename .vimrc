@@ -1,4 +1,4 @@
-" Last-Modified: 2023-08-16T17:16:53.599985355+00:00
+" Last-Modified: 2023-08-22T18:19:47.558496729+00:00
 " vim:tw=80 fo=croq noml:
 set nocompatible
 if version < 704
@@ -528,22 +528,12 @@ endif
 " mapleader is a variable, not a setting; no &-prefix
 let g:mapleader = ','
 
-" "f", "w" are nice, so not adding "a". "s" ('terse') and "S" are also useful.
-"
-" vim's generally helpless in the face of long file names. important to maintain
-" a good cwd, to not get the noisy hit ENTER prompts.
-set shortmess+=i
-set shortmess+=l
-set shortmess+=m
-set shortmess+=n
-set shortmess+=r
-set shortmess+=x
-set shortmess+=o    " since we use 'autowriteall'
-set shortmess+=W    " don't show "written"/"[w]"
-set shortmess+=I    " hide intro
-if has('patch-7.4.314')
-    set shortmess+=c    " hide ins-complete-menu messages
-endif
+" shortmess: f, w are nice, so not adding a. s (terse) and S are also useful.
+" vim's generally helpless in the face of long file names.
+
+set shortmess+=ilmnrxoOWI
+silent! set shortmess+=c        " hide ins-complete-menu messages
+silent! set shortmess+=F        " show no file info when editing a file
 
 " a little like :behave mswin, but not all the way. think DOS EDIT.COM.
 " set keymodel=startsel selectmode=mouse,key
@@ -552,10 +542,16 @@ set selectmode= keymodel=
 
 " laststatus: 0 = never, 1 = show if multiple splits, 2 = always.
 "
-" 2023-02-15 laststatus 1 seems a bit buggy with current gvim; on split +
-" statusline drawing, command line height becomes too much.
+" 2023-08-22 gvim bug: on laststatus=1, C-w f (open
+" filename under cursor in split), if the origin window had winfixheight, after
+" splitting, the command window size can become 2 high, can go to 0
+" on more splits of the new split, the option cmdheight can go to 2 if cmdheight
+" was set to 1 in vimrc, otherwise the cmdheight option stays at 1 while the
+" command window size goes to whatever.
+"
+" probably winfixheight wasn't meant to be in a modeline.
 
-set laststatus=2
+set laststatus=1
 
 " disabling 'ruler' makes 3<C-g> print more info.
 set ruler rulerformat=%=%M\ %{g:u.mark}
@@ -599,16 +595,12 @@ if v:version < 802
     " newer vims set this to 'truncate' and that's fine.
     set display+=lastline
 endif
-" use number column for wrapped lines, including showbreak char
-set cpoptions+=n
-set cpoptions-=a
-set cpoptions-=A
+
+set cpoptions-=A        " don't modify alternate filename on :w <fn>
 
 set scrolloff=0
-
 " scrolljump is efficient but jarring.
 "set scrolljump=5
-set cmdheight=1
 
 "set confirm
 set autoread autowrite autowriteall
@@ -650,10 +642,11 @@ set history=200
 
 " helps with navigating to a line of interest with <no>j and <no>k,
 " but also takes up a lot of space.
-" see: cursorlineopt=number, 'signcolumn'
-set number
+" see: cursorlineopt=number, 'signcolumn'.
+"
+" 2023-08-20 hate curswant zig zagging when browsing vertically.
+set number relativenumber
 set list
-"set relativenumber
 
 " but never newtab; maybe split.
 set switchbuf=useopen,usetab
@@ -679,8 +672,7 @@ endif
 
 
 if v:version >= 801
-    set completeopt+=noinsert
-    set completeopt+=noselect
+    set completeopt=menu,menuone,preview,noinsert,noselect
 endif
 " contemporary
 if v:version >= 900
@@ -1031,6 +1023,7 @@ function! UserSetupFillchars()
         "
         " 2022-09-04 on ultrawide monitors with slow VMware graphics, stl/stlnc
         " can cause windows gvim to crash.
+        " 2023-08-21 still there :) 352 columns good, 353 columns bad.
         if 0 && has('patch-8.2.2569') && UserCanLoadColorscheme()
             " BOX DRAWINGS LIGHT HORIZONTAL
             let l:hrz = nr2char(0x2500)
@@ -1929,10 +1922,11 @@ function! UserSetGuiFont()
         set guifont=Iosevka_Fixed_Slab:h11
         set guifont+=Cascadia_Mono:h11
         set guifont+=Consolas:h11
-        " more cleartype; no hidpi here.
-        " 2023-03-02 have hidpi now.
+        " more cleartype; no hidpi here
+        " 2023-03-02 have hidpi now
         " 2023-07-09 not everywhere (ultrawide at work)
-        set renderoptions=type:directx,taamode:1
+        " 2023-08-20 very slow on vmware vdi
+        "set renderoptions=type:directx,taamode:1
     elseif has('ios')
         " iVim, iPhone
         set guifont=Menlo:h11.0
@@ -3881,9 +3875,10 @@ augroup UserVimRc
     autocmd BufNewFile,BufReadPost  /etc/*          Proper
     autocmd FileType        c,conf,bash,go,sh,zsh   Proper
     "autocmd FileType        c,bash,go,sh,zsh        ListHideTab
+
     " 2023-04-17 became a 4-denter
     autocmd FileType        text                    T4x4
-        \ | setlocal linebreak nonumber
+
     autocmd FileType        perl,python,vim         Lousy
     autocmd FileType        ruby,eruby              Lousy
     autocmd FileType        javascript,json         Lousy
