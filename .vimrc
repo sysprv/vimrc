@@ -13,6 +13,9 @@ scriptencoding utf-8        " must go after 'encoding'
 
 " Change log:
 "
+" 2023-08-19 When pasting from the clipboard, always detour through another
+" register in characterwise mode. Never pasting in linewise mode, even in gvim.
+"
 " 2023-08-11 Change <bs> nohlsearch mapping to support a count for <bs>
 "
 " 2023-08-05 RIP Bram
@@ -2892,6 +2895,7 @@ function! UserGetCbReg(src)
     let l:src_reg = '+'
     let l:src_cmd = '/usr/bin/xsel -b -o'
     let l:result = { 'status': -1 }
+    let l:bounce_reg = 'w'
 
     if a:src ==# 'PRIMARY'
         let l:src_reg = '*'
@@ -2899,7 +2903,18 @@ function! UserGetCbReg(src)
     endif
 
     if g:u.has_cb_builtin
-        let l:result = { 'reg': l:src_reg, 'status': 0 }
+
+        " 2023-08-18 never use line mode; when pasting data from other
+        " applications through the clipboard into vim in insert mode, putting
+        " it above the current line is very annoying.
+        "
+        " instead of setting + again to change the mode from line to char, we
+        " pass it through a different register.
+        "
+        " too bad pasting's so complicated.
+
+        call setreg(l:bounce_reg, getreg(l:src_reg), 'v')
+        let l:result = { 'reg': l:bounce_reg, 'status': 0 }
     elseif g:u.has_cb_tty
         silent let l:clp = system(l:src_cmd)
         if v:shell_error
@@ -2910,9 +2925,8 @@ function! UserGetCbReg(src)
             let l:result = { 'status': -2 }
         else
             " put into a register + return register name
-            let l:dest_reg = 'u'
-            call setreg(l:dest_reg, l:clp)
-            let l:result = { 'reg': l:dest_reg, 'status': 0 }
+            call setreg(l:bounce_reg, l:clp, 'v')
+            let l:result = { 'reg': l:bounce_reg, 'status': 0 }
         endif
     else
         echohl Error
@@ -2992,7 +3006,8 @@ function! UserReadCbRetExpr(src)
     " but we have it, should use it anyway.
     "
     " the following makes an expression like: ""gP
-    return '"' . l:reg.reg . UserPasteExpr()
+    let l:expr = '"' . l:reg.reg . UserPasteExpr()
+    return l:expr
 endfunction
 
 
@@ -3011,27 +3026,38 @@ endfunction
 " <C-r><C-r><reg, no=> is done, the newlines seem interpreted, escaping other
 " control codes as <C-r><C-r> should do.
 
-" gui vim any platform, or win32 including console
-if g:u.has_cb_builtin
+" normal mode paste
+nnoremap    <expr>  <Leader>yp  UserReadCbRetExpr('PRIMARY')
+nnoremap    <expr>  <Leader>xp  UserReadCbRetExpr('CLIPBOARD')
 
-    " use gp/gP directly, with @* / @+ without bouncing through any other
-    " register. needs 'clipboard' to be set properly.
+" insert mode paste
+inoremap    <expr>  <Leader>yp  "\<C-\>\<C-o>" . UserReadCbRetExpr('PRIMARY')
+inoremap    <expr>  <Leader>xp  "\<C-\>\<C-o>" . UserReadCbRetExpr('CLIPBOARD')
 
-    nnoremap    <expr>  <Leader>yp      "\"*" . UserPasteExpr()
-    nnoremap    <expr>  <Leader>xp      "\"+" . UserPasteExpr()
+" visual mode paste, useful for replacing the current visual selection with
+" what's in the clipboard. "-c - cut selection to small delete register and go
+" to insert mode.
 
-    command!    RDPR    put *
-    command!    RDCB    put +
+" !! beware clipboard autoselect/guioption a (go-a) and [other copy/visual
+" selection start] order, as vim clipboard grabbing can overwrite the copied
+" data.  1. start visual selection, 2. copy from other app, 3. paste in vim
+" works.
 
-    inoremap    <expr>  <Leader>yp      "\<C-\>\<C-o>\"*" . UserPasteExpr()
-    inoremap    <expr>  <Leader>xp      "\<C-\>\<C-o>\"+" . UserPasteExpr()
+xmap                <Leader>yp      "-c<Leader>yp<Esc>
+xmap                <Leader>xp      "-c<Leader>xp<Esc>
 
-    xmap                <Leader>yp      "-c<Leader>yp<Esc>
-    xmap                <Leader>xp      "-c<Leader>xp<Esc>
+" command mode paste - dangerous, but tty mappings and <C-r>+ etc.
+" work anyway. defined for completeness and consistency.
+"
+" cannot be a silent mapping.
+"
+" literal insert - doc: c_CTRL-R_CTRL-R
 
-    " doc: i_CTRL-R_CTRL-R -- literal insert
-    cnoremap    <Leader>yp                  <C-r><C-r>*
-    cnoremap    <Leader>xp                  <C-r><C-r>+
+cnoremap <expr> <Leader>yp "\<C-r>\<C-r>" . UserGetCbReg('PRIMARY').reg
+cnoremap <expr> <Leader>xp "\<C-r>\<C-r>" . UserGetCbReg('SECONDARY').reg
+
+
+if has('gui_running')
 
     " paste in gui mode with <C-[S-]v>.
 
@@ -3052,53 +3078,30 @@ if g:u.has_cb_builtin
     " just have to stick with ,xp, get used to C-q (emacs quoted-insert),
     " keeping xon/xoff flow control in mind.
 
-    if has('gui_running')
-        nmap    <S-Insert>  <Leader>xp
-        xmap    <S-Insert>  <Leader>xp
-        imap    <S-Insert>  <Leader>xp
-        cmap    <S-Insert>  <Leader>xp
-        nmap    <S-kInsert>  <Leader>xp
-        xmap    <S-kInsert>  <Leader>xp
-        imap    <S-kInsert>  <Leader>xp
-        cmap    <S-kInsert>  <Leader>xp
-        nmap    <C-S-v>     <Leader>xp
-        xmap    <C-S-v>     <Leader>xp
-        imap    <C-S-v>     <Leader>xp
-        cmap    <C-S-v>     <Leader>xp
-    endif
+
+    nmap    <S-Insert>  <Leader>xp
+    xmap    <S-Insert>  <Leader>xp
+    imap    <S-Insert>  <Leader>xp
+    cmap    <S-Insert>  <Leader>xp
+    nmap    <S-kInsert>  <Leader>xp
+    xmap    <S-kInsert>  <Leader>xp
+    imap    <S-kInsert>  <Leader>xp
+    cmap    <S-kInsert>  <Leader>xp
+    nmap    <C-S-v>     <Leader>xp
+    xmap    <C-S-v>     <Leader>xp
+    imap    <C-S-v>     <Leader>xp
+    cmap    <C-S-v>     <Leader>xp
+endif
+
+" gui vim any platform, or win32 including console
+if g:u.has_cb_builtin
+    " linewise read from PRIMARY/CLIPBOARD - without bouncing through another
+    " register
+    command!    RDPR    put *
+    command!    RDCB    put +
 elseif g:u.has_cb_tty
-
-    " ttys and bracketed paste cover this well...
-    nnoremap    <expr>  <Leader>yp  UserReadCbRetExpr('PRIMARY')
-    nnoremap    <expr>  <Leader>xp  UserReadCbRetExpr('CLIPBOARD')
-
     command     RDPR    execute 'put' UserGetCbReg('PRIMARY').reg
     command     RDCB    execute 'put' UserGetCbReg('CLIPBOARD').reg
-
-    inoremap    <expr>  <Leader>yp  "\<C-\>\<C-o>" . UserReadCbRetExpr('PRIMARY')
-    inoremap    <expr>  <Leader>xp  "\<C-\>\<C-o>" . UserReadCbRetExpr('CLIPBOARD')
-
-    " visual mode, useful for replacing the current visual selection with
-    " what's in the clipboard. "-c - cut selection to small delete register
-    " and go to insert mode
-    "
-
-    xmap                <Leader>yp  "-c<Leader>yp<Esc>
-    xmap                <Leader>xp  "-c<Leader>xp<Esc>
-
-    " !! beware clipboard autoselect/guioption a (go-a) and [other copy/visual
-    " selection start] order, as vim clipboard grabbing can overwrite the
-    " copied data.  1. start visual selection, 2. copy from other app, 3.
-    " paste in vim works.
-
-    " dangerous, but tty mappings and <C-r>+ etc. work anyway. defined for
-    " completeness and consistency.
-    "
-    " cannot be a silent mapping.
-    "
-    " literal insert - doc: c_CTRL-R_CTRL-R
-    cnoremap <expr> <Leader>yp "\<C-r>\<C-r>" . UserGetCbReg('PRIMARY').reg
-    cnoremap <expr> <Leader>xp "\<C-r>\<C-r>" . UserGetCbReg('SECONDARY').reg
 else
     nnoremap    <expr>  <Leader>xp      UserPasteExpr()
     inoremap    <expr>  <Leader>xp      "\<C-\>\<C-o>" . UserPasteExpr()
@@ -3139,7 +3142,9 @@ if g:u.has_cb_builtin
         cmap    <C-kInsert>  <Leader>xc
         nmap    <C-S-c>     <Leader>xc
         xmap    <C-S-c>     <Leader>xc
-        " no C-c / C-S-c for the command line
+
+        " no C-c / C-S-c for the command window.
+
     endif
 elseif g:u.has_cb_tty
 
