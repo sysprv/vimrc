@@ -3312,19 +3312,23 @@ endfunction
 "
 " U+FF62, U+FF63 - halfwidth corner brackets; used by raku.
 " U+2118 - Weierstrass P https://en.wikipedia.org/wiki/Weierstrass_elliptic_function
+" U+238D - Monostable symbol from Miscellaneous Technical
 "
 " 0x1F7A3 MEDIUM GREEK CROSS - too many bytes, not widely available in fonts
+
 let Symbols = {
-    \ 'lozenge':        nr2char(0x25CA)
+    \ 'silcrow':        nr2char(0xA7)
+    \ ,'not':           nr2char(0xAC)
     \ ,'interpunct':    nr2char(0xB7)
-    \ ,'em dash':       nr2char(0x2014)
     \ ,'en dash':       nr2char(0x2013)
+    \ ,'em dash':       nr2char(0x2014)
     \ ,'dagger':        nr2char(0x2020)
-    \ ,'greek cross, heavy': nr2char(0x271A)
-    \ ,'brkt left corner': nr2char(0xFF62)
-    \ ,'brkt right corner': nr2char(0xFF63)
-    \ ,'silcrow':       nr2char(0xA7)
-    \ ,'bourbaki bend': nr2char(0x2621)
+    \ ,'angzarr':       nr2char(0x237C)
+    \ ,'lozenge':       nr2char(0x25CA)
+    \ ,'bourbaki bend':         nr2char(0x2621)
+    \ ,'greek cross, heavy':    nr2char(0x271A)
+    \ ,'brkt left corner':      nr2char(0xFF62)
+    \ ,'brkt right corner':     nr2char(0xFF63)
     \ }
 lockvar Symbols
 
@@ -3332,6 +3336,7 @@ inoremap <expr> <Leader>ip      Symbols['interpunct']
 inoremap <expr> <Leader>lz      Symbols['lozenge']
 inoremap <expr> <Leader>dg      Symbols['dagger']
 inoremap <expr> <Leader>sc      Symbols['silcrow']
+inoremap <expr> <Leader>nt      Symbols['not']
 " 2022-08-26
 inoremap <expr> <Leader>mm      Symbols['em dash']
 inoremap <expr> <Leader>nn      Symbols['en dash']
