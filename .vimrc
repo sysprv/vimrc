@@ -1,4 +1,4 @@
-" Last-Modified: 2023-08-22T18:19:47.558496729+00:00
+" Last-Modified: 2023-08-29T12:00:39.269065883+00:00
 " vim:tw=80 fo=croq noml:
 set nocompatible
 if version < 704
@@ -613,14 +613,6 @@ if exists('&modelineexpr')
     set nomodelineexpr
 endif
 
-set wildmenu
-" don't complete until unique (be like default bash behaviour)
-set wildmode=list:longest,list
-set wildignorecase
-" don't complete swap, undo files and others.
-set wildignore+=.*.swp,.*.un~,*.pyc
-set suffixes+=.pyc
-
 " viminfo: don't save registers.
 set viminfo='100,<0,s0,h,r/tmp
 if exists('$TMPDIR') && ($TMPDIR !=# '/tmp')
@@ -662,14 +654,41 @@ if has('folding')
     set foldclose=
 endif
 
+" -- buffer switching
+"
+" Trying out a mapping to show buffers quickly and unobtrusively.
+" https://stackoverflow.com/a/16084326 https://github.com/Raimondi/vim-buffalo
+" The <space> after :b allows wildmenu to come into play easily.
+"
+" NB: can't be a silent mapping.
+"
+" used to use '+', but turns out it's somewhat useful.
+nnoremap    K           :ls!<cr>:b<space>
 
+
+" don't complete until unique (like default bash behaviour)
+set wildmode=list:longest,list
+set wildmenu
+" don't complete swap, undo files and others.
+set wildignore+=.*.swp,.*.un~,*.pyc
+set suffixes+=.pyc
 if v:version >= 801
     set completeopt=menu,menuone,preview,noinsert,noselect
 endif
 " contemporary
 if v:version >= 900
     " display completion matches in a popup menu
-    set wildoptions=pum
+    set wildoptions=pum wildmode=longest:full
+    set wildcharm=<tab>     " this seems clunky. but, works.
+
+    " buffer list can be shown in a popup menu. a lot better than having
+    " :ls shift window contents up. requires wildoptions, wildmode full or
+    " longest:full, and wildcharm.
+    "
+    " do :b, <space to prevent vim-command completion and switch to :b arg
+    " completion, <tab> (wildchar_m_) to trigger wildcard expansion popup.
+
+    nnoremap    K   :b<space><tab>
 
     " use NFA regexp engine?
     "set regexpengine=2
@@ -2722,16 +2741,6 @@ nnoremap        <F11>  :sball<cr>
 
 " lots more modes... doc :noremap and doc xterm-function-keys
 
-" buffer switching
-"
-" Trying out a mapping to show buffers quickly and unobtrusively.
-" https://stackoverflow.com/a/16084326 https://github.com/Raimondi/vim-buffalo
-" The <space> after :b allows wildmenu to come into play easily.
-"
-" NB: can't be a silent mapping.
-"
-" used to use '+', but turns out it's somewhat useful.
-nnoremap    K           :ls!<cr>:b<space>
 nnoremap    Q           :bnext<CR>
 
 " alt, the remote protocol:
