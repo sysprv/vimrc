@@ -346,14 +346,6 @@ let g:undotree_WindowLayout = 2
 let g:undotree_ShortIndicators = 1
 let g:undotree_HelpLine = 0
 
-if has('unix') && exists('*exepath')
-    if !empty(exepath('/bin/dash'))
-        set shell=/bin/dash
-    elseif !empty(exepath('/bin/bash'))
-        set shell=/bin/bash
-    endif
-endif
-
 " ripgrep
 "
 " 2022-09-27
@@ -3367,14 +3359,20 @@ nnoremap    <Leader>vf  <C-w>f<C-w>L
 nnoremap    <Leader>se  :let f = expand('<cfile>')<cr><C-w>w:execute('edit ' . f)<cr>
 
 " M.G. - guu/gugu - lower line, u - visual, gu{motion}
+" gu in paragraph
 nnoremap    <Leader>mg      guip
+nnoremap    <Leader>l       guip
+" U for uppercase, u for not-U
+xnoremap    <Leader>mg      u
+xnoremap    <Leader>l       u
 
 " mainly for iVim. the changing of the modified flag in the statusline is
 " indication enough.
 nnoremap    <silent> <Leader>;;      :silent update<cr>
 
 " open the command window with ,f in the command line
-cnoremap    <expr>  <Leader>f    &cedit
+" (the cnoremap's bad if you end up typing ,full etc.)
+"cnoremap    <expr>  <Leader>f    &cedit
 nnoremap            <Leader>f   q:
 
 " doc CTRL-G
@@ -3455,6 +3453,9 @@ nnoremap    gs      <nop>
 " demo - for searching with strings with f.ex. many forward slashes;
 " use :g with a non-/ delimiter, and : (null ex command).
 nnoremap    <Leader>/   :global ==:<Left><Left>
+
+" too dangerous when drunk; just use :undo
+nnoremap    u       <nop>
 
 " -- ~ eof-map ~ end of most mapping definitions
 
