@@ -3670,7 +3670,9 @@ command -bar Stws        call UserStripTrailingWhitespace()
 " new window for scribbling
 " possible alternative - preview windows (:pedit); seems more limited.
 " doc scratch-buffer
-command -bar Scratch new | setlocal buftype=nofile noswapfile | setfiletype text
+command -bar Scratch    new
+            \ | setlocal buftype=nofile bufhidden=hide noswapfile
+            \ | setfiletype text
 
 " pretty-print g:u
 command -bar PrintU Scratch | put =json_encode(g:u) | .! jq --sort-keys .
