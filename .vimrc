@@ -546,9 +546,8 @@ set selectmode= keymodel=
 set laststatus=1
 
 " disabling 'ruler' makes 3<C-g> print more info.
-set ruler rulerformat=%=%M\ %{g:u.mark}
-" would like to disable showmode; but with all the different modes in
-" vim...
+set ruler
+" would like to disable showmode; but with all the different modes in vim...
 set showmode
 " never changing tabstop again
 set tabstop=8 shiftwidth=8 softtabstop=8 noexpandtab
@@ -1130,6 +1129,9 @@ function! UserStLnBufModStatus()
     if &buftype == '' && (!&swapfile || (&updatecount == 0))
         let l:m .= '.!swf'
     endif
+    if &buftype != ''
+        let l:m .= ',bt:' . &buftype
+    endif
     return l:m
 endfunction
 
@@ -1207,7 +1209,11 @@ endfunction
 "
 " current register: %{v:register}
 
-set statusline=%n:%<%{UserStLnBufFlags()}%W%H/%#StatusLineNC#%t%=\ %{g:u.mark}\ "
+set statusline=%n:%<%{UserStLnBufFlags()}%W%H/%#StatusLineNC#%t%=%P\ %{g:u.mark}\ "
+" in case we close all normal windows and end up with something like the preview
+" window as the only window - the ruler should show the same buffer flags as the
+" status line.
+set rulerformat=%=%{UserStLnBufFlags()}\ %{g:u.mark}
 
 " -- enough now.
 
