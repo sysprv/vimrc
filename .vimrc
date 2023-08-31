@@ -2476,6 +2476,66 @@ endfunction
 command -nargs=+ -complete=command Capture call UserSpoolEx(<q-args>)
 
 
+" bufnr() / bufexists() lookup by name isn't great. using [] and fnameescape()
+" is a world of annoyances, so not calling the buffer [Buffer List] like vile.
+"
+" 2023-08-31 empty 'bufhidden' should follow 'hidden', but setting bh seems
+" needed, to prevent scratch buffers from getting saved by mksession.
+
+function! UserPreviewBufferList() abort
+    let l:bn = 'v_buffer_list'
+    let l:lookupname = '^' . l:bn . '$'
+    " if a regular buffer with the same name exists, don't thrash it
+    let l:bufnr = bufnr(l:lookupname)
+    if l:bufnr != -1 && getbufvar(l:bufnr, '&buftype') == ''
+        echohl Error
+        echo "can't modify regular buffer" l:bufnr
+        echohl None
+        return
+    endif
+
+    " would be good if pedit could work with buffer numbers
+    let l:p_opts = '+setlocal\ nobuflisted\ buftype=nofile\ bufhidden=hide\ noswapfile'
+    let l:ls = split(UserRun('ls'), "\n")
+    execute 'pedit' l:p_opts l:bn
+    wincmd P            " switch to preview window
+    if &previewwindow
+        " modify buffer in preview window
+        setlocal modifiable
+        " beware '--No lines in buffer--' message
+        silent %d
+        call append(0, l:ls)
+        setlocal nomodifiable
+        wincmd p        " switch out of preview window
+    endif
+endfunction
+
+command -bar Ls     call UserPreviewBufferList()
+
+
+" something like 'gf' but for any number that might be a buffer number
+function UserGoBufCurs()
+    let l:w = expand('<cword>')
+    if l:w == ''
+        return
+    endif
+    let l:numeric = matchstr(l:w, '\v<[1-9]\d*>')
+    if l:numeric == ''
+        return
+    endif
+    let l:bn = str2nr(l:numeric, 10)
+    if l:bn < 1
+        return
+    endif
+    if !bufexists(l:bn)
+        return
+    endif
+    execute l:bn . 'b'
+endfunction
+
+nnoremap    gb      :call UserGoBufCurs()<cr>
+
+
 " fun little hacks; show things defined by me, from my .vimrc / .gvimrc
 " since these functions use currently loaded data, settings defined
 " in .gvimrc won't be visible when queried under tty vim.
