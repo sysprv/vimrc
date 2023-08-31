@@ -671,9 +671,7 @@ set wildmenu
 " don't complete swap, undo files and others.
 set wildignore+=.*.swp,.*.un~,*.pyc
 set suffixes+=.pyc
-if v:version >= 801
-    set completeopt=menu,menuone,preview,noinsert,noselect
-endif
+
 " contemporary
 if v:version >= 900
     " display completion matches in a popup menu
@@ -683,6 +681,10 @@ if v:version >= 900
     " buffer list can be shown in a popup menu. a lot better than having
     " :ls shift window contents up. requires wildoptions, wildmode full or
     " longest:full, and wildcharm.
+    "
+    " it's a shame that buffer numbers aren't shown/can't be used.
+    " command-completion-custom might have helped, but that doesn't support
+    " returning a dict like 'completefunc'. alt: popup_menu()
     "
     " do :b, <space to prevent vim-command completion and switch to :b arg
     " completion, <tab> (wildchar_m_) to trigger wildcard expansion popup.
@@ -3515,6 +3517,14 @@ function! UserSymComplFn(findstart, base) abort
 endfunction
 
 set completefunc=UserSymComplFn
+
+" completion - only use current buffer, not includes etc.
+set complete=.
+
+set completeopt=menu,menuone    " maybe: popup/preview
+if v:version >= 801
+    set completeopt+=noinsert
+endif
 
 
 " :ownsyntax wipes buffer-local spell options, breaking the basic global->local
