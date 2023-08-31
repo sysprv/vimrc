@@ -1779,8 +1779,7 @@ command -bar NoAutomod  let b:user_noautomod = 1
 " living without command-t, CtrlP etc.
 function! UserOpenIndexFile()
     if filereadable('index')
-        edit index
-        setlocal readonly
+        edit +setlocal\ nomodifiable index
     else
         echom 'no index'
     endif
