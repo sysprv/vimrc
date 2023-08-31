@@ -1,4 +1,4 @@
-" Last-Modified: 2023-08-29T12:00:39.269065883+00:00
+" Last-Modified: 2023-08-31T11:31:15.556104767+00:00
 " vim:tw=80 fo=croq noml:
 set nocompatible
 if version < 704
@@ -12,6 +12,8 @@ set secure encoding=utf-8 fileencoding=utf-8 nobomb
 scriptencoding utf-8        " must go after 'encoding'
 
 " Change log:
+"
+" 2023-08-31 Trying out better ways to list and navigate buffers
 "
 " 2023-08-19 When pasting from the clipboard, always detour through another
 " register in characterwise mode. Never pasting in linewise mode, even in gvim.
