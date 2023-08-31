@@ -1353,24 +1353,39 @@ endfunction
 " sandbox is too strict, prevents useful commands like 'au'. hard to get side
 " effects right with destructive commands. caveat emptor.
 
-function! UserRun(cmd)
-    let l:verbosity = &verbose
-    if l:verbosity != 0
-        set verbose=0
-    endif
-    try
-        redir => l:val
-        silent execute a:cmd
-    finally     " ensure closure; otherwise l:val isn't usable
-        redir END
+if exists('*execute')
+    function! UserRun(cmd)
+        let l:verbosity = &verbose
         if l:verbosity != 0
-            let &verbose = l:verbosity
+            set verbose=0
         endif
-    endtry
-    lockvar l:val
-    return l:val
-endfunction
-
+        try
+            return execute(a:cmd)
+        finally
+            if l:verbosity != 0
+                let &verbosity = l:verbosity
+            endif
+        endtry
+    endfunction
+else
+    function! UserRun(cmd)
+        let l:verbosity = &verbose
+        if l:verbosity != 0
+            set verbose=0
+        endif
+        try
+            redir => l:val
+            silent execute a:cmd
+        finally     " ensure closure; otherwise l:val isn't usable
+            redir END
+            if l:verbosity != 0
+                let &verbose = l:verbosity
+            endif
+        endtry
+        lockvar l:val
+        return l:val
+    endfunction
+endif
 
 " doc popup-usage
 function! UserPopupNotfOpts()
