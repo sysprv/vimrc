@@ -575,7 +575,7 @@ set colorcolumn=+1
 "
 " highlight group: NonText
 
-let &showbreak = g:u.showbreak_char
+"let &showbreak = g:u.showbreak_char
 
 if g:u.has_x11
     " yes, even for vim in X terminal emulators
