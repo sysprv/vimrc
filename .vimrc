@@ -1133,18 +1133,9 @@ function! UserStLnBufModStatus()
     if &buftype == '' && (!&swapfile || (&updatecount == 0))
         let l:m .= '.!swf'
     endif
-    if &buftype != ''
-        let l:m .= ',bt:' . &buftype
-    endif
     return l:m
 endfunction
 
-
-function! UserStLnBufUndoCount()
-    let l:u = undotree()
-    let l:diff = l:u.seq_last - l:u.seq_cur
-    return l:diff > 0 ? 'un:' . l:diff : ''
-endfunction
 
 " if in paste mode, indicate that and not just the fact that paste mode
 " temporarily forces textwidth to 0.
@@ -1197,7 +1188,6 @@ function! UserStLnBufFlags()
     call add(l:l, UserStLnTextWidth())
     call add(l:l, UserStLnFenc())
     call add(l:l, UserStLnFf())
-    call add(l:l, UserStLnBufUndoCount())
 
     " searching (for unicode whitespace) - costly
 
@@ -1217,7 +1207,7 @@ set statusline=%n:%<%{UserStLnBufFlags()}%W%H/%#StatusLineNC#%t%=%P\ %{g:u.mark}
 " in case we close all normal windows and end up with something like the preview
 " window as the only window - the ruler should show the same buffer flags as the
 " status line.
-set rulerformat=%=%{UserStLnBufFlags()}\ %{g:u.mark}
+set rulerformat=%=%{UserStLnBufFlags()}\ %P\ %{g:u.mark}
 
 " -- enough now.
 
