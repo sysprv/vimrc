@@ -25,7 +25,7 @@ scriptencoding utf-8        " must go after 'encoding'
 " 2023-07-11 Change custome highlight and syntax definition to check for their
 " existence in a more robust way. Change 'completeopt' to tell auto completion
 " to not insert anything by default. Windows language settings - do less.
-" Colorscheme overriding - reinstate SpellCap/SpellLocal/SpellRare
+" colorscheme overriding - reinstate SpellCap/SpellLocal/SpellRare
 " destagmatization.
 "
 " 2023-07-01 Color schemes and term backgrounds. Move from Lucius to Iceberg.
@@ -2284,6 +2284,34 @@ function! UserCOAny()
 endfunction
 
 " -- end colorscheme control
+
+
+" workaround for old vims, f.ex. vintage rhel 7 vim 7.4 (2013, "Included
+" patches: 1-207, 209-629"). setting the Normal highlight group can change
+" 'background'. current iceberg.vim line 158 (the bg == dark branch hi Normal)
+" triggers this. the kind of bug that makes you doubt your sanity.
+"
+" you can see this workaround in older colorschemes like zenburn and lucius
+" - with or without comments, often setting 'background' unconditionally,
+" causing some superfluous work in newer vim versions via autocmds.
+"
+" fixed in patch 8.0.0616. https://github.com/vim/vim/pull/1710
+"
+" thanks, LemonBoy.
+
+function! PushBg1710()
+    let g:u.pre_background = &background
+endfunction
+
+function! PopBg1710()
+    if !has('patch-8.0.0616') && &background !=# g:u.pre_background
+        let &background = g:u.pre_background
+    endif
+endfunction
+
+command -bar -nargs=1 -complete=color Colorscheme
+            \ call PushBg1710() | colorscheme <args> | call PopBg1710()
+
 
 " syntax for text isn't worth the trouble but we like good UI colours. for
 " non-xterm-direct terminals (VTE, kitty) it might be necessary to call

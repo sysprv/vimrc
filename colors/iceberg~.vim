@@ -10,7 +10,9 @@ endif
 
 function! ColorOverrideIceberg() abort
     " prevent auto-reloading stuff while we're in here
-    unlet g:colors_name
+    if exists('g:colors_name')
+        unlet g:colors_name
+    endif
 
     highlight Normal ctermfg=NONE ctermbg=NONE cterm=NONE
     highlight ModeMsg term=NONE cterm=NONE gui=NONE
@@ -71,7 +73,13 @@ function! ColorOverrideIceberg() abort
     let g:colors_name = 'iceberg~'
 endfunction
 
-runtime colors/iceberg.vim
+
+call PushBg1710()
+try
+    runtime colors/iceberg.vim
+finally
+    call PopBg1710()
+endtry
 
 call ColorOverrideIceberg()
 
