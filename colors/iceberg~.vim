@@ -19,7 +19,8 @@ function! ColorOverrideIceberg() abort
         highlight Normal guibg=#f3f3f3
 
         if UserCO(g:u.coflags.stat)
-            highlight StatusLine ctermfg=0 ctermbg=152 cterm=NONE guifg=fg guibg=#b0e0e6 gui=NONE
+            "highlight StatusLine ctermfg=0 ctermbg=152 cterm=NONE guifg=fg guibg=#b0e0e6 gui=NONE
+            highlight StatusLine ctermfg=NONE ctermbg=NONE cterm=NONE guifg=fg guibg=NONE gui=NONE
             highlight StatusLineNC ctermfg=15 ctermbg=60 cterm=NONE guifg=bg guibg=#5a4f74 gui=NONE
             highlight VertSplit ctermfg=60 ctermbg=60 cterm=NONE guifg=#5a4f74 guibg=#5a4f74 gui=NONE
         endif
