@@ -1,4 +1,4 @@
-" Last-Modified: 2023-08-31T11:31:15.556104767+00:00
+" Last-Modified: 2023-09-05T16:58:32.988840373+00:00
 " vim:tw=80 fo=croq noml:
 set nocompatible
 if version < 704
@@ -545,6 +545,7 @@ set selectmode= keymodel=
 "
 " probably winfixheight wasn't meant to be in a modeline.
 
+" don't need flimflam when editing a single thing
 set laststatus=1
 
 " disabling 'ruler' makes 3<C-g> print more info.
@@ -2299,15 +2300,23 @@ endfunction
 "
 " thanks, LemonBoy.
 
-function! PushBg1710()
-    let g:u.pre_background = &background
-endfunction
+if has('patch-8.0.0616')
+    function! PushBg1710()
+    endfunction
 
-function! PopBg1710()
-    if !has('patch-8.0.0616') && &background !=# g:u.pre_background
-        let &background = g:u.pre_background
-    endif
-endfunction
+    function! PopBg1710()
+    endfunction
+else
+    function! PushBg1710()
+        let g:u.pre_background = &background
+    endfunction
+
+    function! PopBg1710()
+        if &background !=# g:u.pre_background
+            let &background = g:u.pre_background
+        endif
+    endfunction
+endif
 
 command -bar -nargs=1 -complete=color Colorscheme
             \ call PushBg1710() | colorscheme <args> | call PopBg1710()
@@ -2505,9 +2514,10 @@ command -nargs=+ -complete=command Capture call UserSpoolEx(<q-args>)
 function! UserPreviewBufferList() abort
     let l:bn = 'v_buffer_list'
     let l:lookupname = '^' . l:bn . '$'
-    " if a regular buffer with the same name exists, don't thrash it
+    " if a regular buffer with the same name exists, don't thrash it.
+    " getbufvar() always returns empty for unloaded buffers...
     let l:bufnr = bufnr(l:lookupname)
-    if l:bufnr != -1 && getbufvar(l:bufnr, '&buftype') == ''
+    if l:bufnr != -1 && bufloaded(l:bufnr) && getbufvar(l:bufnr, '&buftype') == ''
         echohl Error
         echo "can't modify regular buffer" l:bufnr
         echohl None
@@ -2515,7 +2525,7 @@ function! UserPreviewBufferList() abort
     endif
 
     " would be good if pedit could work with buffer numbers
-    let l:p_opts = '+setlocal\ nobuflisted\ buftype=nofile\ bufhidden=hide\ noswapfile'
+    let l:p_opts = '+setlocal\ nobuflisted\ buftype=nofile\ bufhidden=unload\ noswapfile'
     let l:ls = split(UserRun('ls'), "\n")
     execute 'pedit' l:p_opts l:bn
     wincmd P            " switch to preview window
@@ -2560,7 +2570,7 @@ nnoremap    gb      :call UserGoBufCurs()<cr>
 " since these functions use currently loaded data, settings defined
 " in .gvimrc won't be visible when queried under tty vim.
 function! UserShowMaps()
-    Scratch
+    ScrEphem
     call append(0, ['Maps'])       | normal! G
     " :map doesn't show mappings for all modes; meh
     " doc map-overview
@@ -2589,7 +2599,7 @@ command MyMaps      silent call UserShowMaps()
 
 
 function! UserShowCommands()
-    Scratch
+    ScrEphem
     call append(0, ['Commands', ''])
     put= UserRun('verbose command')
     global/\n\s\+Last set from/s//\t# src =/
@@ -2614,7 +2624,7 @@ command MyCommands  silent call UserShowCommands()
 
 
 function! UserShowFunctions()
-    Scratch
+    ScrEphem
     call append(0, ['Functions', ''])
     put= UserRun('verbose function')
     global/\n\s\+Last set from/s//\t# src =/
@@ -2623,7 +2633,6 @@ function! UserShowFunctions()
     global/^$/d _
     sort
 
-    file Functions
     setlocal readonly nomodifiable
 endfunction
 
@@ -2640,7 +2649,7 @@ function! UserShowSyntaxItems() abort
     let l:bufnr = bufnr('%')
     " execute in current buffer
     let l:syn = execute('syntax list')
-    Scratch
+    ScrEphem
     " add output to new scratch buffer
     call append(0, ['Syntax items for buffer ' . l:bufnr])
     put =l:syn
@@ -2827,9 +2836,6 @@ command -bar B      echo UserBufferInfo()
 
 " mnemonic: show buffer info
 nnoremap        <Leader><Leader>   :echo UserBufferInfo()<cr>
-
-" show some info in a new scratch buffer (and not a popup window)
-command -bar BB     Scratch | call append(0, UserGetInfoLines())
 
 
 " for misconfigured virtual serial lines with putty. better to set
@@ -3753,9 +3759,10 @@ command -bar Stws        call UserStripTrailingWhitespace()
 command -bar Scratch    new
             \ | setlocal buftype=nofile bufhidden=hide noswapfile
             \ | setfiletype text
+command -bar ScrEphem   Scratch | setlocal bufhidden=unload
 
 " pretty-print g:u
-command -bar PrintU Scratch | put =json_encode(g:u) | .! jq --sort-keys .
+command -bar PrintU ScrEphem | put =json_encode(g:u) | .! jq --sort-keys .
 
 " like :Explore
 command Index       call UserOpenIndexFile()
@@ -4083,6 +4090,10 @@ augroup UserVimRc
                     \ (!exists('v:termrbgresp') || len(v:termrbgresp) == 0)
                     \ | set background=dark
                     \ | endif
+
+    " if we ever use another window (pedit f.ex.), always show the statusline,
+    " even if we go back to one window.
+    autocmd WinEnter *  if &laststatus != 2 | set laststatus=2 | endif
 augroup end
 
 " autogroup for my weird syntax dealings
