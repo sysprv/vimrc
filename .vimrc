@@ -1,4 +1,4 @@
-" Last-Modified: 2023-09-05T16:58:32.988840373+00:00
+" Last-Modified: 2023-09-14T09:09:52.913261214+00:00
 " vim:tw=80 fo=croq noml:
 set nocompatible
 if version < 704
@@ -320,6 +320,8 @@ filetype plugin indent on
 " interfere with jumping to the last location on some files. anybody remember
 " /etc/skel?
 "
+"   vim -u ~/.vimrc
+"
 " at least the worst is in a named augroup. viml parsing is extra picky with
 " au/aug (re-opening an augroup just to do autocmd! and then having <aug>
 " END). autocmd_delete() isn't available on deathrow rhel boxen. distributions
@@ -445,7 +447,7 @@ endif
 " doc 'is'
 " to put the last match into the command line: <C-r>/
 set noincsearch
-command -bar Inc let &incsearch = !&incsearch | set incsearch?
+command -bar Inc    set incsearch! | set incsearch?
 
 " setting 'ignorecase' can be surprising.
 " for example, checking filenames against the 'backupskip' patterns uses
@@ -522,12 +524,34 @@ endif
 " mapleader is a variable, not a setting; no &-prefix
 let g:mapleader = ','
 
-" shortmess: f, w are nice, so not adding a. s (terse) and S are also useful.
-" vim's generally helpless in the face of long file names.
 
-set shortmess+=ilmnrxoOWI
-silent! set shortmess+=c        " hide ins-complete-menu messages
-silent! set shortmess+=F        " show no file info when editing a file
+if &shortmess !~# '^filnxtToO'  " the vim7 nocompatible default
+    " ensure some good defaults
+    set shortmess+=o    " overwrite write msgs, good for :wn
+    set shortmess+=O    " file read msg overwrites any previous
+    set shortmess-=s    " do show search wrap message (just "W" with S)
+    set shortmess+=t    " do truncate file msgs - left
+endif
+set shortmess-=T        " try life without shortening in the middle
+set shortmess+=I        " no intro
+
+if has('patch-7.4.314')
+    set shortmess+=c    " hide ins-complete-menu messages
+
+    if has('patch-7.4.1570')
+        " https://github.com/vim/vim/pull/686
+        " F is really bad without the statusline; when doing :wn, after the next
+        " buffer loads, it's the name of the previous buffer that stays at the
+        " bottom of the screen. ensure it's never on.
+        set shortmess-=F
+    endif
+
+    if has('patch-8.1.1270')
+        " https://github.com/vim/vim/pull/4317
+        " see also: doc searchcount()
+        set shortmess-=S    " do show search count
+    endif
+endif
 
 " a little like :behave mswin, but not all the way. think DOS EDIT.COM.
 " set keymodel=startsel selectmode=mouse,key
@@ -626,13 +650,13 @@ set browsedir=buffer
 set virtualedit=block
 set history=200
 
-" helps with navigating to a line of interest with <no>j and <no>k,
+" helps with navigating to a line of interest with <n>j/+ and <n>k/-,
 " but also takes up a lot of space.
 " see: cursorlineopt=number, 'signcolumn'.
 "
 " 2023-08-20 hate curswant zig zagging when browsing vertically.
 set number relativenumber
-set list
+"set list
 
 " but never newtab; maybe split.
 set switchbuf=useopen,usetab
@@ -691,8 +715,10 @@ if v:version >= 900
     "
     " do :b, <space to prevent vim-command completion and switch to :b arg
     " completion, <tab> (wildchar_m_) to trigger wildcard expansion popup.
+    "
+    " https://gist.github.com/g0xA52A2A/7cb1be24a078724f4522444a0da5de0a
 
-    nnoremap    K   :b<space><tab>
+    nnoremap    K   :b<Space><C-r>=nr2char(&wildcharm)<CR><S-Tab>
 
     " use NFA regexp engine?
     "set regexpengine=2
@@ -1204,7 +1230,9 @@ endfunction
 "
 " current register: %{v:register}
 
-set statusline=%n:%<%{UserStLnBufFlags()}%W%H/%#StatusLineNC#%t%=%P\ %{g:u.mark}\ "
+" don't forget to kee a space/separator after the filename
+set statusline=%n:%<%{UserStLnBufFlags()}%W%H/%#StatusLineNC#%t\ %=%P\ %{g:u.mark}\ "
+
 " in case we close all normal windows and end up with something like the preview
 " window as the only window - the ruler should show the same buffer flags as the
 " status line.
@@ -2409,7 +2437,7 @@ function! UserBufCloseKeepWin()
         execute 'confirm buffer' l:bufnr_alt
 
         " try to delete the original buffer, if it's not in any other window
-        if !bufloaded(l:bufnr)
+        if !bufloaded(l:bufnr) || bufwinnr(l:bufnr) == -1
             execute 'confirm bdelete' l:bufnr
         endif
 
@@ -2417,8 +2445,8 @@ function! UserBufCloseKeepWin()
         " getbufinfo(l:bufnr) -> <dict>.windows
         " win_findbuf(l:bufnr)
     else
-        " no alternate buffer - new empty buffer
-        " to keep the window from closing
+        " no alternate buffer - open new empty buffer to keep the window from
+        " closing
         enew
     endif
 endfunction
@@ -2832,10 +2860,8 @@ nnoremap    <silent> <F1>      :call UserShowHelp()<cr>
 " insert mode <F1> - don't change mode
 inoremap    <silent> <F1>      <C-\><C-o>:call UserShowHelp()<cr>
 
-command -bar B      echo UserBufferInfo()
-
 " mnemonic: show buffer info
-nnoremap        <Leader><Leader>   :echo UserBufferInfo()<cr>
+nnoremap    <Leader>i           :echo UserBufferInfo()<CR>
 
 
 " for misconfigured virtual serial lines with putty. better to set
@@ -3571,8 +3597,12 @@ nnoremap    gs      <nop>
 " use :g with a non-/ delimiter, and : (null ex command).
 nnoremap    <Leader>/   :global ==:<Left><Left>
 
-" too dangerous when drunk; just use :undo
+" too dangerous when drunk; just use :undo; or g-/g+.
 nnoremap    u       <nop>
+
+" not to self - put the last yank, not from the unnamed register
+nnoremap    <C-p>   "0p
+
 
 " -- ~ eof-map ~ end of most mapping definitions
 
@@ -3702,7 +3732,7 @@ command -bar Poetry  setlocal tw=0 formatoptions-=ta ai nospell | Lousy
 
 
 command -bar ShowBreak       let &showbreak = g:u.showbreak_char
-" vim 8.0 don't support NONE (showbreak gets set to "NONE")
+" vim 8.0 doesn't support NONE (showbreak gets set to "NONE")
 command -bar NoShowBreak     set showbreak=
 
 
@@ -4008,7 +4038,6 @@ augroup UserVimRc
 
     autocmd BufNewFile,BufReadPost  /etc/*          Proper
     autocmd FileType        c,conf,bash,go,sh,zsh   Proper
-    "autocmd FileType        c,bash,go,sh,zsh        ListHideTab
 
     " 2023-04-17 became a 4-denter
     autocmd FileType        text                    T4x4
@@ -4076,25 +4105,28 @@ augroup UserVimRc
     "
     " dark VTE terminal (sakura) with both COLORFGBG and COLORTERM
 
-    if exists('##OptionSet')
+    if 0 && exists('##OptionSet')
         autocmd OptionSet background
                     \ echom UserDateTime() 'background set to' v:option_new
     endif
+augroup end     " UserVimRc
 
-    " bg heuristic: i don't use screen(1) when not under duress; if in screen
-    " and there's been no response (yet) for the terminal background colour
-    " request, assume dark.
 
-    autocmd VimEnter *
-                    \ if &background ==# 'light' && &term =~# 'screen' &&
-                    \ (!exists('v:termrbgresp') || len(v:termrbgresp) == 0)
-                    \ | set background=dark
-                    \ | endif
+" separate augroup to be able to easily clear later - we only need to handle
+" events until we get to more than one window in any tab page.
+augroup UserVimRcWinSt
+    autocmd!
 
     " if we ever use another window (pedit f.ex.), always show the statusline,
     " even if we go back to one window.
-    autocmd WinEnter *  if &laststatus != 2 | set laststatus=2 | endif
-augroup end
+    autocmd WinNew *
+                \ if tabpagewinnr(tabpagenr(), '$') > 1
+                \ |     set laststatus=2
+                \ |     autocmd! UserVimRcWinSt
+                \ | endif
+
+augroup end     " UserVimRcWinSt
+
 
 " autogroup for my weird syntax dealings
 augroup UserVimRcSyntax
@@ -4111,7 +4143,7 @@ augroup UserVimRcSyntax
 
     " on colourscheme load/change, apply our colours, overriding the scheme.
     autocmd ColorScheme *       call UserColours()
-augroup end
+augroup end     " UserVimRcSyntax
 
 
 if 0
