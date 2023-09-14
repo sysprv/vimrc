@@ -1,5 +1,11 @@
 " 2022-12-08 - remove 'a'
-set guioptions=cgimpt
+set guioptions-=a
+set guioptions+=c       " use console dialogs
+set guioptions-=L       " remove left scrollbar
+set guioptions-=r       " no right scrollbar
+set guioptions-=R
+set guioptions+=t       " do use tearoff menus
+set guioptions-=T       " remove toolbar
 
 " for the popup menu
 set mousemodel=popup
