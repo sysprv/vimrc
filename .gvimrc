@@ -35,7 +35,7 @@ function! UserTrimMenus()
     amenu &Misc.&Buffers\ to\ tabs  :tab sball<cr>g
     " amenu &Misc.&Make\ session    :mksession!<cr>g
     amenu &Misc.&Tab\ page          :tabnew<cr>g
-    amenu &Misc.Copy\ &all          :%WX11<cr>g
+    amenu &Misc.Copy\ &all          :%WRCB<cr>g
 
     " delete the autocmd that does the lazy loading -
     " otherwise the autocmd will cause Edit and Tools menus to reappear.
