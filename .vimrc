@@ -279,17 +279,7 @@ scriptencoding utf-8        " must go after 'encoding'
 "   matchparen.vim - nice, but the autocommands feel yucky.
 "   manpager - vim can be a rather nice manpager.
 "
-let g:loaded_matchparen = 1
-let g:loaded_2html_plugin = 1
-let g:loaded_gzip = 1
-let g:loaded_getscriptPlugin = 1
-let g:loaded_tarPlugin = 1
-let g:loaded_vimballPlugin = 1
-let g:loaded_zipPlugin = 1
-" don't need netrw, i do file management in the shell.
-let g:loaded_netrwPlugin = 1
-" instead try :cexpr system( grep ) ...
-let g:loaded_logiPat = 1
+set noloadplugins
 "}}}
 
 " 2022-07-30 let g:did_load_filetypes = 1 does prevent filetype detection with
