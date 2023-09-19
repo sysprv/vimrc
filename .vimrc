@@ -4182,12 +4182,13 @@ augroup UserVimRcWinSt
 
     " if we ever use another window (pedit f.ex.), always show the statusline,
     " even if we go back to one window.
-    autocmd WinNew *
-                \ if tabpagewinnr(tabpagenr(), '$') > 1
-                \ |     set laststatus=2
-                \ |     autocmd! UserVimRcWinSt
-                \ | endif
-
+    if exists('##WinNew')
+        autocmd WinNew *
+                    \ if tabpagewinnr(tabpagenr(), '$') > 1
+                    \ |     set laststatus=2
+                    \ |     autocmd! UserVimRcWinSt
+                    \ | endif
+    endif
 augroup end     " UserVimRcWinSt
 
 
