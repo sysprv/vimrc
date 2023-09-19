@@ -1,4 +1,4 @@
-" Last-Modified: 2023-09-14T09:09:52.913261214+00:00
+" Last-Modified: 2023-09-18T08:36:54.659327922+00:00
 " vim:tw=80 fo=croq noml:
 set nocompatible
 if version < 704
@@ -12,6 +12,8 @@ set secure encoding=utf-8 fileencoding=utf-8 nobomb
 scriptencoding utf-8        " must go after 'encoding'
 
 " Change log:
+"
+" 2023-09-18 SoftIndent; no more hard tabs for text.
 "
 " 2023-08-31 Trying out better ways to list and navigate buffers
 "
@@ -577,7 +579,9 @@ set ruler
 " would like to disable showmode; but with all the different modes in vim...
 set showmode
 " never changing tabstop again
-set tabstop=8 shiftwidth=8 softtabstop=8 noexpandtab
+if &tabstop != 8 | set tabstop=8 | endif
+set shiftwidth=8 softtabstop=8 noexpandtab
+
 set fileformats=unix,dos
 set smarttab
 set shiftround
@@ -869,7 +873,7 @@ endfunction
 " 'tab' hl: SpecialKey
 "
 " not being able to exclude 'tab' from listchars really seems to favour
-" 'expandtabs' ... ?
+" 'expandtab' ... ?
 "
 
 function! UserListcharsDictMerge(lcs, lcs_exst) abort
@@ -981,7 +985,7 @@ function! UserSetupListchars() abort
     " same as def above, but without eol and trail (distracting)
     let g:u.lcs.p = copy(g:u.lcs.def)
     " ah, i liked having those bright little hearts..
-    " but a bit too much with deep indenting and expandtabs.
+    " but a bit too much with deep indenting and expandtab.
     let g:u.lcs.p.eol = 'NONE'
     let g:u.lcs.p.trail = 'NONE'
 
@@ -1441,10 +1445,19 @@ endfunction
 
 
 function! UserBufferInfo()
-    let l:bufp = { 'ai': &ai, 'et': &et, 'fo': &fo, 'ft': &ft,
-        \ 'sts': &sts, 'sw': &sw,
-        \ 'ts': &ts, 'tw': &tw }
-    return bufnr('%').': ['.UserStLnBufFlags().'] '.UserDictToStr(l:bufp)
+    let l:bufp = {}
+    if &tabstop != 8
+        let l:bufp['ts'] = &tabstop
+    endif
+    let l:bufp['tw'] = &textwidth
+    let l:bufp['ai'] = &autoindent
+    let l:bufp['et'] = &expandtab
+    let l:bufp['sw'] = &shiftwidth
+    let l:bufp['sts'] = &softtabstop
+    let l:bufp['ft'] = &filetype
+    let l:bufp['fo'] = &formatoptions
+
+    return bufnr('%') . ': [' . UserStLnBufFlags() . '] ' . UserDictToStr(l:bufp)
 endfunction
 
 
@@ -2785,16 +2798,39 @@ endfunction
 command -bar Mkspell    call UserMkspell()
 
 
-" for disabling things that indent plugins do. overkill maybe.
-" sometimes setting b:did_indent shows up as a solution, but
-" indent.vim::s:LoadIndent() (filetype autocmd) resets it before loading
-" indentation rules.
+" for disabling things that indent plugins do. overkill maybe. sometimes
+" setting b:did_indent shows up as a solution, but indent.vim::s:LoadIndent()
+" (filetype autocmd) resets it before loading indentation rules... and i don't
+" want to maintain ~/.vim/indent/<filetype>.vim with b:did_indent = 1.
+
 function! UserResetIndent()
     " could set to a function returning -1...
+    let l:indentexpr = &indentexpr
+    let l:indentkeys = &indentkeys
+    let l:retval = []
+
+    " indentexpr default's empty
+    if l:indentexpr != ''
+        let b:indentexpr_orig = l:indentexpr
+        call add(l:retval, b:indentexpr_orig)
+    endif
+
+    " indentkeys default is not empty; so first we reset the options, and then
+    " compare the current (default) value to what was there before. no way to
+    " get the default value (not just the global value) of an option without
+    " setting the option to default.
+
     setlocal indentexpr& indentkeys&
+
+    if l:indentexpr != '' && l:indentkeys != &indentkeys
+        let b:indentkeys_orig = l:indentkeys
+        call add(l:retval, b:indentkeys_orig)
+    endif
+
+    return l:retval
 endfunction
 
-command! -bar NoIndentFancy     call UserResetIndent()
+command! -bar NoIndentFancy     echo UserResetIndent()
 
 
 set spellcapcheck=
@@ -3684,51 +3720,61 @@ endfunction
 " ----
 
 " tab settings
+"
 " https://ericasadun.com/2016/03/31/swift-style-are-you-a-4-denter/
-" Unix (drank the 80's soda)
-command -bar Proper  setlocal softtabstop=8 shiftwidth=8 noexpandtab
-" for Python and common scripting languages
-command -bar Lousy   setlocal softtabstop=4 shiftwidth=4 expandtab
-" for lisps
-command -bar Lisp    setlocal softtabstop=2 shiftwidth=2 expandtab
+"
+" http://www.opimedia.be/DS/languages/tabs-vs-spaces/
+"
+" important to fix 'tabstop' - some misguided ftplugins like python and rust
+" have the temerity to change it.
+"
+" some ftplugins (scala, ada) are really good.
+
+command -bar -nargs=1 SoftIndent    setlocal nosmartindent
+            \ tabstop=8 softtabstop=<args> shiftwidth=<args> expandtab
+
+command -bar HardIndent setlocal nosmartindent
+            \ tabstop=8 softtabstop=8 shiftwidth=8 noexpandtab
+
+" Unix (drank the 80's soda); editable with ed.
+command -bar Proper     HardIndent
+command -bar Lousy      SoftIndent 4
+command -bar Lisp       SoftIndent 2
 " shift by 4 spaces, with hard tabs
-command -bar T4x4    setlocal softtabstop=4 shiftwidth=4 noexpandtab
+command -bar T4x4       SoftIndent 4 | setlocal noexpandtab
 
 " rtfm'ed - :retab! uses % as the range by default.
 
+
+" spelling: probably better to switch to native aspell and dict-gcide
+"   (GNU Collaborative International Dictionary of English)
+
 " for prose
+function! UserWr()
+    if !&paste && (&textwidth == 0)
+        setlocal textwidth=80
+    endif
+    setlocal spell
+    FoText
+endfunction
+command -bar Wr      call UserWr()
 " doc fo-table
+" NB: autoindent affects fo-at
 command -bar Nowr    setlocal fo=tq nospell ai nosi nocin | Proper
 " auto-format, without depending on trailing spaces (fo-w)
 " the 2 (indent of the 2nd line) requires auto-indent.
 command -bar FoText  setl ai nosi nocin fo=atq2
 command -bar FoCode  setl ai nosi cin   fo=cjoqr
 
-" NB: autoindent affects fo-at
-" spelling: probably better to switch to native aspell and dict-gcide
-"   (GNU Collaborative International Dictionary of English)
-
-function! UserWr()
-    if &textwidth == 0
-        setlocal textwidth=80
-    endif
-    setlocal spell
-    FoText
-    " 4-denting + hard tabs
-    T4x4
-endfunction
-
-command -bar Wr      call UserWr()
-
 " for small screens (iVim) - iPhone 13 Pro, Menlo:h11.0
-command -bar Mobile  Wr | setl tw=60 nonu nornu
+command -bar Mobile  Wr | setlocal textwidth=60 nonumber norelativenumber
 
 " for transcribing poetry -
 " significant whitespace, auto-indenting, no hard tabs, no auto formatting
 " remember - delete to beginning of line: 0d (V), Ctrl-U (I);
 "   Ctrl-U is readline unix-line-discard.
 " set colorcolumn=16,32,48,64,80,96 might also help.
-command -bar Poetry  setlocal tw=0 formatoptions-=ta ai nospell | Lousy
+command -bar Poetry  Lousy | setlocal tw=0 formatoptions-=ta ai nospell
 
 
 command -bar ShowBreak       let &showbreak = g:u.showbreak_char
@@ -4023,7 +4069,7 @@ augroup UserVimRc
     " enable auto reformatting when writing journal entries,
     " not for all text files.
     " format manually: gqip or vip, gq
-    autocmd BufNewFile,BufReadPost  writing*.txt,NOTES*.txt     Wr
+    autocmd BufNewFile,BufReadPost writing*.txt,NOTES*.txt      Wr
     autocmd BufReadPost *music-comments.txt     setl nospell
 
     " for file names without an extension -
@@ -4036,30 +4082,46 @@ augroup UserVimRc
     " beware of fedora badly duplicating this functionality in /etc/vimrc.
     autocmd BufReadPost *   call UserLastPositionJump()
 
-    autocmd BufNewFile,BufReadPost  /etc/*          Proper
-    autocmd FileType        c,conf,bash,go,sh,zsh   Proper
+    " set indentation settings
 
-    " 2023-04-17 became a 4-denter
-    autocmd FileType        text                    T4x4
+    " default: hard tabs; C, go, plain old Unix
 
-    autocmd FileType        perl,python,vim         Lousy
-    autocmd FileType        ruby,eruby              Lousy
-    autocmd FileType        javascript,json         Lousy
-    autocmd FileType        jproperties             Lousy
-        \ | setlocal fileencoding=latin1
-    autocmd FileType        markdown                Lousy
-    autocmd FileType        java,xml                Lousy
-    autocmd FileType        lisp,scheme,racket,clojure  Lisp
-    " with whimsical fileformats, don't be rational
-    autocmd FileType        yaml                    let b:user_noautomod = 1
-    autocmd FileType        markdown                let b:user_noautomod = 1
-    " indent reset, when default rules conflict with external constraints
-    autocmd FileType        xml     call UserResetIndent()
+    autocmd FileType text               SoftIndent 4
+    autocmd FileType perl               SoftIndent 4
+
+    " ftplugin python.vim sets tabstop=4; rust.vim sets tabstop and smartindent.
+    " undo that.
+    autocmd FileType python             Lousy
+    autocmd FileType rust               Lousy
+
+    autocmd FileType vim                Lousy
+    autocmd FileType javascript         Lousy
+    autocmd FileType json               Lousy
+
+    autocmd FileType lisp               Lisp
+    autocmd FileType scheme             Lisp
+    autocmd FileType racket             Lisp
+    autocmd FileType clojure            Lisp
+
+    autocmd FileType *sql               SoftIndent 2
+
+    " whimsical file formats with trailing whitespace sometimes
+    autocmd FileType yaml               let b:user_noautomod = 1
+    autocmd FileType markdown           let b:user_noautomod = 1
+
+    autocmd FileType jproperties        Lousy | setlocal fileencoding=iso-8859-1
+
+    " indent reset, when default rules conflict with external constraints; xml
+    " files vary a lot in their formatting, it's not great that vim indent
+    " rules (xmlformat) decides on something.
+    "
+    " the vim rules are ok when we're creating xml, so not using a FileType
+    " autocmd here.
+    autocmd BufReadPost *.xml           call UserResetIndent()
 
     " the first line of the commit message should be < 50 chars
     " to allow for git log --oneline
-    " FileType *commit / BufNewFile,BufReadPost COMMIT_EDITMSG
-    autocmd FileType *commit    setlocal spell tw=78 cc=50,78
+    autocmd FileType *commit    Lousy | setlocal spell colorcolumn=50,72
 
     autocmd BufWritePre *   call UserStripTrailingWhitespace()
     autocmd BufWritePre *   call UserUpdateBackupOptions(expand('<amatch>'))
@@ -4105,6 +4167,7 @@ augroup UserVimRc
     "
     " dark VTE terminal (sakura) with both COLORFGBG and COLORTERM
 
+    " would be nice to have a way to reject option settings
     if 0 && exists('##OptionSet')
         autocmd OptionSet background
                     \ echom UserDateTime() 'background set to' v:option_new
