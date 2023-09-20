@@ -1,4 +1,4 @@
-" Last-Modified: 2023-09-18T08:36:54.659327922+00:00
+" Last-Modified: 2023-09-20T17:40:30.99003555+00:00
 " vim:tw=80 fo=croq noml:
 set nocompatible
 if version < 704
@@ -12,6 +12,9 @@ set secure encoding=utf-8 fileencoding=utf-8 nobomb
 scriptencoding utf-8        " must go after 'encoding'
 
 " Change log:
+"
+" 2023-09-20 Set 'language' early. Turn off 'filetype indent', setup autocmds
+" to load indent rules for a few filetypes. Finally English menus.
 "
 " 2023-09-18 SoftIndent; no more hard tabs for text.
 "
@@ -260,7 +263,7 @@ scriptencoding utf-8        " must go after 'encoding'
 "   message output, the command window after system() output in gvim.
 "
 
-" string to list: split(str, '\zs')
+" string to list of chars: split(str, '\zs') : "abc" -> ['a', 'b', 'c']
 
 " weird little thing: copy modeless-selection: c_CTRL-Y
 
@@ -270,6 +273,19 @@ scriptencoding utf-8        " must go after 'encoding'
 
 " -- end tips
 "
+
+" important for UserDateComment (language time) and gui menus; better set before
+" filetype config and menus ('langmenu').
+if has('win32')
+    " :lang ctype C.utf8 fails on windows 11, E197.
+    language en_US.utf8
+
+    " if langmenu wasn't set, it would default to v:lang which is en, and
+    " then $VIM/menu.vim would load multiple en_gb menus... inside there are
+    " special cases for en_us and none.
+
+    set langmenu=NONE
+endif
 
 " standard plugins in $VIMRUNTIME/plugin - disable.
 "{{{
@@ -302,7 +318,8 @@ set noloadplugins
 "
 " linux distributions may enable these by default, may not happen on windows.
 
-filetype plugin indent on
+filetype indent off
+filetype plugin on
 
 " 2022-07-28 clear out autocommands of other people.
 " {{{
@@ -325,14 +342,18 @@ filetype plugin indent on
 " in some old vim versions.
 
 function! UserRemoveVendorAugroups()
-    for l:vnd_aug in ['fedora', 'redhat']
-        if exists('#'.l:vnd_aug)
-            " defang
-            execute 'autocmd!' l:vnd_aug
-            " delete empty group
-            execute 'augroup!' l:vnd_aug
-        endif
-    endfor
+    if v:version >= 900
+        silent! call autocmd_delete([{'group':'fedora'},{'group':'redhat'}])
+    else
+        for l:vnd_aug in ['fedora', 'redhat']
+            if exists('#' . l:vnd_aug)
+                " defang
+                execute 'autocmd!' l:vnd_aug
+                " delete empty group
+                execute 'augroup!' l:vnd_aug
+            endif
+        endfor
+    endif
 endfunction
 
 " }}}
@@ -357,15 +378,6 @@ if executable('/usr/bin/rg')
     " use column number provided by ripgrep
     set grepformat=%f:%l:%c:%m
 endif
-
-
-" important for UserDateComment (language time)
-if has('win32')
-    language en
-    " no idea what'll happen here; ctype C.utf8 fails on windows 11, E197.
-    language ctype en.utf8
-endif
-
 
 " journalled filesystems, SSD/NVMe/SD cards. fsync is complex these days, it's
 " not clear that vim does everything that's needed.
@@ -1435,19 +1447,20 @@ endfunction
 
 
 function! UserBufferInfo()
-    let l:bufp = {}
+    let l:bufp = []
+    " order's significant
     if &tabstop != 8
-        let l:bufp['ts'] = &tabstop
+        call add(l:bufp, 'ts=' . &tabstop)
     endif
-    let l:bufp['tw'] = &textwidth
-    let l:bufp['ai'] = &autoindent
-    let l:bufp['et'] = &expandtab
-    let l:bufp['sw'] = &shiftwidth
-    let l:bufp['sts'] = &softtabstop
-    let l:bufp['ft'] = &filetype
-    let l:bufp['fo'] = &formatoptions
+    call add(l:bufp, 'tw=' . &textwidth)
+    call add(l:bufp, 'ai=' . &autoindent)
+    call add(l:bufp, 'et=' . &expandtab)
+    call add(l:bufp, 'sw=' .  &shiftwidth)
+    call add(l:bufp, 'sts=' .  &softtabstop)
+    call add(l:bufp, 'ft=' . &filetype)
+    call add(l:bufp, 'fo=' . &formatoptions)
 
-    return bufnr('%') . ': [' . UserStLnBufFlags() . '] ' . UserDictToStr(l:bufp)
+    return bufnr('%') . ': [' . UserStLnBufFlags() . '] ' . join(l:bufp)
 endfunction
 
 
@@ -2750,6 +2763,7 @@ endfunction
 
 " &g: doesn't work here.
 let &spelllang = UserSpellLangs()
+set spellcapcheck=
 
 " if spellfile unset, with a word is added (zg/zw) vim will set spellfile
 " to somewhere inside ~/.vim/ .
@@ -2821,9 +2835,6 @@ function! UserResetIndent()
 endfunction
 
 command! -bar NoIndentFancy     echo UserResetIndent()
-
-
-set spellcapcheck=
 
 " -- end spelling configuration
 
@@ -4049,7 +4060,15 @@ augroup UserVimRc
 
     " set indentation settings
 
-    " default: hard tabs; C, go, plain old Unix
+    " default: hard tabs; C, Go, plain old Unix.
+
+    " with 'filetype indent off', load indent rules just for a few we like.
+    " no: *sh, xml, sql, yaml, markdown.
+    "
+    " see $VIM/indent.vim
+
+    autocmd FileType ada,go,perl,python,racket,ruby,rust,scala,vim
+                \ execute 'runtime! indent/' . expand('<amatch>') . '.vim'
 
     autocmd FileType text               SoftIndent 4
     autocmd FileType perl               SoftIndent 4
@@ -4076,13 +4095,10 @@ augroup UserVimRc
 
     autocmd FileType jproperties        Lousy | setlocal fileencoding=iso-8859-1
 
-    " indent reset, when default rules conflict with external constraints; xml
-    " files vary a lot in their formatting, it's not great that vim indent
-    " rules (xmlformat) decides on something.
-    "
-    " the vim rules are ok when we're creating xml, so not using a FileType
-    " autocmd here.
-    autocmd BufReadPost *.xml           call UserResetIndent()
+    " would be nice to be able to unload a script; maybe delete functions
+    " using :scriptnames and :delf.
+
+    autocmd FileType xml                Lousy
 
     " the first line of the commit message should be < 50 chars
     " to allow for git log --oneline
