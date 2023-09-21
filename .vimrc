@@ -659,10 +659,7 @@ set history=200
 " helps with navigating to a line of interest with <n>j/+ and <n>k/-,
 " but also takes up a lot of space.
 " see: cursorlineopt=number, 'signcolumn'.
-"
-" 2023-08-20 hate curswant zig zagging when browsing vertically.
-set number relativenumber
-"set list
+"set number relativenumber
 
 " but never newtab; maybe split.
 set switchbuf=useopen,usetab
@@ -2890,14 +2887,17 @@ endif
 
 " arrow keys are good, bill joy used arrow keys.
 " use zz to recenter all the time
-nnoremap        k       gk
-nnoremap        j       gj
-nmap            <Up>    k
-nmap            <Down>  j
-xnoremap        k       gk
-xnoremap        j       gj
-vmap            <Up>    k
-vmap            <Down>  j
+"
+" 2023-09-21 gj and gk were nice when starting up; but now i want to look around
+" without the cursor jumping all over the place.
+nnoremap        k       -
+nnoremap        j       +
+nnoremap        <Up>    -
+nnoremap        <Down>  +
+xnoremap        k       -
+xnoremap        j       +
+xnoremap        <Up>    -
+xnoremap        <Down>  +
 
 " 2022-07-16 - recognition, through vimrc.
 " https://github.com/hotchpotch/dotfiles-vim/blob/master/.vimrc
