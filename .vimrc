@@ -573,16 +573,18 @@ set selectmode= keymodel=
 "
 " probably winfixheight wasn't meant to be in a modeline.
 
-" don't need flimflam when editing a single thing
+" don't like flimflam when editing a single thing
 set laststatus=1
 
 " disabling 'ruler' makes 3<C-g> print more info.
 set ruler
 " would like to disable showmode; but with all the different modes in vim...
 set showmode
-" never changing tabstop again
-if &tabstop != 8 | set tabstop=8 | endif
-set shiftwidth=8 softtabstop=8 noexpandtab
+" never changing tabstop
+if &tabstop != 8
+    set tabstop=8
+endif
+set shiftwidth=4 softtabstop=4 expandtab list
 
 set fileformats=unix,dos
 set smarttab
@@ -3723,15 +3725,20 @@ endif
 " http://www.opimedia.be/DS/languages/tabs-vs-spaces/
 "
 " important to fix 'tabstop' - some misguided ftplugins like python and rust
-" have the temerity to change it.
+" have the temerity to change it. (rg '\btabstop=[0-79]')
 "
-" some ftplugins (scala, ada) are really good.
+" some ftplugins (scala, ada) are really good. make.vim even disables expandtab
+" and doesn't mess with tabstop.
 
-command -bar -nargs=1 SoftIndent    setlocal nosmartindent
+command -bar -nargs=1 SoftIndent setlocal
+            \ nosmartindent
             \ tabstop=8 softtabstop=<args> shiftwidth=<args> expandtab
+            \ list
 
-command -bar HardIndent setlocal nosmartindent
+command -bar HardIndent setlocal
+            \ nosmartindent
             \ tabstop=8 softtabstop=8 shiftwidth=8 noexpandtab
+            \ nolist
 
 " Unix (drank the 80's soda); editable with ed.
 command -bar Proper     HardIndent
@@ -4085,20 +4092,14 @@ augroup UserVimRc
     "
     " see $VIM/indent.vim
 
-    autocmd FileType ada,go,perl,python,racket,ruby,rust,scala,vim
+    autocmd FileType
+                \ ada,go,perl,python,racket,raku,ruby,rust,scala,vim
                 \ execute 'runtime! indent/' . expand('<amatch>') . '.vim'
 
-    autocmd FileType text               SoftIndent 4
-    autocmd FileType perl               SoftIndent 4
-
-    " ftplugin python.vim sets tabstop=4; rust.vim sets tabstop and smartindent.
-    " undo that.
+    " these ftplugins mess with 'tabstop' - undo that.
+    autocmd FileType markdown           Lousy
     autocmd FileType python             Lousy
     autocmd FileType rust               Lousy
-
-    autocmd FileType vim                Lousy
-    autocmd FileType javascript         Lousy
-    autocmd FileType json               Lousy
 
     autocmd FileType lisp               Lisp
     autocmd FileType scheme             Lisp
