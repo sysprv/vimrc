@@ -1192,6 +1192,24 @@ function! UserStLnFf()
     return l:s
 endfunction
 
+" terse format indentation options
+function! UserStLnIndentation()
+    let l:s = ''
+    if &tabstop != 8
+        let l:s = '!' . &tabstop . '!,'
+    endif
+    if &expandtab
+        let l:s .= 's'
+    else
+        let l:s .= 'h'
+    endif
+    let l:s .= &softtabstop
+    if &shiftwidth != &softtabstop
+        let l:s .= ',' . &shiftwidth
+    endif
+    return 't:' . l:s
+endfunction
+
 " tried prev: if fillchars has 'stl', use hl Normal between the buffer
 " attrib flags and the right hand side, as:
 " %...%#Normal#%=...
@@ -1218,6 +1236,7 @@ endfunction
 " flags like %W should go after this.
 function! UserStLnBufFlags()
     let l:l = [ UserStLnBufModStatus() ]
+    call add(l:l, UserStLnIndentation())
     call add(l:l, UserStLnTextWidth())
     call add(l:l, UserStLnFenc())
     call add(l:l, UserStLnFf())
@@ -1226,7 +1245,7 @@ function! UserStLnBufFlags()
 
     " erase numbers that are 0, erase empty strings
     call filter(l:l, "v:val != 0 || v:val !=# ''")
-    return join(l:l, ',')
+    return '[' . join(l:l, '][') . ']'
 endfunction
 
 " NB: last double quote starts a comment and preserves the trailing space. vim
@@ -1242,7 +1261,7 @@ set statusline=%n:%<%{UserStLnBufFlags()}%W%H/%#StatusLineNC#%t\ %=%P\ %{g:u.mar
 " in case we close all normal windows and end up with something like the preview
 " window as the only window - the ruler should show the same buffer flags as the
 " status line.
-set rulerformat=%=%{UserStLnBufFlags()}\ %P\ %{g:u.mark}
+set rulerformat=%=%M\ %P\ %{g:u.mark}
 
 " -- enough now.
 
@@ -3624,8 +3643,10 @@ function! UserLineNumberSwitch()
     let l:opt_rnu = l:rnu ? 'relativenumber' : 'norelativenumber'
     execute 'setlocal' l:opt_nu l:opt_rnu
 endfunction
+nnoremap    <silent> <Leader>n   :call UserLineNumberSwitch()<CR>
 
-nnoremap    <silent> <Leader>n   :call UserLineNumberSwitch()<cr>
+" quick toggle laststatus between 1 and 2
+nnoremap    <silent> <Leader>t :let &laststatus = (&laststatus % 2) + 1<CR>
 
 " nosleep
 nnoremap    gs      <nop>
@@ -3795,9 +3816,6 @@ command -bar Pst         setlocal paste
 command -bar Nopst       setlocal nopaste
 command -bar Spell       setlocal spell
 command -bar NoSpell     setlocal nospell
-
-" to turn the status line on/off
-command -nargs=1    St          set laststatus=<args>
 
 command Info        call UserShowHelp()
 command TermBad     call UserTermBad()
@@ -4154,23 +4172,6 @@ augroup UserVimRc
                     \ echom UserDateTime() 'background set to' v:option_new
     endif
 augroup end     " UserVimRc
-
-
-" separate augroup to be able to easily clear later - we only need to handle
-" events until we get to more than one window in any tab page.
-augroup UserVimRcWinSt
-    autocmd!
-
-    " if we ever use another window (pedit f.ex.), always show the statusline,
-    " even if we go back to one window.
-    if exists('##WinNew')
-        autocmd WinNew *
-                    \ if tabpagewinnr(tabpagenr(), '$') > 1
-                    \ |     set laststatus=2
-                    \ |     autocmd! UserVimRcWinSt
-                    \ | endif
-    endif
-augroup end     " UserVimRcWinSt
 
 
 " autogroup for my weird syntax dealings
