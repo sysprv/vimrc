@@ -1,9 +1,8 @@
-" Last-Modified: 2023-09-20T17:40:30.99003555+00:00
-" vim:tw=80 fo=croq noml:
+" Last-Modified: 2023-09-21T17:12:47.381787941+00:00
+" vim:set tw=80 fo=croq noml:
 set nocompatible
 if version < 704
     nnoremap    s   <C-w>
-    set number list
     set backupcopy=yes
     finish
 endif
@@ -4112,7 +4111,7 @@ augroup UserVimRc
     autocmd FileType yaml               let b:user_noautomod = 1
     autocmd FileType markdown           let b:user_noautomod = 1
 
-    autocmd FileType jproperties        Lousy | setlocal fileencoding=iso-8859-1
+    autocmd FileType jproperties        Lousy | setlocal fileencoding=latin1
 
     " would be nice to be able to unload a script; maybe delete functions
     " using :scriptnames and :delf.
