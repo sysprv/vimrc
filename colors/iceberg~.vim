@@ -1,4 +1,4 @@
-" vim:tw=0 noml:
+" vim:set tw=0 noml:
 
 if !has('gui_running') && &t_Co < 256
     finish

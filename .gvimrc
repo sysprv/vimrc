@@ -1,3 +1,4 @@
+" vim:set tw=80 fo=croq noml:
 " 2022-12-08 - remove 'a'
 set guioptions-=a
 set guioptions+=c       " use console dialogs
@@ -176,19 +177,3 @@ if has('unix')
     autocmd UserGvimRc BufWritePost /stuff/notes/* call UserGitCommitAdapter()
 endif
 
-
-" .vimrc has a 'set backgroundg&', which works well in linux. but gvim on
-" windows still starts with bg == 'dark'. manually doing 'set bg&' does the
-" correct thing. not spending more time on debugging this, given the obscurity
-" and state of the platform. https://github.com/vim/vim/issues/869
-"
-" tangential comment: https://vimhelp.org/syntax.txt.html#%3Ahighlight-normal
-" When using reverse video ("gvim -fg white -bg black"), the default value of
-" 'background' will not be set until the GUI window is opened, which is after
-" reading the gvimrc.  Use :gui, which has its own caveats (-f).
-
-if has('win32') && &background ==# 'dark'
-    set background=light
-endif
-
-" vim:tw=80 fo=croq:

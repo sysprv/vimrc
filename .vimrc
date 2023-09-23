@@ -512,7 +512,7 @@ if has('unix') || has('win32')
         let &directory = g:u.swap_dir . '//'
     endif
 endif
-set swapfile updatecount=10 updatetime=2666
+set swapfile updatecount=10 updatetime=300
 " to see current swap file path: ':sw[apname]' / swapname('%')
 
 " it's great that vim can undo more, but i can't remember that much history.
@@ -1196,14 +1196,16 @@ function! UserStLnIndentation()
     if &tabstop != 8
         let l:s = '!' . &tabstop . '!,'
     endif
-    if &expandtab
-        let l:s .= 's'
-    else
-        let l:s .= 'h'
-    endif
+    " moniker: soft/hard
+    let l:s .= &expandtab ? 's' : 'h'
     let l:s .= &softtabstop
     if &shiftwidth != &softtabstop
         let l:s .= ',' . &shiftwidth
+    endif
+
+    if l:s ==# 's4'
+        " the default. no need to show.
+        return ''
     endif
     return 't:' . l:s
 endfunction
@@ -1243,7 +1245,8 @@ function! UserStLnBufFlags()
 
     " erase numbers that are 0, erase empty strings
     call filter(l:l, "v:val != 0 || v:val !=# ''")
-    return '[' . join(l:l, '][') . ']'
+    "return '[' . join(l:l, '][') . ']'
+    return join(l:l, ' / ')
 endfunction
 
 " NB: last double quote starts a comment and preserves the trailing space. vim
@@ -1254,7 +1257,7 @@ endfunction
 " current register: %{v:register}
 
 " don't forget to kee a space/separator after the filename
-set statusline=%n:%<%{UserStLnBufFlags()}%W%H/%#StatusLineNC#%t\ %=%P\ %{g:u.mark}\ "
+set statusline=%n\ /\ %<%{UserStLnBufFlags()}%W%H\ /%#StatusLineNC#%t\ %=%P\ %{g:u.mark}\ "
 
 " in case we close all normal windows and end up with something like the preview
 " window as the only window - the ruler should show the same buffer flags as the
@@ -1466,14 +1469,16 @@ endfunction
 function! UserBufferInfo()
     let l:bufp = []
     " order's significant
+    call add(l:bufp, 'tw=' . &textwidth)
+    call add(l:bufp, "(")
     if &tabstop != 8
         call add(l:bufp, 'ts=' . &tabstop)
     endif
-    call add(l:bufp, 'tw=' . &textwidth)
     call add(l:bufp, 'ai=' . &autoindent)
     call add(l:bufp, 'et=' . &expandtab)
     call add(l:bufp, 'sw=' .  &shiftwidth)
     call add(l:bufp, 'sts=' .  &softtabstop)
+    call add(l:bufp, ")")
     call add(l:bufp, 'ft=' . &filetype)
     call add(l:bufp, 'fo=' . &formatoptions)
 
@@ -2280,6 +2285,9 @@ function! UserColoursPrelude()
     " https://stackoverflow.com/a/38287998
     " https://github.com/vim/vim/issues/869
 
+    if has('win32')
+        set background=light
+    endif
     if !l:done && has('termguicolors')
         if &term ==# 'xterm-direct'
             " lovely; but, pretty much have to use gui colors.
@@ -2724,15 +2732,18 @@ endfunction
 command ShowSyntaxItems   silent call UserShowSyntaxItems()
 
 
-
 " this is so ubiquitious as to seem like a native feature, but is defined in
 " $VIMRUNTIME/defaults.vim, which isn't included in this vimrc.
 "
-" doc:last-position-jump
+" doc last-position-jump
+"
 " https://vim.fandom.com/wiki/Restore_cursor_to_file_position_in_previous_editing_session
+"
+" emacs: save-place-mode
+
 function! UserLastPositionJump()
     " don't restore sometimes
-    if &filetype =~# '\vcommit|rebase|diff'
+    if &binary || (&filetype =~# '\vcommit|rebase|diff|xxd')
         return
     endif
 
@@ -4066,6 +4077,9 @@ command -range CommentOnce  <line1>,<line2>g/^\s*[^#]/s/^/# / | let @/ = ''
 augroup UserVimRc
     autocmd!
 
+    " for 'autoread'
+    autocmd CursorHold *    checktime
+
     " enable auto reformatting when writing journal entries,
     " not for all text files.
     " format manually: gqip or vip, gq
@@ -4146,7 +4160,7 @@ augroup UserVimRc
     " there will not be an attempt to create swap files on iCloud Drive.
     "
     " autocmd-pattern - * includes path separators.
-    autocmd BufReadPost /private/var/mobile/*       setlocal swapfile
+    autocmd BufReadPost /private/var/mobile/*       setlocal swapfile<
 
     " if swapfile exists, always open read-only
     "autocmd SwapExists *    let v:swapchoice = 'o'
