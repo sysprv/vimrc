@@ -2911,17 +2911,15 @@ endif
 
 " arrow keys are good, bill joy used arrow keys.
 " use zz to recenter all the time
-"
-" 2023-09-21 gj and gk were nice when starting up; but now i want to look around
-" without the cursor jumping all over the place.
-nnoremap        k       -
-nnoremap        j       +
-nnoremap        <Up>    -
-nnoremap        <Down>  +
-xnoremap        k       -
-xnoremap        j       +
-xnoremap        <Up>    -
-xnoremap        <Down>  +
+
+nnoremap        j       gj
+nnoremap        k       gk
+nnoremap        <Down>  gj
+nnoremap        <Up>    gk
+xnoremap        j       gj
+xnoremap        k       gk
+xnoremap        <Down>  gj
+xnoremap        <Up>    gk
 
 " 2022-07-16 - recognition, through vimrc.
 " https://github.com/hotchpotch/dotfiles-vim/blob/master/.vimrc
