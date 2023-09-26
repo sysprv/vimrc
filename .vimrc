@@ -1,5 +1,5 @@
-" Last-Modified: 2023-09-21T17:12:47.381787941+00:00
-" vim:set tw=80 fo=croq noml:
+" Last-Modified: 2023-09-26T20:32:10.109026494+00:00
+" vim:set tw=80 noml:
 set nocompatible
 if version < 704
     nnoremap    s   <C-w>
@@ -477,7 +477,13 @@ endif
 set showcmd
 
 " doc fo-table
-set formatoptions=t
+" fo-r - add comment leader on new lines, insert mode
+" fo-n - recognize numbered lists
+" fo-2 - use indent of 2nd line for the rest of the paragraph
+" fo-B - no space between two multibyte chars when joining
+" fo-1 - try to not break lines after one-letter words
+" fo-j - remove comment leader when joining lines
+set formatoptions+=rn2B1j
 " leave only one space after ./?/! when joining
 set nojoinspaces
 " wrapmargin adds <EOL>s, never use.
@@ -579,7 +585,7 @@ set laststatus=1
 set ruler
 " would like to disable showmode; but with all the different modes in vim...
 set showmode
-" never changing tabstop
+" must always be 8
 if &tabstop != 8
     set tabstop=8
 endif
@@ -1240,6 +1246,9 @@ function! UserStLnBufFlags()
     call add(l:l, UserStLnTextWidth())
     call add(l:l, UserStLnFenc())
     call add(l:l, UserStLnFf())
+    if &formatoptions =~# 'a'
+        call add(l:l, 'fo-a')
+    endif
 
     " searching (for unicode whitespace) - costly
 
@@ -1470,6 +1479,8 @@ function! UserBufferInfo()
     let l:bufp = []
     " order's significant
     call add(l:bufp, 'tw=' . &textwidth)
+    call add(l:bufp, 'wm= ' . &wrapmargin)
+
     call add(l:bufp, "(")
     if &tabstop != 8
         call add(l:bufp, 'ts=' . &tabstop)
@@ -1479,6 +1490,7 @@ function! UserBufferInfo()
     call add(l:bufp, 'sw=' .  &shiftwidth)
     call add(l:bufp, 'sts=' .  &softtabstop)
     call add(l:bufp, ")")
+
     call add(l:bufp, 'ft=' . &filetype)
     call add(l:bufp, 'fo=' . &formatoptions)
 
@@ -3559,6 +3571,7 @@ cnoremap <expr> <Leader><Leader>   Symbols['greek cross, heavy']
 " prevent accidental nbsp entry; using 'execute' for mapping whitespace
 execute "inoremap \u00A0 <Space>"
 
+
 " use 's' for window commands instead of the default emacsness.
 nnoremap    s   <C-w>
 " for keys like C-wf (doc CTRL-W_f), there's no option to make the split
@@ -3759,26 +3772,40 @@ command -bar T4x4       SoftIndent 4 | setlocal noexpandtab
 
 " rtfm'ed - :retab! uses % as the range by default.
 
-
 " spelling: probably better to switch to native aspell and dict-gcide
 "   (GNU Collaborative International Dictionary of English)
 
-" for prose
-function! UserWr()
-    if !&paste && (&textwidth == 0)
-        setlocal textwidth=80
-    endif
-    setlocal spell
-    FoText
-endfunction
-command -bar Wr      call UserWr()
-" doc fo-table
 " NB: autoindent affects fo-at
-command -bar Nowr    setlocal fo=tq nospell ai nosi nocin | Proper
-" auto-format, without depending on trailing spaces (fo-w)
-" the 2 (indent of the 2nd line) requires auto-indent.
-command -bar FoText  setl ai nosi nocin fo=atq2
-command -bar FoCode  setl ai nosi cin   fo=cjoqr
+command -bar FoText  setlocal
+            \ autoindent nosmartindent nocindent formatoptions<
+
+" for prose
+command -bar Wr     FoText | setlocal textwidth=80 formatoptions+=a spell
+
+command -bar Nowr    setlocal
+            \ autoindent nosmartindent nocindent formatoptions< nospell
+
+
+command -bar FoCode  setlocal
+            \ autoindent nosmartindent cindent formatoptions<
+
+" WIP - 2nd line in buffer or paragraph - no indentation (don't follow the
+" first line's indentation). ending up on column 1, it's easier to indent than
+" to unindent. but only on one level of indent, a small number of spaces <= 4.
+function! UserTextIndent()
+    let l:lnk2 = v:lnum - 2
+    let l:lnk1 = v:lnum - 1
+    if v:lnum >= 2 && len(getline(l:lnk2)) == 0
+        let l:lnk1ind = indent(l:lnk1)
+        if l:lnk1ind > 0 && l:lnk1ind <= 4
+            return 0
+        endif
+    endif
+
+    " default: autoindent
+    return -1
+endfunction
+
 
 " for small screens (iVim) - iPhone 13 Pro, Menlo:h11.0
 command -bar Mobile  Wr | setlocal textwidth=60 nonumber norelativenumber
@@ -4109,6 +4136,8 @@ augroup UserVimRc
                 \ ada,go,perl,python,racket,raku,ruby,rust,scala,vim
                 \ execute 'runtime! indent/' . expand('<amatch>') . '.vim'
 
+    autocmd FileType text   FoText | setlocal indentexpr=UserTextIndent()
+
     " these ftplugins mess with 'tabstop' - undo that.
     autocmd FileType markdown           Lousy
     autocmd FileType python             Lousy
@@ -4130,11 +4159,9 @@ augroup UserVimRc
     " would be nice to be able to unload a script; maybe delete functions
     " using :scriptnames and :delf.
 
-    autocmd FileType xml                Lousy
-
     " the first line of the commit message should be < 50 chars
     " to allow for git log --oneline
-    autocmd FileType *commit    Lousy | setlocal spell colorcolumn=50,72
+    autocmd FileType *commit    setlocal spell colorcolumn=50,72
 
     autocmd BufWritePre *   call UserStripTrailingWhitespace()
     autocmd BufWritePre *   call UserUpdateBackupOptions(expand('<amatch>'))
