@@ -2352,8 +2352,9 @@ function! UserInitColourOverride()
     let g:u.coflags.min =        7    " sane minimum: stat + spell + mode
     let g:u.coflags.all =       31    " override all known
 
-    " control variable
-    let g:u.co = g:u.coflags.all
+    " control variable - assign default value
+    " let g:u.co = g:u.coflags.all
+    let g:u.co = and(g:u.coflags.all, invert(g:u.coflags.stat))
 endfunction
 
 " bitwise check if a flag is set
