@@ -1,4 +1,4 @@
-" Last-Modified: 2023-09-26T20:32:10.109026494+00:00
+" Last-Modified: 2023-09-27T12:27:20.295609187+00:00
 " vim:set tw=80 noml:
 set nocompatible
 if version < 704
@@ -3780,9 +3780,11 @@ command -bar FoText  setlocal
 
 " for prose
 command -bar Wr     FoText | setlocal textwidth=80 formatoptions+=a spell
+            \ indentexpr=UserTextIndent()
 
 command -bar Nowr    setlocal
             \ autoindent nosmartindent nocindent formatoptions< nospell
+            \ indentexpr<
 
 
 command -bar FoCode  setlocal
@@ -4134,8 +4136,6 @@ augroup UserVimRc
     autocmd FileType
                 \ ada,go,perl,python,racket,raku,ruby,rust,scala,vim
                 \ execute 'runtime! indent/' . expand('<amatch>') . '.vim'
-
-    autocmd FileType text   FoText | setlocal indentexpr=UserTextIndent()
 
     " these ftplugins mess with 'tabstop' - undo that.
     autocmd FileType markdown           Lousy
