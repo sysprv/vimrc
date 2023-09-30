@@ -1,4 +1,4 @@
-" Last-Modified: 2023-09-27T12:27:20.295609187+00:00
+" Last-Modified: 2023-09-30T10:37:18.883989653+00:00
 " vim:set tw=80 noml:
 set nocompatible
 if version < 704
@@ -2933,11 +2933,13 @@ xnoremap        <Up>    gk
 " less intrusive than opening help. <expr> is brittle. <Cmd>'s robust, but
 " very new.
 "
+" UserShowHelp()'s too loud.
+"
 " the quiet alternative: <Nop>
 
-nnoremap    <silent> <F1>      :call UserShowHelp()<cr>
+nnoremap    <silent> <F1>      :echo UserBufferInfo()<CR>
 " insert mode <F1> - don't change mode
-inoremap    <silent> <F1>      <C-\><C-o>:call UserShowHelp()<cr>
+inoremap    <silent> <F1>      <C-\><C-o>:echo UserBufferInfo()<CR>
 
 " mnemonic: show buffer info
 nnoremap    <Leader>i           :echo UserBufferInfo()<CR>
