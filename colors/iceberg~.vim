@@ -18,7 +18,8 @@ function! ColorOverrideIceberg() abort
     highlight ModeMsg term=NONE cterm=NONE gui=NONE
 
     if &background ==# 'light'
-        highlight Normal guibg=#f3f3f3
+        " guifg: pantone 19-4052 tcx classic blue
+        highlight Normal guibg=#f3f3f3 guifg=#0f4c81
 
         if UserCO(g:u.coflags.stat)
             "highlight StatusLine ctermfg=0 ctermbg=152 cterm=NONE guifg=fg guibg=#b0e0e6 gui=NONE
@@ -42,8 +43,8 @@ function! ColorOverrideIceberg() abort
         highlight UserHashTag               ctermbg=152     guibg=#b0e0e6
         " trailing whitespace same as SpellBad
         highlight UserTrailingWhitespace    ctermbg=254     guibg=grey91
-    else
-        " background ==# 'dark'
+
+    else    " background ==# 'dark'
 
         " don't like the dark blue of iceberg
         highlight Normal guibg=#000000
@@ -68,7 +69,7 @@ function! ColorOverrideIceberg() abort
         highlight UserHashTag ctermbg=24 guibg=#005f5f
         " trailing whitespace same as SpellBad
         highlight UserTrailingWhitespace    ctermbg=235     guibg=grey25
-    endif
+    endif   " if-background
 
     let g:colors_name = 'iceberg~'
 endfunction
