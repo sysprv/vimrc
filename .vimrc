@@ -2190,14 +2190,17 @@ function! UserApplySyntaxRules()
     "   [✚'a\✚b\'cde']
     syntax clear UserHashTag
     syntax match UserHashTag /\v✚[_[:lower:][:upper:][:digit:]]{1,30}/
-        \ display oneline containedin=ALLBUT,UserHashTag
-    "syntax match UserHashTag /\v✚'[^^'✚]{-1,30}'/
-    "
+        \ display oneline containedin=ALLBUT,UserHashTag contains=@NoSpell
+
     " in single quotes, allow escaping anything - including single quotes
     " and tag-starting cross.
     " %() - non-capturing group.
     syntax match UserHashTag /\v✚'%([^✚'\\]|\\.){-1,30}'/
-        \ display oneline containedin=ALLBUT,UserHashTag
+        \ display oneline containedin=ALLBUT,UserHashTag contains=@NoSpell
+
+    " ^ maybe - add contained matches to use @NoSpell when hashtags are
+    " contained in other syntax items. but i usually don't use hashtags within
+    " other syntax items.
 
     " make URIs effectively transparent; if contained, highlight like the
     " container. if at toplevel, highlight like the Normal hl group.
