@@ -4276,7 +4276,8 @@ syntax off
 " when filetype syntax is disabled with a global 'syntax off'.
 
 " 2-300 can easily be insufficient.
-set redrawtime=700 synmaxcol=200
+" 2023-10-01 rarely use syntax highlighting, keep these at default.
+"set redrawtime=700 synmaxcol=200
 
 " some key gui things:
 
