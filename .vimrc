@@ -1634,6 +1634,8 @@ function! UserSyntaxNamesAtCursor() abort
     return l:syn_names
 endfunction
 
+command SynNames    echom UserSyntaxNamesAtCursor()
+
 
 function! UserCurWinSz()
     if !exists('*win_getid')
