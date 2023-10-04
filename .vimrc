@@ -1,4 +1,4 @@
-" Last-Modified: 2023-09-30T10:37:18.883989653+00:00
+" Last-Modified: 2023-10-04T17:34:54.753492399+00:00
 " vim:set tw=80 noml:
 set nocompatible
 if version < 704
@@ -11,6 +11,11 @@ set secure encoding=utf-8 fileencoding=utf-8 nobomb
 scriptencoding utf-8        " must go after 'encoding'
 
 " Change log:
+"
+" 2023-10-04 Back into the fold of laststatus=2, including orthodox
+" StatusLine{/NC} usage - due to change messages that can't be turned off.
+" Disable the mode message ('showmode'). Move StatusLine and SpellBad highlights
+" back in here.
 "
 " 2023-09-20 Set 'language' early. Turn off 'filetype indent', setup autocmds
 " to load indent rules for a few filetypes. Finally English menus.
@@ -578,13 +583,18 @@ set selectmode= keymodel=
 "
 " probably winfixheight wasn't meant to be in a modeline.
 
-" don't like flimflam when editing a single thing
-set laststatus=1
+" don't like flimflam when editing a single thing.
+"
+" 2023-10-03 g-/g+ prints long messages like "1 line less; before #1  2 seconds
+" ago". Can't be turned off, 'report' doesn't affect them. when the statusline's
+" missing and the ruler's active and cmdheight's 1, the message doesn't fit and
+" causes hit-enter prompts. shm-T truncation in the middle also sucks.
+" cmdheight>1 sucks. laststatus=2 sucks least. maybe forcing the ruler to be
+" shorter can help, but can't be bothered anymore.
+set laststatus=2
 
 " disabling 'ruler' makes 3<C-g> print more info.
 set ruler
-" would like to disable showmode; but with all the different modes in vim...
-set showmode
 " must always be 8
 if &tabstop != 8
     set tabstop=8
@@ -1266,7 +1276,8 @@ endfunction
 " current register: %{v:register}
 
 " don't forget to kee a space/separator after the filename
-set statusline=%n\ /\ %<%{UserStLnBufFlags()}%W%H\ /%#StatusLineNC#%t\ %=%P\ %{g:u.mark}\ "
+set statusline=%n\ /\ %<%{UserStLnBufFlags()}%W%H\ /\ %t\ %=%P\ %{g:u.mark}\ "
+
 
 " in case we close all normal windows and end up with something like the preview
 " window as the only window - the ruler should show the same buffer flags as the
@@ -2089,8 +2100,6 @@ endfunction
 " mlterm starts with t_Co 8, later changes to 256.
 function! UserColours()
     call UserLog('UserColours enter win', winnr())
-    " 'background' at the time this function ran - save to inspect later
-    let g:u.user_colours_last_bg = &background
 
     " 2023-07-01 our colorscheme overrides are now in an external colorscheme
     " file. overrides depend on the scheme, no point in keeping them in this
@@ -2102,6 +2111,57 @@ function! UserColours()
     highlight clear SpellLocal
     " decriminalise rare words
     highlight clear SpellRare
+
+    " juse use tty defaults for the mode display
+    highlight clear ModeMsg
+
+    " iceberg statusline colours in 256 mode suck. the StatusLine* and
+    " SpellBad really should be here and not in an external colorscheme
+    " wrapper.
+
+    if &background ==# 'light'
+        if UserCO(g:u.coflags.stat)
+            " uncoloured active statusline:
+            "highlight StatusLine
+            "\ ctermfg=NONE ctermbg=NONE cterm=NONE
+            "\ guifg=fg guibg=NONE gui=NONE
+
+            highlight StatusLine
+                        \ ctermfg=254 ctermbg=24 cterm=NONE
+                        \ guifg=bg guibg=#005f87 gui=NONE
+            highlight StatusLineNC
+                        \ ctermfg=15 ctermbg=60 cterm=NONE
+                        \ guifg=bg guibg=#5a4f74 gui=NONE
+            highlight VertSplit
+                        \ ctermfg=60 ctermbg=60 cterm=NONE
+                        \ guifg=#5a4f74 guibg=#5a4f74 gui=NONE
+        endif
+        if UserCO(g:u.coflags.spell)
+            highlight SpellBad
+                        \ term=NONE
+                        \ ctermfg=NONE ctermbg=254 cterm=NONE
+                        \ guifg=fg guibg=grey91 gui=NONE guisp=NONE
+        endif
+    else    " background is dark
+        if UserCO(g:u.coflags.stat)
+            " amber: #fc9505
+            highlight StatusLine
+                        \ ctermfg=NONE ctermbg=52 cterm=NONE
+                        \ guifg=fg guibg=firebrick4 gui=NONE
+            highlight StatusLineNC
+                        \ ctermfg=none ctermbg=238
+                        \ cterm=NONE guifg=fg guibg=#444444 gui=NONE
+            highlight VertSplit
+                        \ ctermfg=52 ctermbg=52 cterm=NONE
+                        \ guifg=firebrick4 guibg=firebrick4 gui=NONE
+        endif
+        if UserCO(g:u.coflags.spell)
+            highlight SpellBad
+                        \ term=NONE
+                        \ ctermfg=NONE ctermbg=235 cterm=NONE
+                        \ guifg=fg guibg=grey25 gui=NONE guisp=NONE
+        endif
+    endif
 
     " define the highlight groups for our custom syntax items. these will get
     " cleared on colorscheme changes etc.
@@ -2358,8 +2418,9 @@ function! UserInitColourOverride()
     let g:u.coflags.all =       31    " override all known
 
     " control variable - assign default value
-    " let g:u.co = g:u.coflags.all
-    let g:u.co = and(g:u.coflags.all, invert(g:u.coflags.stat))
+    let g:u.co = g:u.coflags.all
+    " to use colorscheme's defaults for statusline:
+    "let g:u.co = and(g:u.coflags.all, invert(g:u.coflags.stat))
 endfunction
 
 " bitwise check if a flag is set
