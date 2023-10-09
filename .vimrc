@@ -1,4 +1,4 @@
-" Last-Modified: 2023-10-04T17:34:54.753492399+00:00
+" Last-Modified: 2023-10-09T18:35:05.587738829+00:00
 " vim:set tw=80 noml:
 set nocompatible
 if version < 704
@@ -11,6 +11,9 @@ set secure encoding=utf-8 fileencoding=utf-8 nobomb
 scriptencoding utf-8        " must go after 'encoding'
 
 " Change log:
+"
+" 2023-10-09 check and cleanup unwanted autoformat behaviour - unset 'comments'
+" and 'commentstring' for plain text. Pass textwidth through to par.
 "
 " 2023-10-04 Back into the fold of laststatus=2, including orthodox
 " StatusLine{/NC} usage - due to change messages that can't be turned off.
@@ -616,7 +619,7 @@ set whichwrap=<,>,[,]
 
 " indentation
 " cindentation's a bit too intrusive for plaintext. smartindent too can be
-" annoying. have seen 'undeletable' (ineffective x) tabs.
+" annoying.
 set autoindent
 set colorcolumn=+1
 
@@ -1490,7 +1493,7 @@ function! UserBufferInfo()
     let l:bufp = []
     " order's significant
     call add(l:bufp, 'tw=' . &textwidth)
-    call add(l:bufp, 'wm= ' . &wrapmargin)
+    call add(l:bufp, 'wm=' . &wrapmargin)
 
     call add(l:bufp, "(")
     if &tabstop != 8
@@ -3095,7 +3098,12 @@ inoremap <expr> <silent> <Leader>dU     UserUtcNow()
 "" http://www.nicemice.net/par/par-doc.var
 
 if executable('/usr/bin/par')
-    nnoremap        <Leader>j     {!}/usr/bin/par 78<cr>}
+    "nnoremap        <Leader>j     {!}/usr/bin/par 78<cr>}
+
+    " export current textwidth or default 78 to par via an environment variable.
+    nnoremap    <Leader>j
+                \ :let $PAR_TW = &textwidth == 0 ? 78 : &textwidth<CR>
+                \ {!}/usr/bin/par "$PAR_TW"<CR>}
 endif
 
 " join paragraphs to one line, for sharing.
@@ -3858,6 +3866,17 @@ command -bar Nowr    setlocal
 command -bar FoCode  setlocal
             \ autoindent nosmartindent cindent formatoptions<
 
+
+" for plain text - clear default comment options for plain text. the default
+" 'com' fb:- can cause autoformatting fo-a with fo-q to insert unwanted spaces,
+" if the line above happens to start with '- ' -- false positive comment
+" recognition. also disable comment handling in formatoptions.
+
+command -bar NoComments setlocal comments= commentstring=
+            \ | setlocal formatoptions-=c
+            \ | setlocal formatoptions-=q
+
+
 " WIP - 2nd line in buffer or paragraph - no indentation (don't follow the
 " first line's indentation). ending up on column 1, it's easier to indent than
 " to unindent. but only on one level of indent, a small number of spaces <= 4.
@@ -4204,6 +4223,8 @@ augroup UserVimRc
     autocmd FileType
                 \ ada,go,perl,python,racket,raku,ruby,rust,scala,vim
                 \ execute 'runtime! indent/' . expand('<amatch>') . '.vim'
+
+    autocmd FileType text               NoComments
 
     " these ftplugins mess with 'tabstop' - undo that.
     autocmd FileType markdown           Lousy
