@@ -484,14 +484,14 @@ endif
 
 set showcmd
 
-" doc fo-table
+" set-formatoptions; doc fo-table
 " fo-r - add comment leader on new lines, insert mode
 " fo-n - recognize numbered lists
 " fo-2 - use indent of 2nd line for the rest of the paragraph
 " fo-B - no space between two multibyte chars when joining
 " fo-1 - try to not break lines after one-letter words
 " fo-j - remove comment leader when joining lines
-set formatoptions+=rn2B1j
+set formatoptions+=r2B1j
 " leave only one space after ./?/! when joining
 set nojoinspaces
 " wrapmargin adds <EOL>s, never use.
@@ -3851,8 +3851,21 @@ command -bar T4x4       SoftIndent 4 | setlocal noexpandtab
 "   (GNU Collaborative International Dictionary of English)
 
 " NB: autoindent affects fo-at
+"
+" for plain text - clear default comment options for plain text. the default
+" 'com' fb:- can cause autoformatting fo-a with fo-q to insert unwanted spaces,
+" if the line above happens to start with '- ' -- false positive comment
+" recognition. also disable comment handling in formatoptions.
+"
+" fo-n (numbered list match) and formatlistpat can also cause trouble. it
+" mismatches timestamps like 23:00 at the beginning of a line.
+
 command -bar FoText  setlocal
             \ autoindent nosmartindent nocindent formatoptions<
+            \ comments= commentstring= formatlistpat=
+            \ | setlocal formatoptions-=c
+            \ | setlocal formatoptions-=q
+            \ | setlocal formatoptions-=n
 
 " for prose
 command -bar Wr     FoText | setlocal textwidth=80 formatoptions+=a spell
@@ -3865,16 +3878,6 @@ command -bar Nowr    setlocal
 
 command -bar FoCode  setlocal
             \ autoindent nosmartindent cindent formatoptions<
-
-
-" for plain text - clear default comment options for plain text. the default
-" 'com' fb:- can cause autoformatting fo-a with fo-q to insert unwanted spaces,
-" if the line above happens to start with '- ' -- false positive comment
-" recognition. also disable comment handling in formatoptions.
-
-command -bar NoComments setlocal comments= commentstring=
-            \ | setlocal formatoptions-=c
-            \ | setlocal formatoptions-=q
 
 
 " WIP - 2nd line in buffer or paragraph - no indentation (don't follow the
@@ -4224,7 +4227,7 @@ augroup UserVimRc
                 \ ada,go,perl,python,racket,raku,ruby,rust,scala,vim
                 \ execute 'runtime! indent/' . expand('<amatch>') . '.vim'
 
-    autocmd FileType text               NoComments
+    autocmd FileType text               FoText
 
     " these ftplugins mess with 'tabstop' - undo that.
     autocmd FileType markdown           Lousy
