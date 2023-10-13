@@ -1908,17 +1908,22 @@ function! UserDefineSyntaxHighlightGroups()
     " override, we don't do a quick exhaustive check here (like we do for
     " syntax items).
 
+    " grey as default can look really bad; better to just define cleared
+    " highlight group to keep the syntax rules from failing, than actually set
+    " colours.
+
     if !has_key(l:hl, 'UserDateComment')
-        " 2023-06-30 cterm italic can break easily (freebsd termcap)
-        highlight UserDateComment ctermbg=grey guibg=grey
+        highlight clear UserDateComment
     endif
 
     if !has_key(l:hl, 'UserTrailingWhitespace')
-        highlight UserTrailingWhitespace term=standout ctermbg=grey guibg=grey
+        highlight clear UserTrailingWhitespace
+        " turn on 'list', hope 'trail' is defined and working.
+        ListDef | set list
     endif
 
     if !has_key(l:hl, 'UserHashTag')
-        highlight UserHashTag ctermbg=grey guibg=grey
+        highlight clear UserHashTag
     endif
 
     " for URIs at top level, with syntax highlighting and not matchadd()
