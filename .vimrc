@@ -1268,7 +1268,7 @@ function! UserStLnBufFlags()
     " erase numbers that are 0, erase empty strings
     call filter(l:l, "v:val != 0 || v:val !=# ''")
     "return '[' . join(l:l, '][') . ']'
-    return join(l:l, ' / ')
+    return '[' . join(l:l, '|') . ']'
 endfunction
 
 " NB: last double quote starts a comment and preserves the trailing space. vim
@@ -1279,7 +1279,7 @@ endfunction
 " current register: %{v:register}
 
 " don't forget to kee a space/separator after the filename
-set statusline=%n\ /\ %<%{UserStLnBufFlags()}%W%H\ /\ %t\ %=%P\ %{g:u.mark}\ "
+set statusline=%n'%{UserStLnBufFlags()}%W%H\<%<%t\>\ %=%P\ %{g:u.mark}\ "
 
 
 " in case we close all normal windows and end up with something like the preview
@@ -1508,7 +1508,7 @@ function! UserBufferInfo()
     call add(l:bufp, 'ft=' . &filetype)
     call add(l:bufp, 'fo=' . &formatoptions)
 
-    return bufnr('%') . ': [' . UserStLnBufFlags() . '] ' . join(l:bufp)
+    return bufnr('%') . ': ' . UserStLnBufFlags() . ' ' . join(l:bufp)
 endfunction
 
 
