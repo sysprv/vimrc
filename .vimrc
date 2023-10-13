@@ -2134,15 +2134,14 @@ function! UserColours()
             "\ ctermfg=NONE ctermbg=NONE cterm=NONE
             "\ guifg=fg guibg=NONE gui=NONE
 
+            " color 24's good.
+
             highlight StatusLine
-                        \ ctermfg=254 ctermbg=24 cterm=NONE
-                        \ guifg=bg guibg=#005f87 gui=NONE
-            highlight StatusLineNC
-                        \ ctermfg=15 ctermbg=60 cterm=NONE
+                        \ ctermfg=254 ctermbg=60 cterm=NONE
                         \ guifg=bg guibg=#5a4f74 gui=NONE
-            highlight VertSplit
-                        \ ctermfg=60 ctermbg=60 cterm=NONE
-                        \ guifg=#5a4f74 guibg=#5a4f74 gui=NONE
+            highlight StatusLineNC
+                        \ ctermfg=238 ctermbg=252 cterm=NONE
+                        \ guifg=fg guibg=grey82 gui=NONE
         endif
         if UserCO(g:u.coflags.spell)
             highlight SpellBad
@@ -2150,6 +2149,21 @@ function! UserColours()
                         \ ctermfg=NONE ctermbg=254 cterm=NONE
                         \ guifg=fg guibg=grey91 gui=NONE guisp=NONE
         endif
+        if UserCO(g:u.coflags.ui)
+            "
+            " ColorColumn azure2
+            " CursorLine palegoldenrod
+            "
+            highlight NonText ctermfg=NONE ctermbg=7 guifg=#9fa7bd guibg=#dcdfe7
+            highlight SpecialKey ctermfg=164 ctermbg=252
+                        \ guifg=#aa336a guibg=#dcdfe7
+        endif
+        highlight UserDateComment ctermfg=241 ctermbg=254
+                    \ guifg=grey40 guibg=azure2 gui=italic
+        "highlight UserHashTag ctermbg=194 guibg=#b9ebc4
+        highlight UserHashTag ctermbg=152 guibg=#b0e0e6
+        " trailing whitespace same as SpellBad
+        highlight UserTrailingWhitespace ctermbg=254 guibg=grey91
     else    " background is dark
         if UserCO(g:u.coflags.stat)
             " amber: #fc9505
@@ -2159,9 +2173,6 @@ function! UserColours()
             highlight StatusLineNC
                         \ ctermfg=none ctermbg=238
                         \ cterm=NONE guifg=fg guibg=#444444 gui=NONE
-            highlight VertSplit
-                        \ ctermfg=52 ctermbg=52 cterm=NONE
-                        \ guifg=firebrick4 guibg=firebrick4 gui=NONE
         endif
         if UserCO(g:u.coflags.spell)
             highlight SpellBad
@@ -2169,6 +2180,16 @@ function! UserColours()
                         \ ctermfg=NONE ctermbg=235 cterm=NONE
                         \ guifg=fg guibg=grey25 gui=NONE guisp=NONE
         endif
+        if UserCO(g:u.coflags.ui)
+            " similar to LineNr
+            highlight NonText ctermfg=NONE ctermbg=235 guifg=#444b71 guibg=#1e2132
+            highlight SpecialKey ctermfg=214 ctermbg=235 guifg=orange guibg=#1e2132
+            " TODO Visual?
+        endif
+        highlight UserDateComment ctermfg=246 guifg=grey70 guibg=#1e2132 gui=italic
+        highlight UserHashTag ctermbg=24 guibg=#005f5f
+        " trailing whitespace same as SpellBad
+        highlight UserTrailingWhitespace    ctermbg=235     guibg=grey25
     endif
 
     " define the highlight groups for our custom syntax items. these will get
