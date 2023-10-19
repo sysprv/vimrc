@@ -4252,6 +4252,12 @@ augroup UserVimRc
 
     autocmd FileType text               FoText
 
+    " limited indentation detection - search for \t in the first page.
+    " if hard tab found, switch to hard tab mode.
+    autocmd FileType conf   if match(getline(2, 23), "\t") != -1
+                \ | Proper
+                \ | endif
+
     " these ftplugins mess with 'tabstop' - undo that.
     autocmd FileType markdown           Lousy
     autocmd FileType python             Lousy
