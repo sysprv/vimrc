@@ -1945,54 +1945,6 @@ function! UserDefineSyntaxHighlightGroups()
 endfunction
 
 
-" bring some sanity to vim UI element colours.
-" remember; TERM(vt100, vt220) -> term, TERM(ansi, linux, xterm) -> cterm
-"
-" Only needs to run on non-gui, non-256-colour ttys.
-function! UserSafeUIHighlights()
-    if g:u.term_primitive
-        highlight ColorColumn   term=reverse
-        highlight CursorColumn  NONE
-        highlight CursorLine    NONE
-        highlight CursorLineNr  term=NONE cterm=NONE
-        highlight EndOfBuffer   NONE
-        highlight ErrorMsg      term=standout
-        highlight Ignore        NONE
-        "highlight LineNr        NONE
-        highlight MatchParen    NONE
-        " in some situations the default bold attribute of ModeMsg caused
-        " problems. clear the term attribute.
-        highlight ModeMsg       NONE
-        highlight Normal        NONE
-        " for cterm with 8/16/88 colours
-        highlight Visual        term=reverse cterm=reverse ctermbg=NONE
-    endif
-
-    if UserCO(g:u.coflags.spell)
-        " we'll set our own later
-        highlight SpellBad      NONE
-    endif
-
-    " we want to be safe for monochrome ttys, and at the same time
-    " clear cterm and gui attributes that can be bad in 256 color and gui modes.
-    " since the attributes here are initial values and get inherited later.
-    " and bearable with screen(1) defaults, where t_Co == 8.
-
-    " NonText - by default used, among others, for the end-of-buffer tildes.
-    " here, with low-color ttys in mind, we don't want to set a ctermbg.
-    " listchars: eol, extends, precedes
-    highlight NonText       term=NONE ctermfg=NONE ctermbg=NONE cterm=NONE
-    " listchars: tab, nbsp, trail (+ space, multispace, lead)
-    highlight SpecialKey    ctermfg=blue ctermbg=NONE cterm=NONE
-
-    if UserCO(g:u.coflags.stat)
-        " specifying ctermfg in case of a dark tty background
-        highlight StatusLine    ctermfg=grey    ctermbg=black   cterm=NONE
-        highlight StatusLineNC  ctermfg=black   ctermbg=grey    cterm=NONE
-    endif
-endfunction     " UserSafeUIHighlights
-
-
 " turn off most highlights; 'highlight clear' defaults are awful,
 " set highlights to NONE to silence.
 " these are highlights for text/content, not vim UI elements.
@@ -2092,43 +2044,52 @@ function! s:setupClipboard()
 endfunction
 
 
-" works, but again, loses context. verbose hi shows the line number within
-" this function as the modification location, not the callsite of this
-" function.
-function! UserCopyHiAttr(from_hl, to_hl, attr) abort
-    let l:src = hlget(a:from_hl, v:true)[0]
-    let l:dest = hlget(a:to_hl)[0]
-    let l:dest[a:attr] = l:src[a:attr]
-    call hlset([l:dest])
-endfunction
-
-
-" Meant to run after a colorscheme we like is loaded. Overrides highlights
-" we don't agree with (StatusLine(NC), NonText, SpecialKey), defines good
-" highlights in case the colorscheme file might not be available (Visual).
+" bring some sanity to vim UI element colours.
+" remember; TERM(vt100, vt220) -> term, TERM(ansi, linux, xterm) -> cterm
 "
-" mlterm starts with t_Co 8, later changes to 256.
-function! UserColours()
-    call UserLog('UserColours enter win', winnr())
+" Only needs to run on non-gui, non-256-colour ttys.
+function! UserColoursFailsafe()
+    if g:u.term_primitive
+        highlight ColorColumn   term=reverse
+        highlight CursorColumn  NONE
+        highlight CursorLine    NONE
+        highlight CursorLineNr  term=NONE cterm=NONE
+        highlight EndOfBuffer   NONE
+        highlight ErrorMsg      term=standout
+        highlight Ignore        NONE
+        "highlight LineNr        NONE
+        highlight MatchParen    NONE
+        " in some situations the default bold attribute of ModeMsg caused
+        " problems. clear the term attribute.
+        highlight Normal        NONE
+        " for cterm with 8/16/88 colours
+        highlight Visual        term=reverse cterm=reverse ctermbg=NONE
+    endif
 
-    " 2023-07-01 our colorscheme overrides are now in an external colorscheme
-    " file. overrides depend on the scheme, no point in keeping them in this
-    " vimrc as long as we depend on another external file (the colorscheme)
-    " anyway.
+    if UserCO(g:u.coflags.spell)
+        highlight SpellBad      NONE
+    endif
 
-    " vim spell isn't worth suffering this much over.
-    highlight clear SpellCap
-    highlight clear SpellLocal
-    " decriminalise rare words
-    highlight clear SpellRare
+    " we want to be safe for monochrome ttys, and at the same time
+    " clear cterm and gui attributes that can be bad in 256 color and gui modes.
+    " since the attributes here are initial values and get inherited later.
+    " and bearable with screen(1) defaults, where t_Co == 8.
 
-    " juse use tty defaults for the mode display
-    highlight clear ModeMsg
+    " NonText - by default used, among others, for the end-of-buffer tildes.
+    " here, with low-color ttys in mind, we don't want to set a ctermbg.
+    " listchars: eol, extends, precedes
+    highlight NonText       term=NONE ctermfg=NONE ctermbg=NONE cterm=NONE
+    " listchars: tab, nbsp, trail (+ space, multispace, lead)
+    highlight SpecialKey    ctermfg=blue ctermbg=NONE cterm=NONE
 
-    " iceberg statusline colours in 256 mode suck. the StatusLine* and
-    " SpellBad really should be here and not in an external colorscheme
-    " wrapper.
+    if UserCO(g:u.coflags.stat)
+        " specifying ctermfg in case of a dark tty background
+        highlight StatusLine    ctermfg=grey    ctermbg=black   cterm=NONE
+        highlight StatusLineNC  ctermfg=black   ctermbg=grey    cterm=NONE
+    endif
+endfunction     " UserColoursFailsafe()
 
+function! UserColours256()
     if &background ==# 'light'
         if UserCO(g:u.coflags.stat)
             " uncoloured active statusline:
@@ -2192,6 +2153,40 @@ function! UserColours()
         highlight UserHashTag ctermbg=24 guibg=#005f5f
         " trailing whitespace same as SpellBad
         highlight UserTrailingWhitespace    ctermbg=235     guibg=grey25
+    endif
+
+endfunction
+
+
+" Meant to run after a colorscheme we like is loaded. Overrides highlights
+" we don't agree with (StatusLine(NC), NonText, SpecialKey), defines good
+" highlights in case the colorscheme file might not be available (Visual).
+"
+" mlterm starts with t_Co 8, later changes to 256.
+function! UserColours()
+    call UserLog('UserColours enter win', winnr())
+
+    " 2023-07-01 our colorscheme overrides are now in an external colorscheme
+    " file. overrides depend on the scheme, no point in keeping them in this
+    " vimrc as long as we depend on another external file (the colorscheme)
+    " anyway.
+
+    " vim spell isn't worth suffering this much over.
+    highlight clear SpellCap
+    highlight clear SpellLocal
+    " decriminalise rare words
+    highlight clear SpellRare
+
+    " juse use tty defaults for the mode display
+    highlight clear ModeMsg
+
+    " iceberg statusline colours in 256 mode suck. the StatusLine* and
+    " SpellBad really should be here and not in an external colorscheme
+    " wrapper.
+    if UserCanLoadColorscheme()
+        call UserColours256()
+    else
+        call UserColoursFailsafe()
     endif
 
     " define the highlight groups for our custom syntax items. these will get
