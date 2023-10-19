@@ -1011,8 +1011,9 @@ function! UserSetupListchars() abort
 
     " for the linux console or old X bitmap fonts:
     let g:u.lcs.ascii = copy(g:u.lcs.def)
-    " better that and have the key (eol).
-    let g:u.lcs.ascii.eol = '$'
+    " eol $ is very distracting.
+    " let g:u.lcs.ascii.eol = '$'
+    let g:u.lcs.ascii.eol = 'NONE'
     let g:u.lcs.ascii.nbsp = '!'
     let g:u.lcs.ascii.tab = 'NONE'
     let g:u.lcs.ascii.trail = '_'
