@@ -1,4 +1,4 @@
-" Last-Modified: 2023-10-09T18:35:05.587738829+00:00
+" Last-Modified: 2023-10-19T20:38:08.307460837+00:00
 " vim:set tw=80 noml:
 set nocompatible
 if version < 704
@@ -11,6 +11,9 @@ set secure encoding=utf-8 fileencoding=utf-8 nobomb
 scriptencoding utf-8        " must go after 'encoding'
 
 " Change log:
+"
+" 2023-10-19 Restore lost functionality - colours for t_Co < 256. statusline
+" futzing again - mixing NC colour's bad for small windows.
 "
 " 2023-10-09 check and cleanup unwanted autoformat behaviour - unset 'comments'
 " and 'commentstring' for plain text. Pass textwidth through to par.
