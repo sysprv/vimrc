@@ -489,9 +489,10 @@ set showcmd
 " fo-n - recognize numbered lists
 " fo-2 - use indent of 2nd line for the rest of the paragraph
 " fo-B - no space between two multibyte chars when joining
+"   multibyte can be many things, not just CJK. breaks too many texts.
 " fo-1 - try to not break lines after one-letter words
 " fo-j - remove comment leader when joining lines
-set formatoptions+=r2B1j
+set formatoptions+=r21j
 " leave only one space after ./?/! when joining
 set nojoinspaces
 " wrapmargin adds <EOL>s, never use.
