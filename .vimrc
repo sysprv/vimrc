@@ -373,21 +373,7 @@ let g:undotree_WindowLayout = 2
 let g:undotree_ShortIndicators = 1
 let g:undotree_HelpLine = 0
 
-" ripgrep
-"
-" 2022-09-27
-" "It's very unlikely 'grepprg' is useful to search in buffers"
-" but no bgrep/bufgrep has materialized yet.
-" https://groups.google.com/g/vim_dev/c/4fYjTCWtWLM
-" https://groups.google.com/g/vim_dev/c/idm621ixACU
-"
-" also https://github.com/tpope/vim-sensible/issues/115
-if executable('/usr/bin/rg')
-    " trailing /dev/null just helps when you forget %/filename
-    set grepprg=/usr/bin/rg\ --vimgrep\ --no-heading\ --smart-case\ $*\ /dev/null
-    " use column number provided by ripgrep
-    set grepformat=%f:%l:%c:%m
-endif
+" never used grepprg
 
 " journalled filesystems, SSD/NVMe/SD cards. fsync is complex these days, it's
 " not clear that vim does everything that's needed.
