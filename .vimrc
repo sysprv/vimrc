@@ -1,6 +1,6 @@
-" Last-Modified: 2023-10-19T20:38:08.307460837+00:00
+" Last-Modified: 2023-10-31T14:53:08.522262939+00:00
 " vim:set tw=80 noml:
-set nocompatible
+set nocompatible nostartofline
 if version < 704
     nnoremap    s   <C-w>
     set backupcopy=yes
