@@ -2091,13 +2091,13 @@ function! UserColours256()
             "\ guifg=fg guibg=NONE gui=NONE
 
             " color 24's good.
-
             highlight StatusLine
                         \ ctermfg=254 ctermbg=60 cterm=NONE
-                        \ guifg=bg guibg=#5a4f74 gui=NONE
+                        \ guifg=#f3f3f3 guibg=#5a4f74 gui=NONE
+            " grey82
             highlight StatusLineNC
                         \ ctermfg=238 ctermbg=252 cterm=NONE
-                        \ guifg=fg guibg=grey82 gui=NONE
+                        \ guifg=#f3f3f3 guibg=plum4 gui=NONE
         endif
         if UserCO(g:u.coflags.spell)
             highlight SpellBad
@@ -2123,12 +2123,15 @@ function! UserColours256()
     else    " background is dark
         if UserCO(g:u.coflags.stat)
             " amber: #fc9505
+            " firebrick4
+            " guifg - use a fixed value so that Normal can be changed freely
             highlight StatusLine
-                        \ ctermfg=NONE ctermbg=52 cterm=NONE
-                        \ guifg=fg guibg=firebrick4 gui=NONE
+                        \ ctermfg=NONE ctermbg=24 cterm=NONE
+                        \ guifg=#f3f3f3 guibg=deepskyblue4 gui=NONE
+            " grey27/#444444
             highlight StatusLineNC
-                        \ ctermfg=none ctermbg=238
-                        \ cterm=NONE guifg=fg guibg=#444444 gui=NONE
+                        \ ctermfg=NONE ctermbg=95 cterm=NONE
+                        \ guifg=#f3f3f3 guibg=plum4 gui=NONE
         endif
         if UserCO(g:u.coflags.spell)
             highlight SpellBad
@@ -2145,7 +2148,7 @@ function! UserColours256()
         highlight UserDateComment ctermfg=246 guifg=grey70 guibg=#1e2132 gui=italic
         highlight UserHashTag ctermbg=24 guibg=#005f5f
         " trailing whitespace same as SpellBad
-        highlight UserTrailingWhitespace    ctermbg=235     guibg=grey25
+        highlight UserTrailingWhitespace ctermbg=24 guibg=grey25
     endif
 
 endfunction
@@ -2186,6 +2189,10 @@ function! UserColours()
     " cleared on colorscheme changes etc.
     call UserDefineSyntaxHighlightGroups()
 endfunction
+
+" set Normal colours for gui dark mode
+command -bar Amber  highlight Normal guifg=#ffb000
+command -bar Green  #41ff00
 
 
 let g:UserCustomSynHash = { 'UserTrailingWhitespace': 1,
@@ -2381,6 +2388,9 @@ function! UserColoursPrelude()
     " https://stackoverflow.com/a/38287998
     " https://github.com/vim/vim/issues/869
 
+    " urxvt/rxvt-unicode - specifying forground and background as a number sets
+    " those numbers in the exported COLORFGBG env var.
+
     if has('win32')
         set background=light
     endif
@@ -2441,6 +2451,13 @@ function! UserInitColourOverride()
     " to use colorscheme's defaults for statusline:
     "let g:u.co = and(g:u.coflags.all, invert(g:u.coflags.stat))
 endfunction
+
+" restore u.co to default behaviour
+command -bar CoOverrideDefault  let g:u.co = g:u.coflags.all
+" to not apply our highlights to the statusline, keep the highlights provided by
+" a colorscheme.
+command -bar CoTestStat     let g:u.co = and(g:u.coflags.all, invert(g:u.coflags.stat))
+
 
 " bitwise check if a flag is set
 function! UserCO(p)
@@ -2514,8 +2531,12 @@ function! UserLoadColors()
     " little too.
 
     if UserCanLoadColorscheme()
-        " load iceberg with our overrides.
-        if UserRuntimeHas('colors/iceberg~.vim')
+        " local copy of quiet.vim for distributing to older hosts, and
+        " for local modifications (do not specify cterm colours)
+        if UserRuntimeHas('colors/quiet20230315patch.vim')
+            colorscheme quiet20230315patch
+        elseif UserRuntimeHas('colors/iceberg~.vim')
+            " load iceberg with our overrides.
             colorscheme iceberg~
         endif
 
