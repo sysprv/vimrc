@@ -4233,7 +4233,9 @@ augroup UserVimRc
     autocmd!
 
     " for 'autoread'
-    autocmd CursorHold *    checktime
+    " 2023-10-30 seems CursorHold is triggered in the command line history
+    " window, and checktime doesn't like that.
+    " autocmd CursorHold *    checktime
 
     " enable auto reformatting when writing journal entries,
     " not for all text files.
