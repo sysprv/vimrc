@@ -4257,22 +4257,23 @@ augroup UserVimRc
 
     " default: hard tabs; C, Go, plain old Unix.
 
-    " with 'filetype indent off', load indent rules just for a few we like.
+    " keeping 'filetype indent off', load indent rules just for a few we like.
     " no: *sh, xml, sql, yaml, markdown.
     "
     " see $VIM/indent.vim
+    "
+    " 2023-10-31 been here before; things that make syntax highlighting fragile,
+    " also make indenting fragile - namely, unclosed quotes.
 
-    autocmd FileType
-                \ ada,go,perl,python,racket,raku,ruby,rust,scala,vim
-                \ execute 'runtime! indent/' . expand('<amatch>') . '.vim'
+    " autocmd FileType
+    "             \ ada,go,perl,python,racket,raku,ruby,rust,scala,vim
+    "             \ execute 'runtime! indent/' . expand('<amatch>') . '.vim'
 
     autocmd FileType text               FoText
 
     " limited indentation detection - search for \t in the first page.
     " if hard tab found, switch to hard tab mode.
-    autocmd FileType conf   if match(getline(2, 23), "\t") != -1
-                \ | Proper
-                \ | endif
+    autocmd FileType conf if match(getline(2, 23), "\t")!=-1 | HardIndent | endif
 
     " these ftplugins mess with 'tabstop' - undo that.
     autocmd FileType markdown           Lousy
