@@ -1984,20 +1984,24 @@ endfunction
 
 function! UserSetGuiFont()
     if has('linux') && has('gui_gtk')
-        let &guifont = 'Iosevka Fixed Slab 11'
+        set guifont^=Iosevka\ Fixed\ SS04\ 14
+        set guifont^=Iosevka\ Fixed\ Slab\ 14
     elseif has('win32')
         " default cANSI:qDRAFT
-        set guifont=Iosevka_Fixed_Slab:h11
-        set guifont+=Cascadia_Mono:h11
-        set guifont+=Consolas:h11
+        set guifont^=Consolas:h14
+        set guifont^=Cascadia_Mono:h14
+        set guifont^=Iosevka_Fixed_Slab:h14
+
         " more cleartype; no hidpi here
         " 2023-03-02 have hidpi now
         " 2023-07-09 not everywhere (ultrawide at work)
         " 2023-08-20 very slow on vmware vdi
-        "set renderoptions=type:directx,taamode:1
+        if !exists('$ViewClient_Type')
+            set renderoptions=type:directx,taamode:1
+        endif
     elseif has('ios')
         " iVim, iPhone
-        set guifont=Menlo:h11.0
+        set guifont^=Menlo:h11.0
     endif
 endfunction
 
