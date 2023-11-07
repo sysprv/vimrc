@@ -4297,10 +4297,12 @@ augroup UserVimRc
     "
     " 2023-10-31 been here before; things that make syntax highlighting fragile,
     " also make indenting fragile - namely, unclosed quotes.
+    "
+    " 2023-11-07 now with some simple missing quote detection...
 
-    " autocmd FileType
-    "             \ ada,go,perl,python,racket,raku,ruby,rust,scala,vim
-    "             \ execute 'runtime! indent/' . expand('<amatch>') . '.vim'
+    autocmd FileType
+                \ ada,go,perl,python,racket,raku,ruby,rust,scala,vim
+                \ execute 'runtime! indent/' . expand('<amatch>') . '.vim'
 
     autocmd FileType text               FoText
 
@@ -4445,7 +4447,7 @@ endif
 " with both -rv (reverse) and -fg white -bg black.; bright without bold.
 " urxvt and bg detection works as expected.
 
-syntax off
+"syntax off
 " custom syntax rules (UserApplySyntaxRules()) keep working fine even
 " when filetype syntax is disabled with a global 'syntax off'.
 
