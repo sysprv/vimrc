@@ -1,4 +1,4 @@
-" Last-Modified: 2023-10-31T14:53:08.522262939+00:00
+" Last-Modified: 2023-11-07T15:46:23.128684169+00:00
 " vim:set tw=80 noml:
 set nocompatible nostartofline
 if version < 704
@@ -2196,6 +2196,38 @@ command -bar Amber  highlight Normal guifg=#ffb000
 command -bar Green  #41ff00
 
 
+" sometimes i forget to close strings...
+function! UserHighlightUnendingStrings()
+    if len(filter(
+            \ getmatches(),
+            \ 'v:val["group"] ==# "UserStringMissingEndQuote"')
+        \) == 1
+        return
+    endif
+
+    highlight! link UserStringMissingEndQuote Error
+
+    " can't use syntax match; we need to override any present filetype syntax
+    " highlighting.
+    "
+    " pattern - highlight only keyword chars, don't include the starting quote
+    " and the ending paren/brace/bracket in the highlight.
+    "
+    " collection - ([
+    " collection - " and ' in hex to not bother with quoting
+    " set start of match - \zs
+    " string - \k+
+    " set end of match - \ze
+    " collection - )]
+
+    call matchadd(
+        \ 'UserStringMissingEndQuote',
+        \ '[(\[][\x22\x27]\zs\k\+\ze[)\]]',
+        \ 0,
+        \ 5000
+        \)
+endfunction
+
 let g:UserCustomSynHash = { 'UserTrailingWhitespace': 1,
             \ 'UserUnicodeWhitespace': 1,
             \ 'UserDateComment': 1,
@@ -4365,6 +4397,16 @@ augroup UserVimRcSyntax
     " possible match for just empty: {} https://vi.stackexchange.com/a/22961
 
     autocmd Syntax      *       call UserApplySyntaxRules()
+
+    " -- some quick and dirty missing quote detection
+    autocmd FileType    javascript,python,ruby
+                \ call UserHighlightUnendingStrings()
+
+    " since matchadd matches are window-specific
+    autocmd WinEnter    *       if &filetype =~# '\vjavascript|python|ruby'
+                \ | call UserHighlightUnendingStrings()
+                \ | endif
+    " -----------------------------------------------
 
     " on colourscheme load/change, apply our colours, overriding the scheme.
     autocmd ColorScheme *       call UserColours()
