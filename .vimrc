@@ -1640,6 +1640,7 @@ function! UserSyntaxNamesAtCursor() abort
 endfunction
 
 command SynNames    echom UserSyntaxNamesAtCursor()
+nnoremap <silent>   <Leader>S   :SynNames<CR>
 
 
 function! UserCurWinSz()
