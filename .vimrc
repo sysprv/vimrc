@@ -641,7 +641,7 @@ set whichwrap=<,>,[,]
 " cindentation's a bit too intrusive for plaintext. smartindent too can be
 " annoying.
 set autoindent
-set colorcolumn=+1
+
 
 " will be fine using visual mode/line numbers and the xsel(1) integration
 " mappings and commands further below.
@@ -4360,6 +4360,8 @@ augroup UserVimRc
 
     " would be nice to be able to unload a script; maybe delete functions
     " using :scriptnames and :delf.
+
+    autocmd FileType text,markdown,vim  setlocal colorcolumn=+1
 
     " the first line of the commit message should be < 50 chars
     " to allow for git log --oneline
