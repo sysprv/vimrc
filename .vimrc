@@ -284,6 +284,32 @@ scriptencoding utf-8        " must go after 'encoding'
 " -- end tips
 "
 
+" colour
+"
+" mlterm causes an extra reload of the colorscheme.
+" Debian vim might start with syntax off.
+" That's actually nice to start with, but syn off -> enable is an Upheaval.
+"
+" Take care when testing with xterm: vim always seems to think bg == light,
+" with both -rv (reverse) and -fg white -bg black.; bright without bold.
+" urxvt and bg detection works as expected.
+"
+" some distributions wisely don't enable syntax highlighting by default.
+"
+" syntax-on should be done early, not late. synload.vim and syncolor.vim have
+" many side-effects like removing autocmds.
+
+if !exists('g:syntax_on')
+    syntax on
+endif
+" custom syntax rules (UserApplySyntaxRules()) keep working fine even
+" when filetype syntax is disabled with a global 'syntax off'.
+
+" 2-300 can easily be insufficient.
+" 2023-10-01 rarely use syntax highlighting, keep these at default.
+"set redrawtime=700 synmaxcol=200
+
+
 " important for UserDateComment (language time) and gui menus; better set before
 " filetype config and menus ('langmenu').
 if has('win32')
@@ -4438,28 +4464,6 @@ endif
 " ----
 " misc. plumbing/hacks
 
-" colour
-" mlterm causes an extra reload of the colorscheme.
-" Debian vim might start with syntax off.
-" That's actually nice to start with, but syn off -> enable is an Upheaval.
-"
-" Take care when testing with xterm: vim always seems to think bg == light,
-" with both -rv (reverse) and -fg white -bg black.; bright without bold.
-" urxvt and bg detection works as expected.
-
-"syntax off
-" custom syntax rules (UserApplySyntaxRules()) keep working fine even
-" when filetype syntax is disabled with a global 'syntax off'.
-
-" 2-300 can easily be insufficient.
-" 2023-10-01 rarely use syntax highlighting, keep these at default.
-"set redrawtime=700 synmaxcol=200
-
-" some key gui things:
-
-" disable cursor blinking.
-" someone's really gone on a wild ride with the guicursor possibilities.
-set guicursor=a:block-blinkon0
 
 " load things in order
 call UserRemoveVendorAugroups()
@@ -4471,5 +4475,12 @@ call UserInitColourOverride()
 call UserColoursPrelude()
 call UserLoadColors()
 call s:setupClipboard()
+
+
+" some key gui things:
+
+" disable cursor blinking.
+" someone's really gone on a wild ride with the guicursor possibilities.
+set guicursor=a:block-blinkon0
 
 " ~ fini ~
