@@ -430,15 +430,19 @@ let g:u.has_cb_tty = has('unix') && g:u.has_x11 && executable('/usr/bin/xsel')
 
 let g:u.term_primitive = 1
 " test: env -u DISPLAY TERM=linux vim
+"
+" screen's most useful from the console, but 'linux' doesn't leak through to
+" $TERM. assume primitive.
+"
+" for a toplevel $TERM, if screen.$TERM exists, screen seems to set term to
+" that.
 if g:u.has_x11
     let g:u.term_primitive = 0
 elseif has('gui_running')
     let g:u.term_primitive = 0
-elseif &term =~# '^xterm' || &term =~# '^rxvt-unicode' || &term =~# '^putty'
+elseif &term =~# '\v^%(screen\.)?%(xterm|putty|rxvt-unicode)'
     let g:u.term_primitive = 0
 elseif has('vcon') && &term ==# 'win32'
-    let g:u.term_primitive = 0
-elseif &term =~# 'screen'
     let g:u.term_primitive = 0
 endif
 
@@ -1937,7 +1941,7 @@ function! UserDefineSyntaxHighlightGroups()
     if !has_key(l:hl, 'UserTrailingWhitespace')
         highlight clear UserTrailingWhitespace
         " turn on 'list', hope 'trail' is defined and working.
-        ListDef | set list
+        set list
     endif
 
     if !has_key(l:hl, 'UserHashTag')
