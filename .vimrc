@@ -2228,12 +2228,14 @@ command -bar Amber  highlight Normal guifg=#ffb000
 command -bar Green  #41ff00
 
 
+function! UserWinHasUnendingStringMatch()
+    let l:flt_expr = 'v:val["group"] ==# "UserStringMissingEndQuote"'
+    return len(filter(getmatches(), l:flt_expr)) == 1
+endfunction
+
 " sometimes i forget to close strings...
 function! UserHighlightUnendingStrings()
-    if len(filter(
-            \ getmatches(),
-            \ 'v:val["group"] ==# "UserStringMissingEndQuote"')
-        \) == 1
+    if UserWinHasUnendingStringMatch()
         return
     endif
 
@@ -4333,8 +4335,10 @@ augroup UserVimRc
     " 2023-11-07 now with some simple missing quote detection...
 
     autocmd FileType
-                \ ada,go,perl,python,racket,raku,ruby,rust,scala,vim
+                \ ada,javascript,go,perl,python,racket,raku,ruby,rust,scala,typescript,vim
                 \ execute 'runtime! indent/' . expand('<amatch>') . '.vim'
+                \ | let b:user_ftcode = 1
+                \ | call UserHighlightUnendingStrings()
 
     autocmd FileType text               FoText
 
@@ -4435,11 +4439,8 @@ augroup UserVimRcSyntax
     autocmd Syntax      *       call UserApplySyntaxRules()
 
     " -- some quick and dirty missing quote detection
-    autocmd FileType    javascript,python,ruby
-                \ call UserHighlightUnendingStrings()
-
     " since matchadd matches are window-specific
-    autocmd WinEnter    *       if &filetype =~# '\vjavascript|python|ruby'
+    autocmd WinEnter    *       if exists('b:user_ftcode') && b:user_ftcode
                 \ | call UserHighlightUnendingStrings()
                 \ | endif
     " -----------------------------------------------
