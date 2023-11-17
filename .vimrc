@@ -2015,13 +2015,15 @@ endfunction
 
 function! UserSetGuiFont()
     if has('linux') && has('gui_gtk')
-        set guifont^=Iosevka\ Fixed\ SS04\ 14
-        set guifont^=Iosevka\ Fixed\ Slab\ 14
+        set guifont^=Iosevka\ Fixed\ SS04\ 12
+        set guifont^=Iosevka\ Fixed\ Slab\ 12
+        set guifont^=mononoki\ 12
     elseif has('win32')
         " default cANSI:qDRAFT
-        set guifont^=Consolas:h14
-        set guifont^=Cascadia_Mono:h14
-        set guifont^=Iosevka_Fixed_Slab:h14
+        set guifont^=Consolas:h12
+        set guifont^=Cascadia_Mono:h12
+        set guifont^=Iosevka_Fixed_Slab:h12
+        set guifont^=mononoki:h12
 
         " more cleartype; no hidpi here
         " 2023-03-02 have hidpi now
