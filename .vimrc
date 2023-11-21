@@ -1,4 +1,4 @@
-" Last-Modified: 2023-11-17T18:28:14.689017289+00:00
+" Last-Modified: 2023-11-21T23:32:34.319625742+00:00
 " vim:set tw=80 noml:
 set nocompatible
 if version < 704
@@ -2012,24 +2012,95 @@ endfunction
 " and the Diana F+ camera body.
 " guibg=#grey82 (typo) produced a nice colour, probably #efdf82
 " also dark turquoise.
-
-function! UserSetGuiFont()
+"
+" Iosevka SS04 - Menlo style
+"   SS01 - Andale Mono style, dotted zero, straight braces
+"
+" mononoki's good for code. no greek crosses thoug.
+"
+function! UserSetGuifont()
     if has('linux') && has('gui_gtk')
-        set guifont^=Iosevka\ Fixed\ SS04\ 12
-        set guifont^=Iosevka\ Fixed\ Slab\ 12
-        set guifont^=mononoki\ 12
+        function! UserDoSetGuifont(arg) abort
+            if !has('gui_running')
+                return
+            endif
+            if len(a:arg) == 0
+                set guifont?
+                return
+            endif
+            let l:mod = 0
+            if match(a:arg, '\cdef') != -1
+                set guifont=Iosevka\ Fixed\ SS01\ Light\ 12
+                let l:mod = 1
+            elseif match(a:arg, '\creg') != -1
+                set guifont=Iosevka\ Fixed\ SS01\ 12
+                let l:mod = 1
+            elseif match(a:arg, '\cslab') != -1
+                set guifont=Iosevka\ Fixed\ Slab\ 12
+                let l:mod = 1
+            endif
+            if match(a:arg, '\c\<monon') != -1
+                set guifont^=mononoki\ 12
+                let l:mod = 1
+            endif
+            if match(a:arg, '\c_monon') != -1
+                set guifont-=mononoki\ 12
+                let l:mod = 1
+            endif
+            if l:mod
+                redraw!
+            endif
+        endfunction
+        " all options into q-args as one string
+        command -bar -nargs=? Fn call UserDoSetGuifont(<q-args>)
+
+        " without gui_running, calling FDefault and causing a redraw
+        " causes the tty vim to be drawn
+        set guifont=Iosevka\ Fixed\ SS01\ Light\ 12
     elseif has('win32')
         " default cANSI:qDRAFT
-        set guifont^=Consolas:h12
-        set guifont^=Cascadia_Mono:h12
-        set guifont^=Iosevka_Fixed_Slab:h12
-        set guifont^=mononoki:h12
+        function! UserDoSetGuifont(arg) abort
+            if !has('gui_running')
+                return
+            endif
+            if len(a:arg) == 0
+                set guifont?
+                return
+            endif
+            let l:mod = 0
+            if match(a:arg, '\cdef') != -1
+                set guifont=Iosevka_Fixed_SS01_Light:h12:W300,Cascadia_Mono:h12,Consolas:h12
+                let l:mod = 1
+            elseif match(a:arg, '\cligh') != -1
+                set guifont^=Iosevka_Fixed_SS01_Light:h12:W300
+                set guifont-=Iosevka_Fixed_SS01:h12
+                set guifont-=Iosevka_Fixed_Slab:h12
+            elseif match(a:arg, '\creg') != -1
+                set guifont^=Iosevka_Fixed_SS01:h12
+                set guifont-=Iosevka_Fixed_SS01_Light:h12:W300
+                set guifont-=Iosevka_Fixed_Slab:h12
+                let l:mod = 1
+            elseif match(a:arg, '\cslab') != -1
+                set guifont^=Iosevka_Fixed_Slab:h12
+                set guifont-=Iosevka_Fixed_SS01:h12
+                set guifont-=Iosevka_Fixed_SS01_Light:h12:W300
+                let l:mod = 1
+            endif
+            " windows doesn't seem to like mononoki.
+            if l:mod
+                redraw!
+            endif
+        endfunction
+        " all options into q-args as one string
+        command -nargs=? Fn call UserDoSetGuifont(<q-args>)
+
+        set guifont=Iosevka_Fixed_SS01_Light:h12:W300,Cascadia_Mono:h12,Consolas:h12
 
         " more cleartype; no hidpi here
         " 2023-03-02 have hidpi now
         " 2023-07-09 not everywhere (ultrawide at work)
         " 2023-08-20 very slow on vmware vdi
-        if !exists('$ViewClient_Type')
+        if 0 && !exists('$ViewClient_Type')
             set renderoptions=type:directx,taamode:1
         endif
     elseif has('ios')
@@ -4479,17 +4550,14 @@ call UserRemoveVendorAugroups()
 call UserSetCellWidths()
 call UserSetupFillchars()
 call UserSetupListchars()
-call UserSetGuiFont()
+call UserSetGuifont()
 call UserInitColourOverride()
 call UserColoursPrelude()
 call UserLoadColors()
 call s:setupClipboard()
 
-
-" some key gui things:
-
 " disable cursor blinking.
 " someone's really gone on a wild ride with the guicursor possibilities.
-set guicursor=a:block-blinkon0
+set guicursor+=a:blinkon0
 
 " ~ fini ~
