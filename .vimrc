@@ -2245,11 +2245,11 @@ function! UserColours256()
         endif
         if UserCO(g:u.coflags.ui)
             " similar to LineNr
-            highlight NonText ctermfg=NONE ctermbg=235 guifg=#444b71 guibg=#1e2132
-            highlight SpecialKey ctermfg=214 ctermbg=235 guifg=orange guibg=#1e2132
+            highlight NonText ctermfg=NONE ctermbg=235 guifg=#444b71 guibg=grey25
+            highlight SpecialKey ctermfg=214 ctermbg=235 guifg=orange guibg=grey25
             " TODO Visual?
         endif
-        highlight UserDateComment ctermfg=246 guifg=grey70 guibg=#1e2132 gui=italic
+        highlight UserDateComment ctermfg=246 guifg=fg guibg=grey25 gui=italic
         highlight UserHashTag ctermbg=24 guibg=#005f5f
         " trailing whitespace same as SpellBad
         highlight UserTrailingWhitespace ctermbg=24 guibg=grey25
@@ -2529,6 +2529,11 @@ function! UserColoursPrelude()
     " urxvt/rxvt-unicode - specifying forground and background as a number sets
     " those numbers in the exported COLORFGBG env var.
 
+    " 2023-11-20 when gvim is started when env var COLORFGBG is set, as in when
+    " starting from a tty like konsole, that affects the gui instance's
+    " background. unset COLORFGBG/COLORTERM and why not even TERM when starting
+    " gvim.
+
     if has('win32')
         set background=light
     endif
@@ -2670,7 +2675,7 @@ function! UserLoadColors()
 
     if UserCanLoadColorscheme()
         " local copy of quiet.vim for distributing to older hosts, and
-        " for local modifications (do not specify cterm colours)
+        " for local modifications (do not specify cterm Normal colours)
         if UserRuntimeHas('colors/quiet20230315patch.vim')
             colorscheme quiet20230315patch
         elseif UserRuntimeHas('colors/iceberg~.vim')
