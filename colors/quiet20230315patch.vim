@@ -55,7 +55,7 @@ if &background ==# 'dark'
   hi ColorColumn guifg=NONE guibg=#1c1c1c gui=NONE cterm=NONE
   hi Conceal guifg=NONE guibg=NONE gui=NONE ctermfg=NONE ctermbg=NONE cterm=NONE
   hi CurSearch guifg=#ff5fff guibg=#000000 gui=reverse cterm=reverse
-  hi Cursor guifg=#f3f3f3 guibg=purple ctermfg=NONE ctermbg=NONE cterm=reverse
+  hi Cursor guifg=#f3f3f3 guibg=#af005f ctermfg=NONE ctermbg=NONE cterm=reverse
   hi CursorColumn guifg=NONE guibg=#303030 gui=NONE cterm=NONE
   hi CursorLine guifg=NONE guibg=#303030 gui=NONE cterm=NONE
   hi CursorLineNr guifg=#dadada guibg=#303030 gui=NONE cterm=NONE
@@ -125,7 +125,7 @@ else
   hi ColorColumn guifg=NONE guibg=#e4e4e4 gui=NONE cterm=NONE
   hi Conceal guifg=NONE guibg=NONE gui=NONE ctermfg=NONE ctermbg=NONE cterm=NONE
   hi CurSearch guifg=#ff5fff guibg=#000000 gui=reverse cterm=reverse
-  hi Cursor guifg=#f3f3f3 guibg=purple ctermfg=NONE ctermbg=NONE cterm=reverse
+  hi Cursor guifg=#f3f3f3 guibg=#af005f ctermfg=NONE ctermbg=NONE cterm=reverse
   hi CursorColumn guifg=NONE guibg=#eeeeee gui=NONE cterm=NONE
   hi CursorLine guifg=NONE guibg=#eeeeee gui=NONE cterm=NONE
   hi CursorLineNr guifg=#000000 guibg=#eeeeee gui=NONE cterm=NONE
