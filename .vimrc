@@ -2021,9 +2021,6 @@ endfunction
 function! UserSetGuifont()
     if has('linux') && has('gui_gtk')
         function! UserDoSetGuifont(arg) abort
-            if !has('gui_running')
-                return
-            endif
             if len(a:arg) == 0
                 set guifont?
                 return
@@ -2051,8 +2048,15 @@ function! UserSetGuifont()
                 redraw!
             endif
         endfunction
+
+        " completion; not competelist - let vim filter.
+        function! UserComplSetGuiFont(a, l, p) abort
+            return "default\nregular\nslab\nmononoki\n_mononoki\n"
+        endfunction
+
         " all options into q-args as one string
-        command -bar -nargs=? Fn call UserDoSetGuifont(<q-args>)
+        command -bar -nargs=? -complete=custom,UserComplSetGuiFont Fn
+                    \ call UserDoSetGuifont(<q-args>)
 
         " without gui_running, calling FDefault and causing a redraw
         " causes the tty vim to be drawn
@@ -2060,9 +2064,6 @@ function! UserSetGuifont()
     elseif has('win32')
         " default cANSI:qDRAFT
         function! UserDoSetGuifont(arg) abort
-            if !has('gui_running')
-                return
-            endif
             if len(a:arg) == 0
                 set guifont?
                 return
@@ -2091,8 +2092,15 @@ function! UserSetGuifont()
                 redraw!
             endif
         endfunction
+
+        " completion, with vim filtering
+        function! UserComplSetGuiFont(a, l, p) abort
+            return "default\nregular\nlight\nslab\n"
+        endfunction
+
         " all options into q-args as one string
-        command -nargs=? Fn call UserDoSetGuifont(<q-args>)
+        command -nargs=? -complete=custom,UserComplSetGuiFont Fn
+                    \ call UserDoSetGuifont(<q-args>)
 
         set guifont=Iosevka_Fixed_SS01_Light:h12:W300,Cascadia_Mono:h12,Consolas:h12
 
@@ -2107,6 +2115,14 @@ function! UserSetGuifont()
         " iVim, iPhone
         set guifont^=Menlo:h11.0
     endif
+endfunction
+
+function! UserSetGuicursor() abort
+    " someone's really gone on a wild ride with the guicursor possibilities.
+    "set guicursor+=a:blinkon0
+    set guicursor&
+    " don't disable blink for operator-pending (o) and showmatch (sm)
+    set guicursor+=n-v-ve-i-r-c-ci-cr:blinkon0
 endfunction
 
 " 2022-12-08 - removing autoselect; too easy to unintentionally wipe the
@@ -4555,14 +4571,13 @@ call UserRemoveVendorAugroups()
 call UserSetCellWidths()
 call UserSetupFillchars()
 call UserSetupListchars()
-call UserSetGuifont()
 call UserInitColourOverride()
 call UserColoursPrelude()
 call UserLoadColors()
 call s:setupClipboard()
-
-" disable cursor blinking.
-" someone's really gone on a wild ride with the guicursor possibilities.
-set guicursor+=a:blinkon0
+if has('gui_running')
+    call UserSetGuifont()
+    call UserSetGuicursor()
+endif
 
 " ~ fini ~
