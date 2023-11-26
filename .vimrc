@@ -2197,7 +2197,7 @@ function! UserColoursFailsafe()
 
     if UserCO(g:u.coflags.stat)
         " specifying ctermfg in case of a dark tty background
-        highlight StatusLine    ctermfg=grey    ctermbg=black   cterm=NONE
+        highlight StatusLine    ctermfg=white   ctermbg=brown   cterm=NONE
         highlight StatusLineNC  ctermfg=black   ctermbg=grey    cterm=NONE
     endif
 endfunction     " UserColoursFailsafe()
