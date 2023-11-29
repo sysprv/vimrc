@@ -2669,11 +2669,7 @@ function! UserLoadColors()
     " little too.
 
     if UserCanLoadColorscheme()
-        " local copy of quiet.vim for distributing to older hosts, and
-        " for local modifications (do not specify cterm Normal colours)
-        if UserRuntimeHas('colors/quiet20230315patch.vim')
-            colorscheme quiet20230315patch
-        elseif UserRuntimeHas('colors/iceberg~.vim')
+        if UserRuntimeHas('colors/iceberg~.vim')
             " load iceberg with our overrides.
             colorscheme iceberg~
         endif
