@@ -483,7 +483,7 @@ command -bar Inc    set incsearch! | set incsearch?
 " 'ignorecase'.
 set noignorecase
 set hlsearch
-set showmatch
+set noshowmatch
 
 " curse god and walk backwards to 1976; speechless at the number of bells
 " they've stuck in here. a side effect of audio not working on linux?
