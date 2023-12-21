@@ -1,4 +1,4 @@
-" Last-Modified: 2023-11-29T15:52:52.91296010+00:00
+" Last-Modified: 2023-12-21T16:23:00.148408936+00:00
 " vim:set tw=80 noml:
 set secure encoding=utf-8 fileencoding=utf-8 nobomb
 scriptencoding utf-8
@@ -690,6 +690,7 @@ set browsedir=buffer
 "set autochdir - too cumbersome
 set virtualedit=block
 set history=200
+set timeout ttimeout timeoutlen=3000 ttimeoutlen=100
 
 " helps with navigating to a line of interest with <n>j/+ and <n>k/-,
 " but also takes up a lot of space.
@@ -2011,14 +2012,11 @@ endfunction
 " Iosevka SS04 - Menlo style
 "   SS01 - Andale Mono style, dotted zero, straight braces
 "
-" mononoki's good for code. no greek crosses thoug.
+" mononoki's good for code. no greek crosses though.
 "
 function! UserSetGuifont()
     if has('linux') && has('gui_gtk')
         function! UserDoSetGuifont(arg) abort
-            if !has('gui_running')
-                return
-            endif
             if len(a:arg) == 0
                 set guifont?
                 return
@@ -2026,12 +2024,18 @@ function! UserSetGuifont()
             let l:mod = 0
             if match(a:arg, '\cdef') != -1
                 set guifont=Iosevka\ Fixed\ SS01\ Light\ 12
+                set guifont+=Source\ Code\ Pro\ 12
+                set guifont+=monospace\ 12
                 let l:mod = 1
             elseif match(a:arg, '\creg') != -1
-                set guifont=Iosevka\ Fixed\ SS01\ 12
+                set guifont^=Iosevka\ Fixed\ SS01\ 12
+                set guifont-=Iosevka\ Fixed\ SS01\ Light\ 12
+                set guifont-=Iosevka\ Fixed\ Slab\ 12
                 let l:mod = 1
             elseif match(a:arg, '\cslab') != -1
-                set guifont=Iosevka\ Fixed\ Slab\ 12
+                set guifont^=Iosevka\ Fixed\ Slab\ 12
+                set guifont-=Iosevka\ Fixed\ SS01\ 12
+                set guifont-=Iosevka\ Fixed\ SS01\ Light\ 12
                 let l:mod = 1
             endif
             if match(a:arg, '\c\<monon') != -1
@@ -2046,18 +2050,23 @@ function! UserSetGuifont()
                 redraw!
             endif
         endfunction
+
+        " completion; not competelist - let vim filter.
+        function! UserComplSetGuiFont(a, l, p) abort
+            return "default\nregular\nslab\nmononoki\n_mononoki\n"
+        endfunction
         " all options into q-args as one string
-        command -bar -nargs=? Fn call UserDoSetGuifont(<q-args>)
+        command -bar -nargs=? -complete=custom,UserComplSetGuiFont Fn
+                    \ call UserDoSetGuifont(<q-args>)
 
         " without gui_running, calling FDefault and causing a redraw
         " causes the tty vim to be drawn
         set guifont=Iosevka\ Fixed\ SS01\ Light\ 12
+        set guifont+=Source\ Code\ Pro\ 12
+        set guifont+=monospace\ 12
     elseif has('win32')
         " default cANSI:qDRAFT
         function! UserDoSetGuifont(arg) abort
-            if !has('gui_running')
-                return
-            endif
             if len(a:arg) == 0
                 set guifont?
                 return
@@ -2086,8 +2095,14 @@ function! UserSetGuifont()
                 redraw!
             endif
         endfunction
+
+        " completion, with vim filtering
+        function! UserComplSetGuiFont(a, l, p) abort
+            return "default\nregular\nlight\nslab\n"
+        endfunction
         " all options into q-args as one string
-        command -nargs=? Fn call UserDoSetGuifont(<q-args>)
+        command -nargs=? -complete=custom,UserComplSetGuiFont Fn
+                    \ call UserDoSetGuifont(<q-args>)
 
         set guifont=Iosevka_Fixed_SS01_Light:h12:W300,Cascadia_Mono:h12,Consolas:h12
 
@@ -2102,6 +2117,14 @@ function! UserSetGuifont()
         " iVim, iPhone
         set guifont^=Menlo:h11.0
     endif
+endfunction
+
+function! UserSetGuicursor() abort
+    " someone's really gone on a wild ride with the guicursor possibilities.
+    "set guicursor+=a:blinkon0
+    set guicursor&
+    " don't disable blink for operator-pending (o) and showmatch (sm)
+    set guicursor+=n-v-ve-i-r-c-ci-cr:blinkon0
 endfunction
 
 " 2022-12-08 - removing autoselect; too easy to unintentionally wipe the
@@ -4546,17 +4569,13 @@ call UserRemoveVendorAugroups()
 call UserSetCellWidths()
 call UserSetupFillchars()
 call UserSetupListchars()
-call UserSetGuifont()
 call UserInitColourOverride()
 call UserColoursPrelude()
 call UserLoadColors()
 call s:setupClipboard()
-
-" someone's really gone on a wild ride with the guicursor possibilities.
-"set guicursor+=a:blinkon0
 if has('gui_running')
-    set guicursor&
-    " don't disable blink for operator-pending (o) and showmatch (sm)
-    set guicursor+=n-v-ve-i-r-c-ci-cr:blinkon0
+    call UserSetGuifont()
+    call UserSetGuicursor()
 endif
+
 " ~ fini ~
