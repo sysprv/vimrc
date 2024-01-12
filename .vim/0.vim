@@ -3298,6 +3298,11 @@ if executable('/usr/bin/par')
                 \ :let $PAR_TW = &textwidth == 0 ? 78 : &textwidth<CR>
                 \ {!}/usr/bin/par "$PAR_TW"<CR>}
 endif
+" https://cgdct.moe/blog/far/ - Stephen Huan's paragraph formatter.
+" g++ -Wall -O3 -fPIE -fstack-protector-all -D_FORTIFY_SOURCE=2 far.cpp -o far-fmt
+if executable('far-fmt')
+    nnoremap    <Leader>j   {!}far-fmt 78<CR>}
+endif
 
 " join paragraphs to one line, for sharing.
 "
