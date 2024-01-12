@@ -4096,8 +4096,8 @@ function! UserTextIndent()
 endfunction
 
 
-" for small screens (iVim) - iPhone 13 Pro, Menlo:h11.0
-command -bar Mobile  Wr | setlocal textwidth=60 nonumber norelativenumber
+" for small screens (iVim) - iPhone 15 Pro Max, Menlo:h11.0
+command -bar Mobile  Wr | setlocal textwidth=70 nonumber norelativenumber
 
 " for transcribing poetry -
 " significant whitespace, auto-indenting, no hard tabs, no auto formatting
