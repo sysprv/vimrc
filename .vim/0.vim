@@ -1342,6 +1342,9 @@ function! UserDateTime()
     return strftime('%FT%T%z')
 endfunction
 
+function! UserTimeShort()
+    return strftime('%H:%M')
+endfunction
 
 " like 2022-07-05T12:57:18.568367478+00:00
 "
@@ -3271,9 +3274,13 @@ imap        <Leader>.      <Leader>dt
 
 "" insert date
 "" nnoremap        <silent> <Leader>dd :put=UserDate()<cr>
-inoremap <expr> <silent> <Leader>dd     UserDate()
+nnoremap        <silent> <Leader>dd "=UserDate()<cr>p:put _<cr>
+inoremap <expr> <silent> <Leader>dd "\<C-g>u" . UserDate() . "\<C-g>u"
 " so i can do :e f-<,dd> in the vim command window
 cnoremap <expr> <Leader>dd              UserDate()
+
+nnoremap        <silent> <Leader>t  "=UserTimeShort()<cr>p:put _<cr>
+inoremap <expr> <silent> <Leader>t  "\<C-g>u" . UserTimeShort() . "\<C-g>u"
 
 nnoremap        <silent> <Leader>dT     "=UserDateTime()<cr>p:put _<cr>
 inoremap <expr> <silent> <Leader>dT     UserDateTime()
