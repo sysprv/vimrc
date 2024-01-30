@@ -654,12 +654,16 @@ if v:version < 802
     " newer vims set this to 'truncate' and that's fine.
     set display+=lastline
 endif
-
-set cpoptions-=A        " don't modify alternate filename on :w <fn>
-
 set scrolloff=0
 " scrolljump is efficient but jarring.
 "set scrolljump=5
+"
+" 2024-01-16 vim can't really scroll windows by screenlines yet.
+" 'smoothscroll' WIP. bad for long paragraphs or URLs.
+" https://stackoverflow.com/a/27753674
+" https://vi.stackexchange.com/q/11315
+
+set cpoptions-=A        " don't modify alternate filename on :w <fn>
 
 "set confirm
 set autoread autowrite autowriteall
@@ -2314,7 +2318,7 @@ endfunction
 
 " set Normal colours for gui dark mode
 command -bar Amber  highlight Normal guifg=#ffb000
-command -bar Green  #41ff00
+command -bar Green  highlight Normal guibg=#41ff00
 
 
 function! UserWinHasUnendingStringMatch()
@@ -3944,7 +3948,7 @@ endfunction
 nnoremap    <silent> <Leader>n   :call UserLineNumberSwitch()<CR>
 
 " quick toggle laststatus between 1 and 2
-nnoremap    <silent> <Leader>t :let &laststatus = (&laststatus % 2) + 1<CR>
+" nnoremap    <silent> <Leader>t :let &laststatus = (&laststatus % 2) + 1<CR>
 
 " nosleep
 nnoremap    gs      <nop>
