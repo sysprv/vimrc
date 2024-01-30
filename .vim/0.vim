@@ -2437,14 +2437,15 @@ function! UserApplySyntaxRules()
     "              [✚"x"] [✚"x ✚"x] [✚"xs-xp-xq'-xz"]
     "   [✚'a\'b']
     "   [✚'a\✚b\'cde']
+
     syntax clear UserHashTag
-    syntax match UserHashTag /\v✚[_[:lower:][:upper:][:digit:]]{1,30}/
+    syntax match UserHashTag /\v[⌽✚][_[:lower:][:upper:][:digit:]]{1,30}/
         \ display oneline containedin=ALLBUT,UserHashTag contains=@NoSpell
 
     " in single quotes, allow escaping anything - including single quotes
     " and tag-starting cross.
     " %() - non-capturing group.
-    syntax match UserHashTag /\v✚'%([^✚'\\]|\\.){-1,30}'/
+    syntax match UserHashTag /\v[⌽✚]'%([^✚'\\]|\\.){-1,30}'/
         \ display oneline containedin=ALLBUT,UserHashTag contains=@NoSpell
 
     " ^ maybe - add contained matches to use @NoSpell when hashtags are
@@ -3822,6 +3823,7 @@ let Symbols = {
     \ ,'en dash':       nr2char(0x2013)
     \ ,'em dash':       nr2char(0x2014)
     \ ,'dagger':        nr2char(0x2020)
+    \ ,'circle stile':  nr2char(0x233D)
     \ ,'angzarr':       nr2char(0x237C)
     \ ,'lozenge':       nr2char(0x25CA)
     \ ,'bourbaki bend':         nr2char(0x2621)
@@ -3847,8 +3849,8 @@ inoremap <expr> <Leader>nn      Symbols['en dash']
 " U+2991, U+2992 brackets with dot
 "
 " used to use <Leader>#, too cumbersome.
-inoremap <expr> <Leader><Leader>   Symbols['greek cross, heavy']
-cnoremap <expr> <Leader><Leader>   Symbols['greek cross, heavy']
+inoremap <expr> <Leader><Leader>   Symbols['circle stile']
+cnoremap <expr> <Leader><Leader>   Symbols['circle stile']
 
 " abbreviations aren't so useful in such cases, they expand after whitespace.
 
