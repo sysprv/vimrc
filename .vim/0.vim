@@ -1474,7 +1474,7 @@ if exists('*execute')
             return execute(a:cmd)
         finally
             if l:verbosity != 0
-                let &verbosity = l:verbosity
+                let &verbose = l:verbosity
             endif
         endtry
     endfunction
@@ -4321,7 +4321,7 @@ function! UserGetUnicodeWhitespaceRegexp()
     endfor
     let l:regexp = join(l:match_parts, '\|')
     return l:regexp
-endfunction!
+endfunction
 
 " set last search pattern, go to next match; for some reason feels more
 " natural to have this as a command rather than a mapping.
