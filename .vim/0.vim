@@ -1,4 +1,4 @@
-" Last-Modified: 2023-12-21T16:23:00.148408936+00:00
+" Last-Modified: 2024-02-24T11:23:22.786190076+00:00
 " vim:set tw=80 noml:
 set secure encoding=utf-8 fileencoding=utf-8 nobomb
 scriptencoding utf-8
@@ -328,7 +328,23 @@ endif
 "   matchparen.vim - nice, but the autocommands feel yucky.
 "   manpager - vim can be a rather nice manpager.
 "
-set noloadplugins
+" 2024-02-25 enable plugins again; for
+" https://github.com/chrisbra/changesPlugin
+" and https://github.com/mbbill/undotree
+"
+"set noloadplugins
+" manpager - useful
+let g:loaded_2html_plugin = -1
+let g:loaded_getscriptPlugin = -1
+let g:loaded_gzip = -1
+let g:loaded_logiPat = -1
+let g:loaded_matchparen = -1
+let g:loaded_netrwPlugin = -1
+let g:loaded_rrhelper = -1
+let g:loaded_spellfile_plugin = -1
+let g:loaded_tarPlugin = -1
+let g:loaded_vimballPlugin = -1
+let g:loaded_zipPlugin = -1
 "}}}
 
 " 2022-07-30 let g:did_load_filetypes = 1 does prevent filetype detection with

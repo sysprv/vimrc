@@ -4,9 +4,6 @@ set nocompatible
 set secure encoding=utf-8 fileencoding=utf-8 nobomb
 scriptencoding utf-8        " must go after 'encoding'
 
-set noloadplugins
-filetype indent off
-
 set autoindent
 set backupcopy=yes
 set complete=.
