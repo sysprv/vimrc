@@ -17,6 +17,7 @@ set noerrorbells
 set novisualbell
 set shortmess+=I
 set showcmd
+set timeout ttimeout timeoutlen=3000 ttimeoutlen=100
 
 set expandtab
 set shiftwidth=4
