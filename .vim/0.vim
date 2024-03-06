@@ -709,6 +709,9 @@ endif
 
 set browsedir=buffer
 "set autochdir - too cumbersome
+
+" 2024-03-01 have i tried and and stopped using onemore before?
+"set virtualedit=block,onemore
 set virtualedit=block
 set history=200
 set timeout ttimeout timeoutlen=3000 ttimeoutlen=100
