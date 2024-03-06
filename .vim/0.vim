@@ -3325,15 +3325,9 @@ inoremap <expr> <silent> <Leader>dU     UserUtcNow()
 if executable('/usr/bin/par')
     "nnoremap        <Leader>j     {!}/usr/bin/par 78<cr>}
 
-    " export current textwidth or default 78 to par via an environment variable.
-    nnoremap    <Leader>j
-                \ :let $PAR_TW = &textwidth == 0 ? 78 : &textwidth<CR>
-                \ {!}/usr/bin/par "$PAR_TW"<CR>}
-endif
-" https://cgdct.moe/blog/far/ - Stephen Huan's paragraph formatter.
-" g++ -Wall -O3 -fPIE -fstack-protector-all -D_FORTIFY_SOURCE=2 far.cpp -o far-fmt
-if executable('far-fmt')
-    nnoremap    <Leader>j   {!}far-fmt 78<CR>}
+    " export current textwidth or default 78 with an expression register
+    " substitution
+    nnoremap    <Leader>j {!}/usr/bin/par w<C-r>=(&tw == 0 ? 78 : &tw)<CR> j<CR>
 endif
 
 " join paragraphs to one line, for sharing.
