@@ -1320,8 +1320,8 @@ endfunction
 " current register: %{v:register}
 
 " don't forget to kee a space/separator after the filename
-set statusline=%n'%{UserStLnBufFlags()}%W%H%<<%f>\ %=%P\ %{g:u.mark}\ "
-
+"set statusline=%n'%{UserStLnBufFlags()}%W%H%<<%f>\ %=%P\ %{g:u.mark}\ "
+set statusline=%n'%{UserStLnBufFlags()}%W%H%<<%f>\ %{v:register}%=%l:%v\ %P\ %{g:u.mark}\ "
 
 " in case we close all normal windows and end up with something like the preview
 " window as the only window - the ruler should show the same buffer flags as the
