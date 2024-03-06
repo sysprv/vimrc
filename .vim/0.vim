@@ -1,13 +1,31 @@
-" Last-Modified: 2024-02-24T11:23:22.786190076+00:00
+" Last-Modified: 2024-03-05T22:49:28.488213383+00:00
 " vim:set tw=80 noml:
 set secure encoding=utf-8 fileencoding=utf-8 nobomb
 scriptencoding utf-8
 
 " Change log:
 "
-" 2023-11-29 Keep some minimal settings in .vimrc, move everything else to
-" 0.vim - to not confuse tiny vim builds. TODO - set those options only once?
-
+" 2024-03-05 Copy/paste changes.
+"
+"   Change how the paste mappings work - now ,x just copies from the clipboard
+"   and return the register prefix, leaving me to complete the command with
+"   p/P/gp/gP/zP etc.
+"
+"   No more mappings for pasting in visual mode. Never needed them.
+"
+"   Change the clipboard copy mapping from ,xc/,xy to ,y (yank) to not interfere
+"   with the ,x-as-paste-prefix mappings.
+"
+"   Make the copy bounce register setting preserve the linewise / charwise /
+"   blockwise setting.
+"
+"   No more mappings for PRIMARY; never needed/used them. WRPR/RDPR commands are
+"   still here for use when needed.
+"
+" Include v:register and line:column in default statusline.
+"
+" 2023-11-29 Keep some minimal settings in .vimrc, move everything else to 0.vim
+" - to not confuse tiny vim builds. TODO - set those options only once?
 "
 " 2023-10-19 Restore lost functionality - colours for t_Co < 256. statusline
 " futzing again - mixing NC colour's bad for small windows.
@@ -20,8 +38,8 @@ scriptencoding utf-8
 " Disable the mode message ('showmode'). Move StatusLine and SpellBad highlights
 " back in here.
 "
-" 2023-09-20 Set 'language' early. Turn off 'filetype indent', setup autocmds
-" to load indent rules for a few filetypes. Finally English menus.
+" 2023-09-20 Set 'language' early. Turn off 'filetype indent', setup autocmds to
+" load indent rules for a few filetypes. Finally English menus.
 "
 " 2023-09-18 SoftIndent; no more hard tabs for text.
 "
@@ -34,28 +52,27 @@ scriptencoding utf-8
 "
 " 2023-08-05 RIP Bram
 "
-" 2023-07-11 Change custome highlight and syntax definition to check for their
-" existence in a more robust way. Change 'completeopt' to tell auto completion
-" to not insert anything by default. Windows language settings - do less.
-" colorscheme overriding - reinstate SpellCap/SpellLocal/SpellRare
+" 2023-07-11 Change custome highlight and syntax definition to check for
+" their existence in a more robust way. Change 'completeopt' to tell auto
+" completion to not insert anything by default. Windows language settings -
+" do less. colorscheme overriding - reinstate SpellCap/SpellLocal/SpellRare
 " destagmatization.
 "
 " 2023-07-01 Color schemes and term backgrounds. Move from Lucius to Iceberg.
 "
-" 2023-06-29 Better SpecialKey visibility, mappings/function to add local
-" time, better URL copy back, listchars/fillchars cleanup.
+" 2023-06-29 Better SpecialKey visibility, mappings/function to add local time,
+" better URL copy back, listchars/fillchars cleanup.
 "
-" 2023-06-05 More copy/paste cleanup. Dynamic statusline removed. Added
-" commands and mappings (,yp, ,yc) to read from and write to the X11 PRIMARY
-" selection.  To accomodate terminals like roxterm and sakura that make it a
-" little cumbersome to use the CLIPBOARD. map normal 'u' to nothing - undo
-" doesn't need to be so easily accessible.
+" 2023-06-05 More copy/paste cleanup. Dynamic statusline removed. Added commands
+" and mappings (,yp, ,yc) to read from and write to the X11 PRIMARY selection.
+" To accomodate terminals like roxterm and sakura that make it a little
+" cumbersome to use the CLIPBOARD. map normal 'u' to nothing - undo doesn't need
+" to be so easily accessible.
 "
 " 2023-06-03 Set clipboard=
 "
-" 2023-05-31 Better paste mappings using <expr> and a function that
-" only decides the normal-mode command to use, instead of direct buffer
-" manipulation.
+" 2023-05-31 Better paste mappings using <expr> and a function that only decides
+" the normal-mode command to use, instead of direct buffer manipulation.
 "
 " 2023-05-15 Replace ad-hoc color override conditions functions with a global
 " variable (g:u.co) and a set of bitfield checks. Now we can test different
@@ -68,8 +85,8 @@ scriptencoding utf-8
 " listchars/fillchars setup: listchars: support tab:NONE as two spaces.
 " fillchars: support NONE like UserListchars.
 "
-" statusline: static by default, use the status line function only when
-" needed, with the SL/StatusLevel user command.
+" statusline: static by default, use the status line function only when needed,
+" with the SL/StatusLevel user command.
 "
 " Introduce b:user_noautomod for nonsensical file formats like markdown and
 " yaml. Currently only controls the stripping of trailing spaces.
@@ -104,25 +121,24 @@ scriptencoding utf-8
 "
 " 2023-02-01 Reduce highlight rules a little.
 "
-" 2023-01-14 disable list; take another look at undodir and dir. redo ,n
-" mapping for switching between line number display formats.
+" 2023-01-14 disable list; take another look at undodir and dir. redo ,n mapping
+" for switching between line number display formats.
 "
 " 2022-09-27 (rip)grep cleanup, unicode whitespace notes.
 "
-" 2022-09-13 listchars/SpecialKey tinkering. Introspection commands (My*) -
-" use :g//d _ - delete to black hole register.
+" 2022-09-13 listchars/SpecialKey tinkering. Introspection commands (My*) - use
+" :g//d _ - delete to black hole register.
 "
 " 2022-08-31 fixes to clipboard handling mappings.
 "
-" 2022-08-30 normal mode paste - support both put before and put after.
-" Function + command for running :mkspell! conveniently.
+" 2022-08-30 normal mode paste - support both put before and put after. Function
+" + command for running :mkspell! conveniently.
 "
 " 2022-08-26 filetype removed from statusline, added to on-demand buffer info.
 " refactor statusline function.
 "
-" 2022-08-17 indicate on statusline if no swapfile, ref. iVim and iCloud
-" Drive. command (StatusLevel) to easily control how much info the status line
-" shows.
+" 2022-08-17 indicate on statusline if no swapfile, ref. iVim and iCloud Drive.
+" command (StatusLevel) to easily control how much info the status line shows.
 "
 " 2022-08-16 bring back window size in the statusline.
 "
@@ -132,9 +148,9 @@ scriptencoding utf-8
 "
 " 2022-08-03 color and listchars changes to deal with non-home systems
 "
-" 2022-07-29 Usable with vim 7.x now (uses classic forms of bufnr(),
-" bufname(), system(), globpath() etc.), but quite a bit of extras won't work
-" or will print error messages. Added more checks for nanosecond routines.
+" 2022-07-29 Usable with vim 7.x now (uses classic forms of bufnr(), bufname(),
+" system(), globpath() etc.), but quite a bit of extras won't work or will print
+" error messages. Added more checks for nanosecond routines.
 "
 " 2022-07-28 Added colour overrides for dark backgrounds. For using iVim at
 " night.
@@ -157,10 +173,10 @@ scriptencoding utf-8
 " removed. also went back to strinc concatenation with a single dot instead of
 " '..'.
 "
-" 2022-07-13 went away from trying to extend syntax matching with our own
-" rules and struggling to have our rules applied in all desired circumstances.
-" Using matchadd() now, in UserMatchAdd().  Lots of syntax-related functions
-" and comments still left lying around.
+" 2022-07-13 went away from trying to extend syntax matching with our own rules
+" and struggling to have our rules applied in all desired circumstances. Using
+" matchadd() now, in UserMatchAdd().  Lots of syntax-related functions and
+" comments still left lying around.
 "
 " On startup, create ~/.vim/syntax/after/text.vim if necessary, to have our
 " syntax rules applied in a robust and consistent manner.
@@ -168,8 +184,8 @@ scriptencoding utf-8
 " Normal mode mapping to paste easily in iVim.
 "
 " 2022-06-28: Hashtag prefix sequence changed from a single Greek Cross (🞣,
-" U+1F7A3) to "-#". The Greek Cross isn't visible and causes rendering issues
-" in iVim (iOS.)
+" U+1F7A3) to "-#". The Greek Cross isn't visible and causes rendering issues in
+" iVim (iOS.)
 
 " Long, somewhat disorganized, too large a file, my bonsai project. Includes
 " an unnamed colorscheme. Lots of barnacles from documentation spelunking and
@@ -3710,7 +3726,6 @@ function! UserUrlPasteMunge()
         set clipboard=
     endif
     let l:ve = &virtualedit
-
     " virtualedit required to make use exclusive motions (F) and later to
     " not fall down into an undecidable hell of col('.') vs. col('$').
     set virtualedit=onemore
