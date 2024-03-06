@@ -3398,14 +3398,18 @@ endfunction
 
 
 " return a register name, like v:register.
-function! UserGetCbReg(src)
+function! UserGetCbReg(...)
     " by default, work with the X CLIPBOARD
+    let l:src = 'CLIPBOARD'
     let l:src_reg = '+'
     let l:src_cmd = '/usr/bin/xsel -b -o'
     let l:result = { 'status': -1 }
     let l:bounce_reg = 'w'
 
-    if a:src ==# 'PRIMARY'
+    if len(a:000) > 0 && a:1 ==# 'PRIMARY'
+        let l:src = 'PRIMARY'
+    endif
+    if l:src ==# 'PRIMARY'
         let l:src_reg = '*'
         let l:src_cmd = '/usr/bin/xsel -p -o'
     endif
@@ -3420,8 +3424,10 @@ function! UserGetCbReg(src)
         " pass it through a different register.
         "
         " too bad pasting's so complicated.
+        "
+        " 2024-03-05
 
-        call setreg(l:bounce_reg, getreg(l:src_reg), 'v')
+        call setreg(l:bounce_reg, getreg(l:src_reg))
         let l:result = { 'reg': l:bounce_reg, 'status': 0 }
     elseif g:u.has_cb_tty
         silent let l:clp = system(l:src_cmd)
@@ -3433,12 +3439,12 @@ function! UserGetCbReg(src)
             let l:result = { 'status': -2 }
         else
             " put into a register + return register name
-            call setreg(l:bounce_reg, l:clp, 'v')
+            call setreg(l:bounce_reg, l:clp)
             let l:result = { 'reg': l:bounce_reg, 'status': 0 }
         endif
     else
         echohl Error
-        echo 'do not know how to read from' a:src
+        echo 'do not know how to read from' l:src
         echohl None
 
         let l:result = { 'status': -3 }
@@ -3496,25 +3502,31 @@ endfunction
 " wretched - with virtualedit=all like in paste.vim, "gp" is no good. -
 " virtualedit creates a space and 'gp' puts after that.
 "
+" if beginning/middle of line - put text before cursor. feels natural.
+"
 " if at end of line or beginning of empty line - put text after cursor. test:
 " multiple consecutive pastes.
 "
-" if beginning/middle of line - put text before cursor. feels natural.
+" 2024-03-01 the above isn't great - you really always want text to go before
+" (gP). f.ex. you've just typed a pair of delimiters and want to paste in the
+" middle. gP with virtualedit-onemore.
 
 function! UserPasteExpr()
-    return &ve == 'all' ? 'gP' : col('.') == col('$') - 1 ? 'gp' : 'gP'
+    return 'gP'
+    " return &ve == 'all' ? 'gP' : col('.') == col('$') - 1 ? 'gp' : 'gP'
 endfunction
 
 " a little helper for tty + xsel
-function! UserReadCbRetExpr(src)
-    let l:reg = UserGetCbReg(a:src)
+function! UserReadCbRetExpr(...)
+    let l:reg = call('UserGetCbReg', a:000)
     if l:reg.status < 0 | return "\<Ignore>" | endif
 
     " now we'll be using @", not @*/@+. so, no register prefix is needed -
     " but we have it, should use it anyway.
     "
-    " the following makes an expression like: ""gP
-    let l:expr = '"' . l:reg.reg . UserPasteExpr()
+    " the following makes an expression like: "<reg>
+    " let l:expr = '"' . l:reg.reg . UserPasteExpr()
+    let l:expr = '"' . l:reg.reg
     return l:expr
 endfunction
 
@@ -3534,25 +3546,16 @@ endfunction
 " <C-r><C-r><reg, no=> is done, the newlines seem interpreted, escaping other
 " control codes as <C-r><C-r> should do.
 
-" normal mode paste
-nnoremap    <expr>  <Leader>yp  UserReadCbRetExpr('PRIMARY')
-nnoremap    <expr>  <Leader>xp  UserReadCbRetExpr('CLIPBOARD')
+" normal mode paste - read from clipboard and wait for the next
+" p/P/gp/gP. Of course it might be anything, like c or x..
+nnoremap    <expr>  <Leader>x   UserReadCbRetExpr()
 
-" insert mode paste
-inoremap    <expr>  <Leader>yp  "\<C-\>\<C-o>" . UserReadCbRetExpr('PRIMARY')
-inoremap    <expr>  <Leader>xp  "\<C-\>\<C-o>" . UserReadCbRetExpr('CLIPBOARD')
+" insert mode paste - still waits for the final p-like keypress
+" but less useful - everything works like gp. so we make the mapping
+" complete - ,xp.
+inoremap    <expr>  <Leader>xp   "\<C-\>\<C-o>" . UserReadCbRetExpr() . "p"
 
-" visual mode paste, useful for replacing the current visual selection with
-" what's in the clipboard. "-c - cut selection to small delete register and go
-" to insert mode.
-
-" !! beware clipboard autoselect/guioption a (go-a) and [other copy/visual
-" selection start] order, as vim clipboard grabbing can overwrite the copied
-" data.  1. start visual selection, 2. copy from other app, 3. paste in vim
-" works.
-
-xmap                <Leader>yp      "-c<Leader>yp<Esc>
-xmap                <Leader>xp      "-c<Leader>xp<Esc>
+" visual mode paste - never needed it.
 
 " command mode paste - dangerous, but tty mappings and <C-r>+ etc.
 " work anyway. defined for completeness and consistency.
@@ -3561,9 +3564,7 @@ xmap                <Leader>xp      "-c<Leader>xp<Esc>
 "
 " literal insert - doc: c_CTRL-R_CTRL-R
 
-cnoremap <expr> <Leader>yp "\<C-r>\<C-r>" . UserGetCbReg('PRIMARY').reg
-cnoremap <expr> <Leader>xp "\<C-r>\<C-r>" . UserGetCbReg('SECONDARY').reg
-
+cnoremap <expr> <Leader>xp   "\<C-r>\<C-r>" . UserGetCbReg().reg
 
 if has('gui_running')
 
@@ -3586,73 +3587,68 @@ if has('gui_running')
     " just have to stick with ,xp, get used to C-q (emacs quoted-insert),
     " keeping xon/xoff flow control in mind.
 
-
     nmap    <S-Insert>  <Leader>xp
-    xmap    <S-Insert>  <Leader>xp
     imap    <S-Insert>  <Leader>xp
     cmap    <S-Insert>  <Leader>xp
     nmap    <S-kInsert>  <Leader>xp
-    xmap    <S-kInsert>  <Leader>xp
     imap    <S-kInsert>  <Leader>xp
     cmap    <S-kInsert>  <Leader>xp
     nmap    <C-S-v>     <Leader>xp
-    xmap    <C-S-v>     <Leader>xp
     imap    <C-S-v>     <Leader>xp
     cmap    <C-S-v>     <Leader>xp
 endif
 
-" gui vim any platform, or win32 including console
 if g:u.has_cb_builtin
+    " gui vim any platform, or win32 including console
+    "
     " linewise read from PRIMARY/CLIPBOARD - without bouncing through another
     " register
     command!    RDPR    put *
     command!    RDCB    put +
 elseif g:u.has_cb_tty
+    " xsel
     command     RDPR    execute 'put' UserGetCbReg('PRIMARY').reg
     command     RDCB    execute 'put' UserGetCbReg('CLIPBOARD').reg
 else
-    nnoremap    <expr>  <Leader>xp      UserPasteExpr()
-    inoremap    <expr>  <Leader>xp      "\<C-\>\<C-o>" . UserPasteExpr()
-    xmap                <Leader>xp      "-c<Leader>xp<Esc>
-    cnoremap            <Leader>xp      <C-r><C-r>"
+    " no system clipboard, just vim fallback
+    nnoremap    <expr>  <Leader>x   <Nop>
+    inoremap    <expr>  <Leader>xp  "\<C-\>\<C-o>p"
+    cnoremap            <Leader>xp  <C-r><C-r>"
 endif
 
 
-" -- copying; separate definitions for tty vs. gui - write to the
-" clipboard in whatever way works best.
+" yank mappings - copying from vim; separate definitions for tty vs. gui - write
+" to the clipboard in whatever way works best.
 
 if g:u.has_cb_builtin
     " normal mode, copy current line - this includes the last newline,
     " makes unnamedplus linewise.
-    " nnoremap  <silent>    <Leader>xc      "+yy
     "
-    " for details see ,xc mapping for ttys below.
-    nnoremap    <silent>    <Leader>yc      m`^vg_"*y``
-    nnoremap    <silent>    <Leader>xc      m`^vg_"+y``
+    " for details see ,y mapping for ttys below.
+    nnoremap    <silent>    <Leader>y   m`^vg_"+y``
 
+    " write linewise to PRIMARY
     command! -range WRPR    <line1>,<line2>y *
+    " write linewise to CLIPBOARD
     command! -range WRCB    <line1>,<line2>y +
 
     " visual mode, copy selection, not linewise; doc: v_zy
     " zy and zp are rather new, not in iVim yet.
-    xnoremap    <silent>    <Leader>yc      "*y
-    xnoremap    <silent>    <Leader>xc      "+y
+    xnoremap    <silent>    <Leader>y   "+y
 
-    cnoremap    <Leader>yc  <C-\>eUserTeeCmdLineCb('PRIMARY')<cr>
-    cnoremap    <Leader>xc  <C-\>eUserTeeCmdLineCb('CLIPBOARD')<cr>
+    cnoremap    <Leader>yx  <C-\>eUserTeeCmdLineCb('CLIPBOARD')<cr>
 
     if has('gui_running')
-        nmap    <C-Insert>  <Leader>xc
-        xmap    <C-Insert>  <Leader>xc
-        cmap    <C-Insert>  <Leader>xc
-        nmap    <C-kInsert>  <Leader>xc
-        xmap    <C-kInsert>  <Leader>xc
-        cmap    <C-kInsert>  <Leader>xc
-        nmap    <C-S-c>     <Leader>xc
-        xmap    <C-S-c>     <Leader>xc
+        nmap    <C-Insert>      <Leader>y
+        xmap    <C-Insert>      <Leader>y
+        cmap    <C-Insert>      <Leader>y
+        nmap    <C-kInsert>     <Leader>y
+        xmap    <C-kInsert>     <Leader>y
+        cmap    <C-kInsert>     <Leader>y
+        nmap    <C-S-c>         <Leader>y
+        xmap    <C-S-c>         <Leader>y
 
         " no C-c / C-S-c for the command window.
-
     endif
 elseif g:u.has_cb_tty
 
@@ -3667,8 +3663,7 @@ elseif g:u.has_cb_tty
     "       /Note that after a characterwise yank command
     "   `` - jump back
     "   and pass the unnamed register contents to the X11 selection.
-    nnoremap    <silent>    <Leader>yc  m`^vg_y``:call UserWrCb(@", 'PRIMARY')<cr>
-    nnoremap    <silent>    <Leader>xc  m`^vg_y``:call UserWrCb(@", 'CLIPBOARD')<cr>
+    nnoremap    <silent>    <Leader>y   m`^vg_y``:call UserWrCb(@", 'CLIPBOARD')<cr>
 
     " define an ex command that takes a range and pipes to xsel
     " doc :write_c
@@ -3679,17 +3674,15 @@ elseif g:u.has_cb_tty
     " for the visual selection (not necessarily linewise).
     " yank, then [in normal mode] pass the anonymous register
     " to the X11 selection.
-    xnoremap    <silent>    <Leader>yc  m`y``:call UserWrCb(@", 'PRIMARY')<cr>
-    xnoremap    <silent>    <Leader>xc  m`y``:call UserWrCb(@", 'CLIPBOARD')<cr>
+    xnoremap    <silent>    <Leader>y   m`y``:call UserWrCb(@", 'CLIPBOARD')<cr>
 
     " copy the current command line.
     " doc: getcmdline()
-    cnoremap                <Leader>yc  <C-\>eUserTeeCmdLineCb('PRIMARY')<cr>
-    cnoremap                <Leader>xc  <C-\>eUserTeeCmdLineCb('CLIPBOARD')<cr>
+    cnoremap                <Leader>y   <C-\>eUserTeeCmdLineCb('CLIPBOARD')<cr>
 else
-    nnoremap                <Leader>xc  m`^vg_y``
-    xnoremap                <Leader>xc  m`y``
-    cnoremap                <Leader>xc  <C-\>eUserTeeCmdLineCb('SELF')<cr>
+    nnoremap                <Leader>y   m`^vg_y``
+    xnoremap                <Leader>y   m`y``
+    cnoremap                <Leader>y   <C-\>eUserTeeCmdLineCb('SELF')<cr>
 endif
 
 
