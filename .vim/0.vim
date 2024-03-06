@@ -3994,7 +3994,7 @@ nnoremap    u       <nop>
 " not to self - put the last yank, not from the unnamed register
 nnoremap    <C-p>   "0p
 
-nnoremap    <C-s>   :wall<CR>
+nnoremap    <silent> <C-s>   :silent wall<CR>
 
 
 " -- ~ eof-map ~ end of most mapping definitions
