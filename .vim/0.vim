@@ -4619,4 +4619,10 @@ if has('gui_running')
     call UserSetGuicursor()
 endif
 
+if v:version >= 900
+    " better than plain % for code with braces embedded in strings etc.;
+    " but enable only if the vim version's recent enough.
+    packadd matchit
+endif
+
 " ~ fini ~
