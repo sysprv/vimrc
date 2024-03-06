@@ -646,7 +646,7 @@ set backspace=indent,eol,start
 " forward. so, instead of +=, here we do =.
 " 2023-01-29 add [,] for left/right in insert mode. can't recall if it's
 " already been tried and rejected.
-set whichwrap=<,>,[,]
+set whichwrap=[,]
 
 
 " indentation
