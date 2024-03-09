@@ -1,4 +1,4 @@
-" Last-Modified: 2024-03-05T22:49:28.488213383+00:00
+" Last-Modified: 2024-03-07T20:21:09.339160058+00:00
 " vim:set tw=80 noml:
 set secure encoding=utf-8 fileencoding=utf-8 nobomb
 scriptencoding utf-8
@@ -727,8 +727,8 @@ set browsedir=buffer
 "set autochdir - too cumbersome
 
 " 2024-03-01 have i tried and and stopped using onemore before?
-"set virtualedit=block,onemore
-set virtualedit=block
+" onemore is good when pasting.
+set virtualedit=block,onemore
 set history=200
 set timeout ttimeout timeoutlen=3000 ttimeoutlen=100
 
