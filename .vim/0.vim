@@ -3419,7 +3419,7 @@ function! UserGetCbReg(...)
     let l:src = 'CLIPBOARD'
     let l:src_reg = '+'
     let l:src_cmd = '/usr/bin/xsel -b -o'
-    let l:result = { 'status': -1 }
+    let l:result = { 'status': -1, 'reg': '_' }
     let l:bounce_reg = 'w'
 
     if len(a:000) > 0 && a:1 ==# 'PRIMARY'
@@ -3441,10 +3441,9 @@ function! UserGetCbReg(...)
         "
         " too bad pasting's so complicated.
         "
-        " 2024-03-05
+        " 2024-03-05 preserve reg mode, no more bounce reg.
 
-        call setreg(l:bounce_reg, getreg(l:src_reg))
-        let l:result = { 'reg': l:bounce_reg, 'status': 0 }
+        let l:result = { 'reg': l:src_reg, 'status': 0 }
     elseif g:u.has_cb_tty
         silent let l:clp = system(l:src_cmd)
         if v:shell_error
@@ -3452,9 +3451,9 @@ function! UserGetCbReg(...)
             echo 'xsel invocation failed, code' v:shell_error
             echohl None
 
-            let l:result = { 'status': -2 }
+            let l:result = { 'status': -2, 'reg': '_' }
         else
-            " put into a register + return register name
+            " put into a register, return register name
             call setreg(l:bounce_reg, l:clp)
             let l:result = { 'reg': l:bounce_reg, 'status': 0 }
         endif
@@ -3463,7 +3462,7 @@ function! UserGetCbReg(...)
         echo 'do not know how to read from' l:src
         echohl None
 
-        let l:result = { 'status': -3 }
+        let l:result = { 'status': -3, 'reg': '_' }
     endif
     return l:result
 endfunction
