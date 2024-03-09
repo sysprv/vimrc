@@ -3720,99 +3720,31 @@ endif
 " or mobile apps don't end with a newline, and the type of "+/"* remains
 " c(haracterwise). this function can sometimes help with that.
 "
-" safe for C-o insert mode, but no need for that.
-"
 " maybe: redo as a filter called inside UserGetCbReg().
 
 function! UserUrlPasteMunge()
-    " this chunk of code considers very little, ought to work no matter where
-    " in a line the tweet url is, when there are multiple urls (including
-    " duplicates).
-
-    " save 'clipboard' and 'virtualedit' to restore later.
-    let l:cb = ''
-    if has('clipboard')
-        let l:cb = &clipboard
-        set clipboard=
-    endif
     let l:ve = &virtualedit
-    " virtualedit required to make use exclusive motions (F) and later to
-    " not fall down into an undecidable hell of col('.') vs. col('$').
     set virtualedit=onemore
 
-    let l:copy_back = 0
+    RDCB!
+    normal! $l
+
+    " search backwards, from past eol
     let l:urlpos = searchpos('\vhttps?://\S+', 'bn', line('.'))
     lockvar l:urlpos
     if l:urlpos[0] == line('.')
-
-        " if pasted in normal mode, the cursor stays beyond url - after eol or
-        " any text that was already present.
-        "
-        " but if pasted in insert mode and vim went to normal, the cursor
-        " moves to the last char of the url.
-        "
-        " so we move the the end of the last changed text - if we didn't do
-        " that, the normal! l below would be one l too much - and a char that
-        " may have been there from before would get deleted by the backwards
-        " delete that can happen later.
-
-        if getpos("']")[1] == line(".")
-            normal! `]
-        endif
-        normal! l
-
         " if the url's for a tweet, erase the query parameters.
         if search('\v//%(x|twitter)\.com/\w+/status/\d+\?', 'bn', line('.')) == line('.')
             " to the black hole register, delete backwards until (including) ?
             " but excluding what the cursor was on.
             normal! "_dF?
-            let l:copy_back = 1
-        endif
-
-
-        " breaking a line is hard in normal mode. there might be something
-        " after us. delete, put on next line.
-        "
-        " 2023-05-28 even with ve=onemore and cursor past eol, d$ will delete
-        " the last char of the line, a char that was not under the cursor.
-        " with ve=all that doesn't happen.
-        "
-        " 2023-05-28 back to column conditional delete and ve=onemore. with
-        " ve=all, some text already on the line, cursor past eol - d$ should
-        " delete nothing, but still successfully deletes a single space into
-        " @-/@". in contrast to ve=onemore, where d$ does delete the last real
-        " character. behaviour going back to vim7.. seems like a bug, can't
-        " find a doc reference. caught with listchars+trail.
-
-        if col('.') >= col('$')
-            put _
-        else
-            normal! d$
-            put
-        endif
-
-        " if we modified the url, and url is at the beginning of the line,
-        " copy back. copying just the url when some other text precedes it...
-        " going against the grain of line orientation and cursor movement is
-        " hard.
-        if l:copy_back
-            " go to line above,
-            " normal with mappings:
-            " 0 - go to first column
-            " count-| to go right to the first char of the url (doc: bar)
-            " v - start visual mode
-            " $ - to the end of the line
-            " ,xc - copy [using <Leader> is cumbersome]
-            " j - go back down
-            " 0 - beginning of line
-            execute "normal" "-0" . l:urlpos[1] . "|v$,xcj0"
+            WRCB
         endif
     endif
 
+    " go to new line created by RDCB! put
+    normal! j0
     let &virtualedit = l:ve
-    if has('clipboard')
-        let &clipboard = l:cb
-    endif
 endfunction
 
 
@@ -3952,7 +3884,7 @@ xnoremap    <C-g>   <nop>
 " vile's 'q' (quoted motion) is interesting.
 "nnoremap    q   <nop>
 " nnoremap    q   :echo 'Temper temper / mon capitaine.'<cr>
-nmap    <silent> q <Leader>xp:call UserUrlPasteMunge()<cr>:silent update<cr>
+nnoremap    <silent>    q   :call UserUrlPasteMunge()<CR>:silent update<CR>
 " -- end q-mappings adventure.
 
 " never used the tagstack. sometimes due to window focus i end up hitting
