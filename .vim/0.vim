@@ -3514,8 +3514,8 @@ endfunction
 " either a function call or :normal! gp, disregards autoindent whitespace and
 " pastes after the last non-blank character.
 
-" wretched - with virtualedit=all like in paste.vim, "gp" is no good. -
-" virtualedit creates a space and 'gp' puts after that.
+" wretched - with virtualedit=all like in paste.vim, "gp" is no good.
+" - virtualedit creates a space and 'gp' puts after that.
 "
 " if beginning/middle of line - put text before cursor. feels natural.
 "
@@ -3523,8 +3523,8 @@ endfunction
 " multiple consecutive pastes.
 "
 " 2024-03-01 the above isn't great - you really always want text to go before
-" (gP). f.ex. you've just typed a pair of delimiters and want to paste in the
-" middle. gP with virtualedit-onemore.
+" (gP). f.ex. in insert mode.. ? you've just typed a pair of delimiters and want
+" to paste in the middle. gP with virtualedit-onemore.
 
 function! UserPasteExpr()
     return 'gP'
@@ -3563,12 +3563,17 @@ endfunction
 
 " normal mode paste - read from clipboard and wait for the next
 " p/P/gp/gP. Of course it might be anything, like c or x..
-nnoremap    <expr>  <Leader>x   UserReadCbRetExpr()
+"
+" 2024-03-07 gp/gP's too long. add explicite mappings, always g.
+nnoremap    <expr>  <Leader>xp  UserReadCbRetExpr() . "gp"
+nnoremap    <expr>  <Leader>xP  UserReadCbRetExpr() . "gP"
+nmap        <Leader>p           <Leader>xp
 
 " insert mode paste - still waits for the final p-like keypress
-" but less useful - everything works like gp. so we make the mapping
-" complete - ,xp.
-inoremap    <expr>  <Leader>xp   "\<C-\>\<C-o>" . UserReadCbRetExpr() . "p"
+" but we always want gP.
+imap        <Leader>xp      <C-\><C-o><Leader>xp
+imap        <Leader>xP      <C-\><C-o><Leader>xP
+imap        <Leader>p       <Leader>xP
 
 " visual mode paste - never needed it.
 
@@ -3579,7 +3584,9 @@ inoremap    <expr>  <Leader>xp   "\<C-\>\<C-o>" . UserReadCbRetExpr() . "p"
 "
 " literal insert - doc: c_CTRL-R_CTRL-R
 
-cnoremap <expr> <Leader>xp   "\<C-r>\<C-r>" . UserGetCbReg().reg
+cnoremap    <expr>  <Leader>xp  "\<C-r>\<C-r>" . UserGetCbReg().reg
+cnoremap            <Leader>xP  <Nop>
+cnoremap    <expr>  <Leader>p   "\<C-r>\<C-r>" . UserGetCbReg().reg
 
 if has('gui_running')
 
@@ -3602,15 +3609,15 @@ if has('gui_running')
     " just have to stick with ,xp, get used to C-q (emacs quoted-insert),
     " keeping xon/xoff flow control in mind.
 
-    nmap    <S-Insert>  <Leader>xp
-    imap    <S-Insert>  <Leader>xp
-    cmap    <S-Insert>  <Leader>xp
-    nmap    <S-kInsert>  <Leader>xp
-    imap    <S-kInsert>  <Leader>xp
-    cmap    <S-kInsert>  <Leader>xp
-    nmap    <C-S-v>     <Leader>xp
-    imap    <C-S-v>     <Leader>xp
-    cmap    <C-S-v>     <Leader>xp
+    nmap    <S-Insert>      <Leader>p
+    imap    <S-Insert>      <Leader>p
+    cmap    <S-Insert>      <Leader>p
+    nmap    <S-kInsert>     <Leader>p
+    imap    <S-kInsert>     <Leader>p
+    cmap    <S-kInsert>     <Leader>p
+    nmap    <C-S-v>         <Leader>p
+    imap    <C-S-v>         <Leader>p
+    cmap    <C-S-v>         <Leader>p
 endif
 
 if g:u.has_cb_builtin
@@ -3618,17 +3625,21 @@ if g:u.has_cb_builtin
     "
     " linewise read from PRIMARY/CLIPBOARD - without bouncing through another
     " register
-    command!    RDPR    put *
-    command!    RDCB    put +
+    command -bang   RDPR    put<bang>   *
+    command -bang   RDCB    put<bang>   +
 elseif g:u.has_cb_tty
     " xsel
-    command     RDPR    execute 'put' UserGetCbReg('PRIMARY').reg
-    command     RDCB    execute 'put' UserGetCbReg('CLIPBOARD').reg
+    command -bang   RDPR    execute "put<bang>" UserGetCbReg('PRIMARY').reg
+    command -bang   RDCB    execute "put<bang>" UserGetCbReg('CLIPBOARD').reg
 else
     " no system clipboard, just vim fallback
-    nnoremap    <expr>  <Leader>x   <Nop>
-    inoremap    <expr>  <Leader>xp  "\<C-\>\<C-o>p"
-    cnoremap            <Leader>xp  <C-r><C-r>"
+    nnoremap    <Leader>xp  gp
+    nnoremap    <Leader>xP  gP
+    nnoremap    <Leader>p   gp
+    inoremap    <Leader>xp  <C-\><C-o>gp
+    inoremap    <Leader>xP  <C-\><C-o>gP
+    inoremap    <Leader>p   gP
+    cnoremap    <Leader>xp  <C-r><C-r>"
 endif
 
 
@@ -3640,7 +3651,7 @@ if g:u.has_cb_builtin
     " makes unnamedplus linewise.
     "
     " for details see ,y mapping for ttys below.
-    nnoremap    <silent>    <Leader>y   m`^vg_"+y``
+    nnoremap        <Leader>y   m`^vg_"+y``
 
     " write linewise to PRIMARY
     command! -range WRPR    <line1>,<line2>y *
@@ -3651,7 +3662,7 @@ if g:u.has_cb_builtin
     " zy and zp are rather new, not in iVim yet.
     xnoremap    <silent>    <Leader>y   "+y
 
-    cnoremap    <Leader>yx  <C-\>eUserTeeCmdLineCb('CLIPBOARD')<cr>
+    cnoremap    <Leader>y   <C-\>eUserTeeCmdLineCb('CLIPBOARD')<cr>
 
     if has('gui_running')
         nmap    <C-Insert>      <Leader>y
@@ -3683,8 +3694,8 @@ elseif g:u.has_cb_tty
     " define an ex command that takes a range and pipes to xsel
     " doc :write_c
     "R use: :.,+10WRCB
-    command -range WRPR     silent <line1>,<line2>:w !/usr/bin/xsel/xsel -p -i
-    command -range WRCB     silent <line1>,<line2>:w !/usr/bin/xsel/xsel -b -i
+    command -range WRPR     silent <line1>,<line2>:w !/usr/bin/xsel -p -i
+    command -range WRCB     silent <line1>,<line2>:w !/usr/bin/xsel -b -i
 
     " for the visual selection (not necessarily linewise).
     " yank, then [in normal mode] pass the anonymous register
