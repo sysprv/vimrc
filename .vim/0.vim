@@ -1582,9 +1582,10 @@ endfunction
 " now, python3 has more recent UCD data.
 "
 " unicodedata doesn't have names for control characters.
-function! UserScreenCharLookup() abort
-    let l:screen_char = UserGetScreenChar()
-    if l:screen_char ==# ''
+function! UserUniNames(screen_char) abort
+    "let l:screen_char = UserGetScreenChar()
+    "let l:screen_char = UserGetScreenChar()
+    if a:screen_char ==# ''
         return 'NUL'
     endif
 
@@ -1662,7 +1663,7 @@ def unctrl(c):
 
 # end python 3.10 curses.ascii
 
-screen_char = vim.eval('screen_char')
+screen_char = vim.eval('a:screen_char')
 
 if len(screen_char) == 1 and \
     unicodedata.category(screen_char) == 'Cc' and \
@@ -1674,13 +1675,17 @@ elif screen_char == "\x7f":
     u_name = 'DEL (' + unctrl(screen_char) + ')'
 else:
     try:
-        u_name = unicodedata.name(screen_char)
+        # unicodedata.name() wants just one char; in case
+        # screen_char is a string with combining characters -
+        # map over each char in screen_char.
+        u_name = ', '.join(map(unicodedata.name, screen_char))
     except ValueError:
         # exception just says "no such name"
         u_name = '(UNKNOWN)'
 
 b = screen_char.encode('utf8')
 # utf8_hex = b.hex()
+# same as vim g8
 utf8_hex = ' '.join([ '%x' % x for x in b ])
 
 PYEOF
@@ -1688,12 +1693,13 @@ PYEOF
     let l:u_name = py3eval('u_name')
     " like g8
     let l:utf8_hex = py3eval('utf8_hex')
-    let l:fmt = printf('''%s'' U+%04X %s; UTF-8: %s',
-        \ strtrans(l:screen_char), char2nr(l:screen_char), l:u_name, l:utf8_hex)
+    let l:fmt = printf('''%s'' %s; UTF-8: %s',
+        \ strtrans(a:screen_char), l:u_name, l:utf8_hex)
     return l:fmt
 endfunction
 
-command UC  echom UserScreenCharLookup()
+" test: а́ - CYRILLIC SMALL LETTER A, COMBINING ACUTE ACCENT
+command UC  echom UserUniNames(UserGetScreenChar())
 
 
 " list all the syntax groups in effect under the cursor.
