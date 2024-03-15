@@ -1534,6 +1534,8 @@ function! UserAlert(lines)
     elseif has('popupwin')
         let l:opts = UserPopupNotfOpts()
         call popup_notification(a:lines, l:opts)
+    else
+        echom a:lines
     endif
 endfunction
 
@@ -1693,7 +1695,7 @@ endfunction
 
 " test: а́ - CYRILLIC SMALL LETTER A, COMBINING ACUTE ACCENT
 command UC  echom UserUniNames(UserGetScreenChar())
-nnoremap    <Leader>C   :echowindow UserUniNames(UserGetScreenChar())<CR>
+nnoremap    <Leader>C   :echom UserUniNames(UserGetScreenChar())<CR>
 
 " given a string, return U+... formatted unicode scalar value for each char.
 " requires patch-7.4.1730 - build on g8 instead?
@@ -1734,7 +1736,7 @@ function! UserSyntaxNamesAtCursor() abort
 endfunction
 
 command SynNames    echom UserSyntaxNamesAtCursor()
-nnoremap <silent>   <Leader>S   :echowindow UserSyntaxNamesAtCursor()<CR>
+nnoremap <silent>   <Leader>S   :echom UserSyntaxNamesAtCursor()<CR>
 
 
 function! UserCurWinSz()
