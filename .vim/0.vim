@@ -1669,37 +1669,56 @@ if len(screen_char) == 1 and \
     unicodedata.category(screen_char) == 'Cc' and \
     isctrl(screen_char) and \
     ord(screen_char) < len(controlnames):
-    u_name = controlnames[ord(screen_char)] + \
+    u_names = controlnames[ord(screen_char)] + \
         ' (' + unctrl(screen_char) + ')'
 elif screen_char == "\x7f":
-    u_name = 'DEL (' + unctrl(screen_char) + ')'
+    u_names = 'DEL (' + unctrl(screen_char) + ')'
 else:
     try:
         # unicodedata.name() wants just one char; in case
         # screen_char is a string with combining characters -
         # map over each char in screen_char.
-        u_name = ', '.join(map(unicodedata.name, screen_char))
+        u_names = map(unicodedata.name, screen_char)
     except ValueError:
         # exception just says "no such name"
-        u_name = '(UNKNOWN)'
-
-b = screen_char.encode('utf8')
-# utf8_hex = b.hex()
-# same as vim g8
-utf8_hex = ' '.join([ '%x' % x for x in b ])
+        u_names = '(UNKNOWN)'
 
 PYEOF
 
-    let l:u_name = py3eval('u_name')
-    " like g8
-    let l:utf8_hex = py3eval('utf8_hex')
-    let l:fmt = printf('''%s'' %s; UTF-8: %s',
-        \ strtrans(a:screen_char), l:u_name, l:utf8_hex)
+    " -- back in viml --
+    let l:u_names = py3eval('u_names')
+    let l:fmt = printf('''%s'' %s', strtrans(a:screen_char), l:u_names)
     return l:fmt
 endfunction
 
 " test: а́ - CYRILLIC SMALL LETTER A, COMBINING ACUTE ACCENT
 command UC  echom UserUniNames(UserGetScreenChar())
+nnoremap    <Leader>C   :echowindow UserUniNames(UserGetScreenChar())<CR>
+
+" given a string, return U+... formatted unicode scalar value for each char.
+" requires patch-7.4.1730 - build on g8 instead?
+"
+" don't want to get into python3 strings for this.
+
+function! UserUniScalars(str) abort
+    let l:result = []
+    for i in range(len(a:str))
+        let l:n = strgetchar(a:str, i)
+        if l:n < 0
+            break
+        endif
+        call add(l:result, printf('U+%04X', l:n))
+    endfor
+    return l:result
+endfunction
+
+if has('patch-7.4.1730')
+    nnoremap <silent> <Leader>U :echom UserUniScalars(UserGetScreenChar())<CR>
+    nnoremap <silent> g7 :echom UserUniScalars(UserGetScreenChar())<CR>
+else
+    nnoremap <silent> <Leader>U :echom '(vim too old)'<CR>
+    nnoremap <silent> g7 :echom '(vim too old)'<CR>
+endif
 
 
 " list all the syntax groups in effect under the cursor.
