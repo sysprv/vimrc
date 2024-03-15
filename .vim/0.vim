@@ -1,4 +1,4 @@
-" Last-Modified: 2024-03-07T20:21:09.339160058+00:00
+" Last-Modified: 2024-03-14T21:11:36.373876848+00:00
 " vim:set tw=80 noml:
 set secure encoding=utf-8 fileencoding=utf-8 nobomb
 scriptencoding utf-8
@@ -1734,7 +1734,7 @@ function! UserSyntaxNamesAtCursor() abort
 endfunction
 
 command SynNames    echom UserSyntaxNamesAtCursor()
-nnoremap <silent>   <Leader>S   :SynNames<CR>
+nnoremap <silent>   <Leader>S   :echowindow UserSyntaxNamesAtCursor()<CR>
 
 
 function! UserCurWinSz()
@@ -3961,7 +3961,10 @@ nnoremap    u       <nop>
 " not to self - put the last yank, not from the unnamed register
 nnoremap    <C-p>   "0p
 
-nnoremap    <silent> <C-s>   :silent wall<CR>
+nnoremap    <silent> <C-s>  :silent wall<CR>
+
+" make a new line in normal mode
+nnoremap    <silent> <C-n>  :put _<CR>
 
 
 " -- ~ eof-map ~ end of most mapping definitions
