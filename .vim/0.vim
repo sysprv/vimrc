@@ -1,4 +1,4 @@
-" Last-Modified: 2024-03-14T21:11:36.373876848+00:00
+" Last-Modified: 2024-03-25T16:56:01.906216609+00:00
 " vim:set tw=80 noml:
 set secure encoding=utf-8 fileencoding=utf-8 nobomb
 scriptencoding utf-8
@@ -3990,7 +3990,8 @@ nnoremap    gs      <nop>
 nnoremap    <Leader>/   :global ==:<Left><Left>
 
 " too dangerous when drunk; just use :undo; or g-/g+.
-nnoremap    u       <nop>
+" 'c' is equally dangerous. just try to deal with u and c.
+" nnoremap    u       <nop>
 
 " not to self - put the last yank, not from the unnamed register
 nnoremap    <C-p>   "0p
