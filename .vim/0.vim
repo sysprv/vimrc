@@ -1697,13 +1697,19 @@ PYEOF
 
     " -- back in viml --
     let l:u_names = py3eval('u_names')
-    let l:fmt = printf('''%s'' %s', strtrans(a:screen_char), l:u_names)
+    let l:fmt = printf('''%s'' %s',
+                \ strtrans(a:screen_char), join(l:u_names, ', '))
     return l:fmt
 endfunction
 
 " test: а́ - CYRILLIC SMALL LETTER A, COMBINING ACUTE ACCENT
-command UC  echom UserUniNames(UserGetScreenChar())
-nnoremap    <Leader>C   :echom UserUniNames(UserGetScreenChar())<CR>
+if has('python3')
+    command UC  echom UserUniNames(UserGetScreenChar())
+else
+    command UC  echom '(not supported)'
+endif
+nnoremap    <silent> <Leader>C   :UC<CR>
+
 
 " given a string, return U+... formatted unicode scalar value for each char.
 " requires patch-7.4.1730 - build on g8 instead?
@@ -1723,28 +1729,38 @@ function! UserUniScalars(str) abort
 endfunction
 
 if has('patch-7.4.1730')
-    nnoremap <silent> <Leader>U :echom UserUniScalars(UserGetScreenChar())<CR>
-    nnoremap <silent> g7 :echom UserUniScalars(UserGetScreenChar())<CR>
+    command UN  echom join(UserUniScalars(UserGetScreenChar()), ' ')
 else
-    nnoremap <silent> <Leader>U :echom '(vim too old)'<CR>
-    nnoremap <silent> g7 :echom '(vim too old)'<CR>
+    command UN  echom '(not supported)
 endif
+nnoremap <silent> <Leader>U :UN<CR>
+nnoremap <silent> g7        :UN<CR>
 
 
 " list all the syntax groups in effect under the cursor.
 function! UserSyntaxNamesAtCursor() abort
-    let l:syn_names = []
+    let l:tmp = synstack(line('.'), col('.'))
+    let l:syn_ids = []
+    " 2024-03-25 skip duplicates; f.ex. with
+    " https://github.com/vim-jp/vim-vimlparser ?
+    for l:id in l:tmp
+        if index(l:syn_ids, l:id) == -1
+            call add(l:syn_ids, l:id)
+        endif
+    endfor
 
-    for l:synid in synstack(line('.'), col('.'))
-        let l:syn_name = synIDattr(l:synid, 'name')
+    let l:syn_names = []
+    for l:syn_id in l:syn_ids
+        let l:syn_name = synIDattr(l:syn_id, 'name')
         call add(l:syn_names, l:syn_name)
     endfor
 
     return l:syn_names
 endfunction
 
-command SynNames    echom UserSyntaxNamesAtCursor()
-nnoremap <silent>   <Leader>S   :echom UserSyntaxNamesAtCursor()<CR>
+" 2024-03-25 old vims can't echo lists
+command SynNames    echom join(UserSyntaxNamesAtCursor(), ' ')
+nnoremap <silent>   <Leader>S   :SynNames<CR>
 
 
 function! UserCurWinSz()
@@ -3603,12 +3619,14 @@ endfunction
 nnoremap    <expr>  <Leader>xp  UserReadCbRetExpr() . "gp"
 nnoremap    <expr>  <Leader>xP  UserReadCbRetExpr() . "gP"
 nmap        <Leader>p           <Leader>xp
+nmap        <Leader>P           <Leader>xP
 
 " insert mode paste - still waits for the final p-like keypress
 " but we always want gP.
 imap        <Leader>xp      <C-\><C-o><Leader>xp
 imap        <Leader>xP      <C-\><C-o><Leader>xP
 imap        <Leader>p       <Leader>xP
+imap        <Leader>P       <Leader>xP
 
 " visual mode paste - never needed it.
 
@@ -3621,7 +3639,8 @@ imap        <Leader>p       <Leader>xP
 
 cnoremap    <expr>  <Leader>xp  "\<C-r>\<C-r>" . UserGetCbReg().reg
 cnoremap            <Leader>xP  <Nop>
-cnoremap    <expr>  <Leader>p   "\<C-r>\<C-r>" . UserGetCbReg().reg
+cmap                <Leader>p   <Leader>xp
+cmap                <Leader>P   <Leader>xP
 
 if has('gui_running')
 
@@ -3670,11 +3689,16 @@ else
     " no system clipboard, just vim fallback
     nnoremap    <Leader>xp  gp
     nnoremap    <Leader>xP  gP
-    nnoremap    <Leader>p   gp
+    nmap        <Leader>p   <Leader>xp
+    nmap        <Leader>P   <Leader>xP
     inoremap    <Leader>xp  <C-\><C-o>gp
     inoremap    <Leader>xP  <C-\><C-o>gP
-    inoremap    <Leader>p   gP
+    imap        <Leader>p   <Leader>xp
+    imap        <Leader>P   <Leader>xP
     cnoremap    <Leader>xp  <C-r><C-r>"
+    cnoremap    <Leader>xp  <Nop>
+    cmap        <Leader>p   <Leader>xp
+    cmap        <Leader>P   <Leader>P
 endif
 
 
