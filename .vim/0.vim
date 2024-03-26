@@ -642,7 +642,10 @@ set selectmode= keymodel=
 " causes hit-enter prompts. shm-T truncation in the middle also sucks.
 " cmdheight>1 sucks. laststatus=2 sucks least. maybe forcing the ruler to be
 " shorter can help, but can't be bothered anymore.
-set laststatus=2
+"
+" 2024-03-21 the above issue with ruler and messages was for iOS? phone screen's
+" wide enough now.
+set laststatus=1
 
 " disabling 'ruler' makes 3<C-g> print more info.
 set ruler
@@ -739,7 +742,12 @@ set timeout ttimeout timeoutlen=3000 ttimeoutlen=100
 
 " but never newtab; maybe split.
 set switchbuf=useopen,usetab
-set splitbelow splitright
+if has('patch-8.1.2315')
+    set switchbuf+=uselast
+endif
+" 2024-03-23 vertical split - feels better to have the new, focused split appear
+" at the top, not below.
+set nosplitbelow splitright
 " 'equalalways' is default on; that's nice for vertical splits, don't want
 " it with horizontal splits.
 set eadirection=hor
