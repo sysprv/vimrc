@@ -4,6 +4,8 @@ set nocompatible
 set secure encoding=utf-8 fileencoding=utf-8 nobomb
 scriptencoding utf-8        " must go after 'encoding'
 
+let g:mapleader = ','
+
 set autoindent
 set backupcopy=yes
 set complete=.
@@ -22,6 +24,10 @@ set softtabstop=4
 
 " less-emacs-y window navigation
 nnoremap    s   <C-w>
+" defang possibly harmful finger-feel mappings
+nnoremap    <Leader>C   <Nop>
+nnoremap    <Leader>S   <Nop>
+nnoremap    <Leader>U   <Nop>
 
 " don't confuse tiny vim (-eval), can't test with older vims.
 if version >= 704
