@@ -3283,6 +3283,8 @@ xnoremap        j       gj
 xnoremap        k       gk
 xnoremap        <Down>  gj
 xnoremap        <Up>    gk
+inoremap        <Down>  <C-o>gj
+inoremap        <Up>    <C-o>gk
 
 " 2022-07-16 - recognition, through vimrc.
 " https://github.com/hotchpotch/dotfiles-vim/blob/master/.vimrc
