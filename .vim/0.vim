@@ -4110,21 +4110,27 @@ command -bar T4x4       SoftIndent 4 | setlocal noexpandtab
 command -bar FoText  setlocal
             \ autoindent nosmartindent nocindent formatoptions<
             \ comments= commentstring= formatlistpat=
+            \ nojoinspaces
             \ | setlocal formatoptions-=c
-            \ | setlocal formatoptions-=q
             \ | setlocal formatoptions-=n
+            \ | setlocal formatoptions-=q
+            \ | silent! setlocal formatoptions-=p
 
 " for prose
 command -bar Wr     FoText | setlocal textwidth=80 formatoptions+=a spell
             \ indentexpr=UserTextIndent()
 
+" for double-spaced prose; fo-p since patch 8.1.0728.
+" joinspaces is a global option for some reason.
+command -bar Wr2    Wr | setlocal formatoptions+=p joinspaces
+
 command -bar Nowr    setlocal
             \ autoindent nosmartindent nocindent formatoptions< nospell
-            \ indentexpr<
-
+            \ indentexpr< nojoinspaces
 
 command -bar FoCode  setlocal
-            \ autoindent nosmartindent cindent formatoptions<
+            \ autoindent nosmartindent cindent formatoptions< nospell
+            \ nojoinspaces
 
 
 " WIP - 2nd line in buffer or paragraph - no indentation (don't follow the
