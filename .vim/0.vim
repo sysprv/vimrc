@@ -1350,7 +1350,12 @@ set statusline=%n'%{UserStLnBufFlags()}%W%H%<<%f>\ %{v:register}%=%l:%v\ %P\ %{g
 " in case we close all normal windows and end up with something like the preview
 " window as the only window - the ruler should show the same buffer flags as the
 " status line.
-set rulerformat=%=%M\ %P\ %{g:u.mark}
+"
+" 2024-04-02 in chaotic situations (xterm has no fonts to display ma), vim may
+" print errors about conflicting with listchars, and fail to redraw properly.
+" having a statusline works better, but taking ma away from rulerformat for now.
+" + reducing the ruler width from 17 to 8.
+set rulerformat=%8(%=%M\ %P%)
 
 " -- enough now.
 
