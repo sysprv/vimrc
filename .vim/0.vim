@@ -1,4 +1,4 @@
-" Last-Modified: 2024-03-25T16:56:01.906216609+00:00
+" Last-Modified: 2024-03-31T17:25:28.182417278+00:00
 " vim:set tw=80 noml:
 set secure encoding=utf-8 fileencoding=utf-8 nobomb
 scriptencoding utf-8
@@ -805,7 +805,7 @@ if v:version >= 900
     "
     " https://gist.github.com/g0xA52A2A/7cb1be24a078724f4522444a0da5de0a
 
-    nnoremap    K   :b<Space><C-r>=nr2char(&wildcharm)<CR><S-Tab>
+    nnoremap    K   :b<Space><C-r>=nr2char(&wildcharm)<CR>
 
     " use NFA regexp engine?
     "set regexpengine=2
