@@ -3226,12 +3226,16 @@ nnoremap        j       gj
 nnoremap        k       gk
 nnoremap        <Down>  gj
 nnoremap        <Up>    gk
-xnoremap        j       gj
-xnoremap        k       gk
-xnoremap        <Down>  gj
-xnoremap        <Up>    gk
-inoremap        <Down>  <C-o>gj
-inoremap        <Up>    <C-o>gk
+" for visual mode only, not visual line mode; shouldn't navigate in display line
+" mode in visual line mode.
+xnoremap    <expr>  j       mode() ==# 'v' ? 'gj' : 'j'
+xnoremap    <expr>  k       mode() ==# 'v' ? 'gk' : 'k'
+xnoremap    <expr>  <Down>  mode() ==# 'v' ? 'gj' : 'j'
+xnoremap    <expr>  <Up>    mode() ==# 'v' ? 'gk' : 'k'
+" insert mode, preserving menu key bindings -
+" up and down should just be up and down if the popup menu's active.
+inoremap    <silent> <expr>  <Down>  pumvisible() ? '<Down>' : '<C-o>gj'
+inoremap    <silent> <expr>  <Up>    pumvisible() ? '<Up>'   : '<C-o>gk'
 
 " 2022-07-16 - recognition, through vimrc.
 " https://github.com/hotchpotch/dotfiles-vim/blob/master/.vimrc
@@ -3826,8 +3830,13 @@ inoremap <expr> <Leader>nn      Symbols['en dash']
 " U+2991, U+2992 brackets with dot
 "
 " used to use <Leader>#, too cumbersome.
-inoremap <expr> <Leader><Leader>   Symbols['circle stile']
-cnoremap <expr> <Leader><Leader>   Symbols['circle stile']
+"
+" mapmode-ic
+noremap!    <expr> <Leader><Leader>   Symbols['circle stile']
+" mapmode-t
+if has('terminal')
+    tnoremap    <expr> <Leader><Leader>   Symbols['circle stile']
+endif
 
 " abbreviations aren't so useful in such cases, they expand after whitespace.
 
