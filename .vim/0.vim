@@ -2115,110 +2115,55 @@ endfunction
 "
 " mononoki's good for code. no greek crosses though.
 "
-function! UserSetGuifont()
-    if has('linux') && has('gui_gtk')
-        function! UserDoSetGuifont(arg) abort
-            if len(a:arg) == 0
-                set guifont?
-                return
-            endif
-            let l:mod = 0
-            if match(a:arg, '\cdef') != -1
-                set guifont=Iosevka\ Fixed\ SS01\ Light\ 12
-                set guifont+=Source\ Code\ Pro\ 12
-                set guifont+=monospace\ 12
-                let l:mod = 1
-            elseif match(a:arg, '\creg') != -1
-                set guifont^=Iosevka\ Fixed\ SS01\ 12
-                set guifont-=Iosevka\ Fixed\ SS01\ Light\ 12
-                set guifont-=Iosevka\ Fixed\ Slab\ 12
-                let l:mod = 1
-            elseif match(a:arg, '\cslab') != -1
-                set guifont^=Iosevka\ Fixed\ Slab\ 12
-                set guifont-=Iosevka\ Fixed\ SS01\ 12
-                set guifont-=Iosevka\ Fixed\ SS01\ Light\ 12
-                let l:mod = 1
-            endif
-            if match(a:arg, '\c\<monon') != -1
-                set guifont^=mononoki\ 12
-                let l:mod = 1
-            endif
-            if match(a:arg, '\c_monon') != -1
-                set guifont-=mononoki\ 12
-                let l:mod = 1
-            endif
-            if l:mod
-                redraw!
-            endif
-        endfunction
+" 2024-04-09 working in hi res, iosevka light's too light.
+if has('gui_running')
+    function! UserSetGuifont()
+        " init default font size
+        let g:u.gfn_size = 12
 
-        " completion; not competelist - let vim filter.
-        function! UserComplSetGuiFont(a, l, p) abort
-            return "default\nregular\nslab\nmononoki\n_mononoki\n"
-        endfunction
-        " all options into q-args as one string
-        command -bar -nargs=? -complete=custom,UserComplSetGuiFont Fn
-                    \ call UserDoSetGuifont(<q-args>)
-
-        " without gui_running, calling FDefault and causing a redraw
-        " causes the tty vim to be drawn
-        set guifont=Iosevka\ Fixed\ SS01\ Light\ 12
-        set guifont+=Source\ Code\ Pro\ 12
-        set guifont+=monospace\ 12
-    elseif has('win32')
-        " default cANSI:qDRAFT
-        function! UserDoSetGuifont(arg) abort
-            if len(a:arg) == 0
-                set guifont?
-                return
-            endif
-            let l:mod = 0
-            if match(a:arg, '\cdef') != -1
-                set guifont=Iosevka_Fixed_SS01_Light:h12:W300,Cascadia_Mono:h12,Consolas:h12
-                let l:mod = 1
-            elseif match(a:arg, '\cligh') != -1
-                set guifont^=Iosevka_Fixed_SS01_Light:h12:W300
-                set guifont-=Iosevka_Fixed_SS01:h12
-                set guifont-=Iosevka_Fixed_Slab:h12
-            elseif match(a:arg, '\creg') != -1
-                set guifont^=Iosevka_Fixed_SS01:h12
-                set guifont-=Iosevka_Fixed_SS01_Light:h12:W300
-                set guifont-=Iosevka_Fixed_Slab:h12
-                let l:mod = 1
-            elseif match(a:arg, '\cslab') != -1
-                set guifont^=Iosevka_Fixed_Slab:h12
-                set guifont-=Iosevka_Fixed_SS01:h12
-                set guifont-=Iosevka_Fixed_SS01_Light:h12:W300
-                let l:mod = 1
-            endif
+        if has('linux') && has('gui_gtk')
+            function! UserGetFonts() abort
+                let l:fonts = [
+                            \ 'Iosevka Fixed SS01 ' . g:u.gfn_size
+                            \ , 'Source Code Pro ' . g:u.gfn_size
+                            \ , 'Monospace ' . g:u.gfn_size
+                            \ ]
+                return join(l:fonts, ',')
+            endfunction
+            "command! -bar FnMononoki let &guifont = 'mononoki ' . g:u.gfn_size
+        elseif has('win32')
+            function! UserGetFonts() abort
+                let l:fonts = [
+                            \ 'Iosevka_Fixed_SS01:h' . g:u.gfn_size
+                            \ , 'Cascadia_Mono:h' . g:u.gfn_size
+                            \ , 'Consolas:h' . g:u.gfn_size
+                            \ ]
+                return join(l:fonts, ',')
+            endfunction
+            "
             " windows doesn't seem to like mononoki.
-            if l:mod
-                redraw!
+            "
+            " more cleartype; no hidpi here
+            " 2023-03-02 have hidpi now
+            " 2023-07-09 not everywhere (ultrawide at work)
+            " 2023-08-20 very slow on vmware vdi
+            if !exists('$ViewClient_Type')
+                set renderoptions=type:directx,taamode:1
             endif
-        endfunction
-
-        " completion, with vim filtering
-        function! UserComplSetGuiFont(a, l, p) abort
-            return "default\nregular\nlight\nslab\n"
-        endfunction
-        " all options into q-args as one string
-        command -nargs=? -complete=custom,UserComplSetGuiFont Fn
-                    \ call UserDoSetGuifont(<q-args>)
-
-        set guifont=Iosevka_Fixed_SS01_Light:h12:W300,Cascadia_Mono:h12,Consolas:h12
-
-        " more cleartype; no hidpi here
-        " 2023-03-02 have hidpi now
-        " 2023-07-09 not everywhere (ultrawide at work)
-        " 2023-08-20 very slow on vmware vdi
-        if 0 && !exists('$ViewClient_Type')
-            set renderoptions=type:directx,taamode:1
+        elseif has('ios')
+            function! UserGetFonts() abort
+                return 'Menlo:h11.0'
+            endfunction
         endif
-    elseif has('ios')
-        " iVim, iPhone
-        set guifont^=Menlo:h11.0
-    endif
-endfunction
+        command! -bar FnDef  let &guifont = UserGetFonts()
+        nnoremap <silent> <F7>  :let g:u.gfn_size += 1 <bar> FnDef<CR>
+        " don't go down too much
+        nnoremap <silent> <F6>  :let g:u.gfn_size = max([g:u.gfn_size - 1, 8])
+                    \ <bar>
+                    \ FnDef<CR>
+        nnoremap <silent> <F5>  :let g:u.gfn_size = 12 <bar> FnDef<CR>
+    endfunction
+endif
 
 function! UserSetGuicursor() abort
     " someone's really gone on a wild ride with the guicursor possibilities.
@@ -4634,9 +4579,12 @@ call UserInitColourOverride()
 call UserColoursPrelude()
 call UserLoadColors()
 call s:setupClipboard()
+if has('win32') || has('gui_running')
+    call UserSetGuicursor()
+endif
 if has('gui_running')
     call UserSetGuifont()
-    call UserSetGuicursor()
+    FnDef
 endif
 
 if v:version >= 900
