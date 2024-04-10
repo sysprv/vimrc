@@ -1,4 +1,5 @@
-" Last-Modified: 2024-03-31T17:25:28.182417278+00:00
+" Last-Modified: 2024-04-10T19:51:41.303669688+00:00
+
 " vim:set tw=80 noml:
 set secure encoding=utf-8 fileencoding=utf-8 nobomb
 scriptencoding utf-8
@@ -2363,40 +2364,6 @@ command -bar Amber  highlight Normal guifg=#ffb000
 command -bar Green  highlight Normal guibg=#41ff00
 
 
-function! UserWinHasUnendingStringMatch()
-    let l:flt_expr = 'v:val["group"] ==# "UserStringMissingEndQuote"'
-    return len(filter(getmatches(), l:flt_expr)) == 1
-endfunction
-
-" sometimes i forget to close strings...
-function! UserHighlightUnendingStrings()
-    if UserWinHasUnendingStringMatch()
-        return
-    endif
-
-    highlight! link UserStringMissingEndQuote Error
-
-    " can't use syntax match; we need to override any present filetype syntax
-    " highlighting.
-    "
-    " pattern - highlight only keyword chars, don't include the starting quote
-    " and the ending paren/brace/bracket in the highlight.
-    "
-    " collection - ([
-    " collection - " and ' in hex to not bother with quoting
-    " set start of match - \zs
-    " string - \k+
-    " set end of match - \ze
-    " collection - )]
-
-    call matchadd(
-        \ 'UserStringMissingEndQuote',
-        \ '[(\[][\x22\x27]\zs\k\+\ze[)\]]',
-        \ 0,
-        \ 5000
-        \)
-endfunction
-
 let g:UserCustomSynHash = { 'UserTrailingWhitespace': 1,
             \ 'UserUnicodeWhitespace': 1,
             \ 'UserDateComment': 1,
@@ -4437,15 +4404,11 @@ augroup UserVimRc
     " 2023-10-31 been here before; things that make syntax highlighting fragile,
     " also make indenting fragile - namely, unclosed quotes.
     "
-    " 2023-11-07 now with some simple missing quote detection...
-    "
     " 2024-04-10 python autoindent's very weird. disabled.
 
     autocmd FileType
                 \ ada,javascript,go,perl,racket,raku,ruby,rust,scala,typescript,vim
                 \ execute 'runtime! indent/' . expand('<amatch>') . '.vim'
-                \ | let b:user_ftcode = 1
-                \ | call UserHighlightUnendingStrings()
 
     autocmd FileType text               FoText
 
@@ -4545,11 +4508,6 @@ augroup UserVimRcSyntax
 
     autocmd Syntax      *       call UserApplySyntaxRules()
 
-    " -- some quick and dirty missing quote detection
-    " since matchadd matches are window-specific
-    autocmd WinEnter    *       if exists('b:user_ftcode') && b:user_ftcode
-                \ | call UserHighlightUnendingStrings()
-                \ | endif
     " -----------------------------------------------
 
     " on colourscheme load/change, apply our colours, overriding the scheme.
