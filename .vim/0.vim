@@ -101,7 +101,7 @@ scriptencoding utf-8
 "
 " MyMaps report format cleaned up.
 "
-" Filetype indent rules reenabled, disabled only for some filetypes like xml.
+" FileType indent rules reenabled, disabled only for some filetypes like xml.
 "
 " Re-enable some common options like showcmd, showbreak, number, list.
 "
@@ -645,7 +645,8 @@ set selectmode= keymodel=
 "
 " 2024-03-21 the above issue with ruler and messages was for iOS? phone screen's
 " wide enough now.
-set laststatus=1
+" 2024-04-09 seeing the buffer name is nice...
+set laststatus=2
 
 " disabling 'ruler' makes 3<C-g> print more info.
 set ruler
@@ -1345,7 +1346,8 @@ endfunction
 
 " don't forget to kee a space/separator after the filename
 "set statusline=%n'%{UserStLnBufFlags()}%W%H%<<%f>\ %=%P\ %{g:u.mark}\ "
-set statusline=%n'%{UserStLnBufFlags()}%W%H%<<%f>\ %{v:register}%=%l:%v\ %P\ %{g:u.mark}\ "
+"set statusline=%n'%{UserStLnBufFlags()}%W%H%<<%f>\ %{v:register}%=%l:%v\ %P\ %{g:u.mark}\ "
+set statusline=%2n'%<<%f>%=%{UserStLnBufFlags()}%W\ %P\ %{g:u.mark}\ "
 
 " in case we close all normal windows and end up with something like the preview
 " window as the only window - the ruler should show the same buffer flags as the
