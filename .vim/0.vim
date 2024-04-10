@@ -4438,9 +4438,11 @@ augroup UserVimRc
     " also make indenting fragile - namely, unclosed quotes.
     "
     " 2023-11-07 now with some simple missing quote detection...
+    "
+    " 2024-04-10 python autoindent's very weird. disabled.
 
     autocmd FileType
-                \ ada,javascript,go,perl,python,racket,raku,ruby,rust,scala,typescript,vim
+                \ ada,javascript,go,perl,racket,raku,ruby,rust,scala,typescript,vim
                 \ execute 'runtime! indent/' . expand('<amatch>') . '.vim'
                 \ | let b:user_ftcode = 1
                 \ | call UserHighlightUnendingStrings()
