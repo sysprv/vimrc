@@ -496,10 +496,6 @@ endif
 " is added even for centralised swap files. inconsistent for no reason.
 let g:u.undo_dir = expand('~/.vim/var/un')
 
-
-" ditto; shouldn't have any trailing slashes - added later.
-let g:u.swap_dir = expand('~/.vim/var/swap')
-
 if !exists('$PARINIT')
     let $PARINIT = "rTbgqR B=.,?'_A_a_@ Q=_s>|#"
 endif
@@ -571,26 +567,21 @@ endfunction
 " trailing '//' -> '%' as path separators has been possible since vim 5.4:
 " version5.txt:3726 /New variation for naming swap files:/
 "
-if has('unix') || has('win32')
-    call UserMkdirOnce(g:u.swap_dir)
-    if g:u.swap_dir ==# '.'
-        let &directory = g:u.swap_dir
-    else
-        let &directory = g:u.swap_dir . '//'
-    endif
-endif
-set swapfile updatecount=10 updatetime=300
+" unlike persistent undo files, swap files are well-behaved (start with .).
+" leave them in the default place (current dir).
+"
+" leave swapfile at the default (on).
+set updatecount=10
 " to see current swap file path: ':sw[apname]' / swapname('%')
 
-" it's great that vim can undo more, but i can't remember that much history.
-"set undolevels=20
+" it's great that vim can do all this; never needed this since we always keep
+" copious amounts of backup files.
 
 if has('persistent_undo')
     call UserMkdirOnce(g:u.undo_dir)
     let &undodir = g:u.undo_dir
     set undofile
 endif
-
 
 if &shortmess !~# '^filnxtToO'  " the vim7 nocompatible default
     " ensure some good defaults
@@ -1246,8 +1237,8 @@ function! UserStLnBufModStatus()
 
     if &readonly    | let l:m .= '.ro'      | endif
 
-    " normal buffer without a swapfile - warn
-    if &buftype == '' && (!&swapfile || (&updatecount == 0))
+    " normal buffer without a swapfile and swapfile is globally on - warn
+    if &buftype == '' && (&g:swapfile && (!&l:swapfile || (&updatecount == 0)))
         let l:m .= '.!swf'
     endif
     return l:m
