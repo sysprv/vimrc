@@ -1,10 +1,13 @@
-" Last-Modified: 2024-04-10T19:51:41.303669688+00:00
+" Last-Modified: 2024-04-16T16:41:41.825193819+00:00
 
 " vim:set tw=80 noml:
 set secure encoding=utf-8 fileencoding=utf-8 nobomb
 scriptencoding utf-8
 
 " Change log:
+"
+" 2024-04-16 Encountered viwo<Esc>
+"   https://www.reddit.com/r/vim/comments/1xzfjy/go_to_start_of_current_word_if_not_already_there/cfg11mr/
 "
 " 2024-03-05 Copy/paste changes.
 "
@@ -3924,9 +3927,22 @@ nnoremap    <silent> <C-s>  :silent wall<CR>
 " make a new line in normal mode
 nnoremap    <silent> <C-n>  :put _<CR>
 
+" mapping to wrap current word in ksh88 array expansion syntax.
+" https://unix.stackexchange.com/a/382964
+"
+" vim doesn't have a good way to go to the beginning of the current word without
+" jumping to other words, including when the word is only a single char. 'yiw'
+" has the right behaviour as a side-effect. 'w' and 'e' are a lot.
+
+" nnoremap    <silent>    <Leader>w   :call search('\<', 'bcW', line('.'))<CR>
+
+" must run on an actual word, doesn't work without one. 'e'/'E' can silently
+" fail and abort the rest of the mapping.
+
+" mnemonic: gxk -> g expand korn
+nnoremap        gxk     viwo<Esc>i"${<Esc>ea[@]}"<Esc>
 
 " -- ~ eof-map ~ end of most mapping definitions
-
 
 if !has('gui_running')
     " tty - Ctrl-Backspace sends Ctrl-H.
