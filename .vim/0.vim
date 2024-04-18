@@ -2285,13 +2285,15 @@ function! UserColours256()
             " amber: #fc9505
             " firebrick4
             " guifg - use a fixed value so that Normal can be changed freely
+            " 2024-04-15 was: ctermbg 24, guibg deepskyblue4
             highlight StatusLine
-                        \ ctermfg=NONE ctermbg=24 cterm=NONE
-                        \ guifg=#f3f3f3 guibg=deepskyblue4 gui=NONE
+                        \ ctermfg=NONE ctermbg=52 cterm=NONE
+                        \ guifg=#f3f3f3 guibg=firebrick4 gui=NONE
             " grey27/#444444
+            " 2024-04-15 was: ctermbg 95, guibg plum4
             highlight StatusLineNC
-                        \ ctermfg=NONE ctermbg=95 cterm=NONE
-                        \ guifg=#f3f3f3 guibg=plum4 gui=NONE
+                        \ ctermfg=NONE ctermbg=236 cterm=NONE
+                        \ guifg=#f3f3f3 guibg=grey20 gui=NONE
         endif
         if UserCO(g:u.coflags.spell)
             highlight SpellBad
@@ -3935,6 +3937,10 @@ if !has('gui_running')
     " also remember Ctrl-u
     inoremap    <C-h>   <C-w>
 endif
+
+" for testing colours
+cnoreabbrev histl   highlight StatusLine
+cnoreabbrev hisnc   highlight StatusLineNC
 
 " ----
 
