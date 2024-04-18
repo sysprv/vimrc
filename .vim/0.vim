@@ -274,7 +274,7 @@ scriptencoding utf-8
 " strtrans() (dep 'display'); 0, 10, ^@, ^J, <Nul>, <NL>, doc :key-notation
 "   https://unix.stackexchange.com/a/247331
 
-" 8g8   g8  g;  g,  gd
+" 8g8   g8  g;  g,  gd, ga/:ascii, viwo<Esc>
 
 " put line in command line :<C-r><C-l>, WORD: :<C-r><C-a>
 
@@ -1595,8 +1595,6 @@ endfunction
 "
 " unicodedata doesn't have names for control characters.
 function! UserUniNames(screen_char) abort
-    "let l:screen_char = UserGetScreenChar()
-    "let l:screen_char = UserGetScreenChar()
     if a:screen_char ==# ''
         return 'NUL'
     endif
@@ -1708,7 +1706,7 @@ endfunction
 if has('python3')
     command UC  echom UserUniNames(UserGetScreenChar())
 else
-    command UC  echom '(not supported)'
+    command UC  ascii
 endif
 nnoremap    <silent> <Leader>C   :UC<CR>
 
@@ -1801,7 +1799,7 @@ function! UserGetInfoLines()
     " include some info about the char under the cursor.
     " don't need chrisbra/unicode.vim any longer.
     if has('python3')
-        let l:char_info = UserScreenCharLookup()
+        let l:char_info = UserUniNames(UserGetScreenChar())
     else
         " fallback - the output of the :ascii command. no unicode name.
         let l:cmd = ':ascii'
@@ -1835,7 +1833,7 @@ endfunction
 " NB: return value ("\<Ignore>") - important for using in insert mode.
 " otherwise, function return value will be appended to the buffer.
 " doc :map-expression
-function! UserShowHelp()
+function! UserShowHelp() abort
     if has('popupwin')
         let l:lines = UserGetInfoLines()
         call UserAlert(l:lines)
