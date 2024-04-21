@@ -1,4 +1,4 @@
-" Last-Modified: 2024-04-16T16:41:41.825193819+00:00
+" Last-Modified: 2024-04-20T11:48:21.559363979+00:00
 
 " vim:set tw=80 noml:
 set secure encoding=utf-8 fileencoding=utf-8 nobomb
@@ -3717,6 +3717,29 @@ function! UserUrlPasteMunge()
             " but excluding what the cursor was on.
             normal! "_dF?
             WRCB
+        endif
+        let l:ln = getline('.')
+        " check for chars: !"#$%&'()*;<>?@[\]`{|}
+        if l:ln =~# '\v[\x21-\x2a\x3b\x3c\x3e\x3f\x40\x5b-\x5d\x60\x7b-\x7d]'
+            let l:quote_start = '"'
+            let l:quote_end = '"'
+            " check for chars: "$
+            if l:ln =~# '\v[\x22\x24]'
+                " to be shell-safe, would have to escape raw $ and raw double
+                " quotes, but we shouldn't manipulate the line. giving up.
+                " save me ruby delimited strings...
+                " %q() - no interpolation, parens in string don't need escaping.
+                " %q( !#$%&'()*;<>?@[\]`{|}"$) -> " !\#$%&'()*;<>?@[\\]`{|}\"$"
+                "
+                " alt - raku ｢｣/Q[]
+                " alt - zsh quote-line/quote-region
+                let l:quote_start = '%q('
+                let l:quote_end = ')'
+            endif
+            execute "normal!"
+                        \ "^i" . l:quote_start
+                        \ . "\<Esc>A" . l:quote_end
+                        \ . "\<Esc>"
         endif
     endif
 
