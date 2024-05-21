@@ -510,13 +510,16 @@ endif
 " to put the last match into the command line: <C-r>/
 set noincsearch
 command -bar Inc    set incsearch! | set incsearch?
+" 2024-04-21 hlsearch's distracting in multiple windows with different search
+" patterns.
+set nohlsearch
+set noshowmatch
+
 
 " setting 'ignorecase' can be surprising.
 " for example, checking filenames against the 'backupskip' patterns uses
 " 'ignorecase'.
 set noignorecase
-set hlsearch
-set noshowmatch
 
 " curse god and walk backwards to 1976; speechless at the number of bells
 " they've stuck in here. a side effect of audio not working on linux?
@@ -533,7 +536,7 @@ endif
 " often enough to be useful for this. vile throws up an arg: prompt for this,
 " which is nice.
 
-set showcmd
+set noshowcmd
 
 " set-formatoptions; doc fo-table
 " fo-r - add comment leader on new lines, insert mode
@@ -1342,7 +1345,7 @@ endfunction
 " don't forget to kee a space/separator after the filename
 "set statusline=%n'%{UserStLnBufFlags()}%W%H%<<%f>\ %=%P\ %{g:u.mark}\ "
 "set statusline=%n'%{UserStLnBufFlags()}%W%H%<<%f>\ %{v:register}%=%l:%v\ %P\ %{g:u.mark}\ "
-set statusline=%2n'%<<%f>%=%l:%v\ %{UserStLnBufFlags()}%W\ %P\ %{g:u.mark}\ "
+set statusline=%2n'%<<%f>%=\ %{UserStLnBufFlags()}%W\ %P\ %{g:u.mark}\ "
 
 " in case we close all normal windows and end up with something like the preview
 " window as the only window - the ruler should show the same buffer flags as the
