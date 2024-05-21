@@ -808,6 +808,38 @@ if v:version >= 900
 
     set diffopt+=indent-heuristic
     set diffopt+=algorithm:patience
+
+    " following needs patch-8.2.2569 for multibyte chanrs in fcs/stl,
+    " patch-8.2.3578, patch-8.2.3605 for hlget/hlset.
+    function! UserUi() abort
+        if g:u.term_primitive
+            return -1
+        endif
+
+        if UserUiIsThin()
+            call UserFillcharsThin()
+            call UserUiStatusLine(g:u.ui, &background)
+            " no good way to restore when blocky...
+            if exists('*hlget')
+                let l:hi = hlget('VertSplit')
+                if has_key(l:hi[0], 'cterm')
+                    let g:user_last_vertsplit = l:hi
+                endif
+            endif
+            highlight VertSplit cterm=NONE ctermbg=NONE gui=NONE guibg=NONE
+        elseif UserUiIsBlocky()
+            call UserFillcharsBlocky()
+            call UserUiStatusLine(g:u.ui, &background)
+            if exists('*hlset*') && exists('g:user_last_vertsplit')
+                call hlset(g:user_last_vertsplit)
+            endif
+            highlight StatusLine cterm=NONE gui=NONE
+        endif
+    endfunction
+
+    command -bar Thin   let g:u.ui = g:u.uiflags.thin   | echo UserUi()
+    command -bar Blocky let g:u.ui = g:u.uiflags.blocky | echo UserUi()
+
 endif
 
 
@@ -1121,48 +1153,7 @@ function! UserFillchars(...) abort
 endfunction
 
 
-function! UserSetupFillchars()
-    " plain underscores don't join, that's ugly. elsewhere, for old
-    " vim versions, we use a full, traditional statusline. don't want to use
-    " fillchars stl/stlnc then.
-    let l:fcs = {}
-
-    if !g:u.term_primitive
-        " U+2502 - BOX DRAWINGS LIGHT VERTICAL
-        "   (vert default: U+007C    VERTICAL LINE)
-        " U+2504 - BOX DRAWINGS LIGHT TRIPLE DASH HORIZONTAL
-        let l:fcs.vert = nr2char(0x2502)
-
-        " for the statuslines:
-        " U+23BD HORIZONTAL SCAN LINE-9 is nice, but not quite low enough.
-        " Being a multibyte character, causes issues with rxvt-unicode.
-        "
-        " vim patch-8.2.2569 is also required.
-        "
-        " ref https://www.kernel.org/doc/html/latest/admin-guide/unicode.html
-        "   (outdated: F804, DEC VT GRAPHICS HORIZONTAL LINE SCAN 9)
-        " https://graphemica.com/blocks/miscellaneous-technical/page/3
-
-        " touchy; use pretty fancy chars only if we're reasonably free to.
-        " but really, it's important - fully coloured statuslines seem bloated.
-        "
-        " 2022-09-04 on ultrawide monitors with slow VMware graphics, stl/stlnc
-        " can cause windows gvim to crash.
-        " 2023-08-21 still there :) 352 columns good, 353 columns bad.
-        if 0 && has('patch-8.2.2569') && UserCanLoadColorscheme()
-            " BOX DRAWINGS LIGHT HORIZONTAL
-            let l:hrz = nr2char(0x2500)
-            let l:fcs.stl = l:hrz
-            let l:fcs.stlnc = l:hrz
-        endif
-    endif
-
-    " set fillchars once we're done with all the if's.
-    let &fillchars = UserFillchars(l:fcs)
-endfunction
-
-
-" cursorline - can be confusing with splits.
+" cursorline - can be confusing with vertical splits.
 "
 " the CursorLine highlight doesn't combine well with other highlights
 " sometimes, including UserTrailingWhitespace. Can use 'set list' + listchars
@@ -1177,8 +1168,13 @@ endfunction
 "
 " https://github.com/vim/vim/issues/10654
 if v:version >= 802
-    set cursorlineopt=line,number
+    set cursorlineopt=number,line
+    if has('patch-8.1.2028')
+        set cursorlineopt-=line
+        set cursorlineopt+=screenline
+    endif
 endif
+set cursorline
 
 "-- doc 'statusline'
 " should allow three vertical splits.
@@ -2049,21 +2045,6 @@ function! UserDefineSyntaxHighlightGroups()
 endfunction
 
 
-" turn off most highlights; 'highlight clear' defaults are awful,
-" set highlights to NONE to silence.
-" these are highlights for text/content, not vim UI elements.
-function! UserClearContentHighlights()
-    " source: syntax/syncolor.vim
-    " not clearing Error, and SpellBad.
-    let l:groups = [ 'Comment', 'Constant', 'Special', 'Identifier', 'Statement'
-        \, 'PreProc', 'Type', 'Underlined', 'Ignore', 'Todo' ]
-    for l:group in l:groups
-        silent execute 'highlight' l:group 'NONE'
-    endfor
-    " is this universally safe?
-    highlight Constant term=bold cterm=bold gui=bold
-endfunction
-
 "
 " Tip: set tty (xterm, rxvt-unicode, VTE) colour 12 to azure2/#e0eeee.
 " For mlterm: ~/.mlterm/color, 12 = #e0eeee;
@@ -2192,27 +2173,113 @@ function! s:setupClipboard()
 endfunction
 
 
+" turn off most highlights; 'highlight clear' defaults are not great. too much
+" underlining - usually seen on serial lines, 88 color ttys (rxvt/urxvt)..
+" better without than with.
+"
+" these are highlights for text/content, not vim UI elements.
+"
+" source: hi clear, hi -> dump, grep underline
+function! UserClearContentHighlights()
+    " source: syntax/syncolor.vim
+    "
+    " remove term=bold/underline from defaults. except Special and Underlined.
+    "   grep term=b/u <syncolor.vim>
+    highlight Comment       term=NONE cterm=NONE
+    highlight Constant      term=NONE cterm=NONE
+    highlight Identifier    term=NONE cterm=NONE
+    highlight Statement     term=NONE cterm=NONE
+    highlight Type          term=NONE cterm=NONE
+    highlight PreProc       term=NONE cterm=NONE
+
+    " don't ignore that hard
+    highlight Ignore        NONE
+
+    " vim spell isn't worth suffering this much over.
+    highlight clear SpellCap
+    highlight clear SpellLocal
+    " decriminalise rare words
+    highlight clear SpellRare
+endfunction
+
+
+
+" 2022-09-04 on ultrawide monitors with slow VMware graphics, stl/stlnc
+" can cause windows gvim to crash.
+" 2023-08-21 still there :) 352 columns good, 353 columns bad.
+" 2024-05-01 still there, windows 11. but i don't use windows anymore.
+function! UserFillcharsThin() abort
+    " TODO check u.term_primitive, patch-8.2.2569, can-load-colorscheme
+    let l:fcs = {}
+    " vert default: U+007C    VERTICAL LINE
+    let l:fcs.vert = nr2char(0x2502)    " BOX DRAWINGS LIGHT VERTICAL
+    let l:hrz = nr2char(0x2500)         " BOX DRAWINGS LIGHT HORIZONTAL
+    "let l:hrz = nr2char(0x23BD)        " Horizontal Scan Line-9
+    let l:fcs.stl = l:hrz
+    let l:fcs.stlnc = l:hrz
+    let &fillchars = UserFillchars(l:fcs)
+endfunction
+
+function! UserFillcharsBlocky() abort
+    let l:fcs = {}
+    let l:fcs.vert = '|'
+    let l:fcs.stl = 'NONE'
+    let l:fcs.stlnc = 'NONE'
+    let &fillchars = UserFillchars(l:fcs)
+endfunction
+
+function! UserUiStatusLine(mode, bg) abort
+    let l:mode = a:mode
+    let l:bg = a:bg
+    if l:bg ==# 'light' && and(l:mode, g:u.uiflags.blocky)  " blocky light
+        " color 24's good.
+        highlight StatusLine ctermfg=254 ctermbg=60 cterm=NONE guifg=#f3f3f3 guibg=#5a4f74 gui=NONE
+        " prev: ctermfg 238, ctermbg 252 (grey82)
+        highlight StatusLineNC ctermfg=254 ctermbg=96 cterm=NONE guifg=#f3f3f3 guibg=plum4 gui=NONE
+    elseif l:bg ==# 'light' && and(l:mode, g:u.uiflags.thin)    " thin light
+        " for fillchars-only mode - no background color
+        highlight StatusLine ctermfg=60 ctermbg=NONE cterm=NONE guifg=#5a4f74 guibg=NONE gui=NONE
+        highlight StatusLineNC ctermfg=96 ctermbg=NONE cterm=NONE guifg=plum4 guibg=NONE gui=NONE
+    elseif l:bg ==# 'dark' && and(l:mode, g:u.uiflags.blocky)   " blocky dark
+        " amber: #fc9505
+        " firebrick4
+        " guifg - use a fixed value so that Normal can be changed freely
+        " 2024-04-15 was: ctermbg 24, guibg deepskyblue4
+        highlight StatusLine ctermfg=NONE ctermbg=52 cterm=NONE guifg=#f3f3f3 guibg=firebrick4 gui=NONE
+        " grey27/#444444
+        " 2024-04-15 was: ctermbg 95, guibg plum4
+        highlight StatusLineNC ctermfg=NONE ctermbg=236 cterm=NONE guifg=#f3f3f3 guibg=grey20 gui=NONE
+    elseif l:bg ==# 'dark' && and(l:mode, g:u.uiflags.thin)     " thin dark
+        " for fillchars-only mode - no background color
+        " ctermfg would be 52 to match blocky, but it's too illegible
+        highlight StatusLine ctermfg=124 ctermbg=NONE cterm=NONE guifg=firebrick4 guibg=NONE gui=NONE
+        highlight StatusLineNC ctermfg=236 ctermbg=NONE cterm=NONE guifg=grey20 guibg=NONE gui=NONE
+    endif
+endfunction
+
+
 " bring some sanity to vim UI element colours.
 " remember; TERM(vt100, vt220) -> term, TERM(ansi, linux, xterm) -> cterm
 "
 " Only needs to run on non-gui, non-256-colour ttys.
 function! UserColoursFailsafe()
-    if g:u.term_primitive
-        highlight ColorColumn   term=reverse
-        highlight CursorColumn  NONE
-        highlight CursorLine    NONE
-        highlight CursorLineNr  term=NONE cterm=NONE
-        highlight EndOfBuffer   NONE
-        highlight ErrorMsg      term=standout
-        highlight Ignore        NONE
-        "highlight LineNr        NONE
-        highlight MatchParen    NONE
-        " in some situations the default bold attribute of ModeMsg caused
-        " problems. clear the term attribute.
-        highlight Normal        NONE
-        " for cterm with 8/16/88 colours
-        highlight Visual        term=reverse cterm=reverse ctermbg=NONE
-    endif
+    highlight ColorColumn   term=NONE cterm=NONE
+    highlight CursorColumn  term=NONE cterm=NONE
+    highlight CursorLine    term=NONE cterm=NONE
+    highlight CursorLineNr  term=NONE cterm=NONE
+    highlight EndOfBuffer   term=NONE cterm=NONE
+    highlight ErrorMsg      term=standout
+    highlight LineNr        NONE
+    highlight MatchParen    term=NONE cterm=NONE
+    highlight TabLine       NONE
+    highlight ToolbarLine   NONE
+    highlight VisualNOS     NONE
+    " in some situations the default bold attribute of ModeMsg caused
+    " problems. clear the term attribute.
+    highlight ModeMsg       term=NONE cterm=NONE
+    highlight Normal        term=NONE cterm=NONE
+    " for cterm with 8/16/88 colours
+    highlight Visual        term=reverse cterm=reverse ctermbg=NONE
 
     if UserCO(g:u.coflags.spell)
         highlight SpellBad      NONE
@@ -2238,22 +2305,13 @@ function! UserColoursFailsafe()
 endfunction     " UserColoursFailsafe()
 
 function! UserColours256()
-    if &background ==# 'light'
-        if UserCO(g:u.coflags.stat)
-            " uncoloured active statusline:
-            "highlight StatusLine
-            "\ ctermfg=NONE ctermbg=NONE cterm=NONE
-            "\ guifg=fg guibg=NONE gui=NONE
+    let l:bg = &background
 
-            " color 24's good.
-            highlight StatusLine
-                        \ ctermfg=254 ctermbg=60 cterm=NONE
-                        \ guifg=#f3f3f3 guibg=#5a4f74 gui=NONE
-            " grey82
-            highlight StatusLineNC
-                        \ ctermfg=238 ctermbg=252 cterm=NONE
-                        \ guifg=#f3f3f3 guibg=plum4 gui=NONE
-        endif
+    if UserCO(g:u.coflags.stat)
+        call UserUiStatusLine(g:u.ui, l:bg)
+    endif
+
+    if l:bg ==# 'light'
         if UserCO(g:u.coflags.spell)
             highlight SpellBad
                         \ term=NONE
@@ -2276,20 +2334,6 @@ function! UserColours256()
         " trailing whitespace same as SpellBad
         highlight UserTrailingWhitespace ctermbg=254 guibg=grey91
     else    " background is dark
-        if UserCO(g:u.coflags.stat)
-            " amber: #fc9505
-            " firebrick4
-            " guifg - use a fixed value so that Normal can be changed freely
-            " 2024-04-15 was: ctermbg 24, guibg deepskyblue4
-            highlight StatusLine
-                        \ ctermfg=NONE ctermbg=52 cterm=NONE
-                        \ guifg=#f3f3f3 guibg=firebrick4 gui=NONE
-            " grey27/#444444
-            " 2024-04-15 was: ctermbg 95, guibg plum4
-            highlight StatusLineNC
-                        \ ctermfg=NONE ctermbg=236 cterm=NONE
-                        \ guifg=#f3f3f3 guibg=grey20 gui=NONE
-        endif
         if UserCO(g:u.coflags.spell)
             highlight SpellBad
                         \ term=NONE
@@ -2323,23 +2367,18 @@ function! UserColours()
     " vimrc as long as we depend on another external file (the colorscheme)
     " anyway.
 
-    " vim spell isn't worth suffering this much over.
-    highlight clear SpellCap
-    highlight clear SpellLocal
-    " decriminalise rare words
-    highlight clear SpellRare
-
-    " juse use tty defaults for the mode display
-    highlight clear ModeMsg
-
     " iceberg statusline colours in 256 mode suck. the StatusLine* and
     " SpellBad really should be here and not in an external colorscheme
     " wrapper.
     if UserCanLoadColorscheme()
         call UserColours256()
     else
+        call UserClearContentHighlights()
         call UserColoursFailsafe()
     endif
+
+    " juse use tty defaults for the mode display - regardless of colorscheme
+    highlight clear ModeMsg
 
     " define the highlight groups for our custom syntax items. these will get
     " cleared on colorscheme changes etc.
@@ -2626,6 +2665,16 @@ function! UserInitColourOverride()
     "let g:u.co = and(g:u.coflags.all, invert(g:u.coflags.stat))
 endfunction
 
+function! UserInitUiFlags() abort
+    let g:u.uiflags = {}
+    let g:u.uiflags.none =      0
+    let g:u.uiflags.blocky =    1
+    let g:u.uiflags.thin =      2
+
+    let g:u.ui = g:u.uiflags.blocky
+endfunction
+
+
 " restore u.co to default behaviour
 command -bar CoOverrideDefault  let g:u.co = g:u.coflags.all
 " to not apply our highlights to the statusline, keep the highlights provided by
@@ -2640,6 +2689,14 @@ endfunction
 
 function! UserCOAny()
     return g:u.co != g:u.coflags.none
+endfunction
+
+function! UserUiIsBlocky()
+    return and(g:u.ui, g:u.uiflags.blocky)
+endfunction
+
+function! UserUiIsThin()
+    return and(g:u.ui, g:u.uiflags.thin)
 endfunction
 
 " -- end colorscheme control
@@ -2691,18 +2748,9 @@ function! UserLoadColors()
     " colorscheme + reload behaviour would take a closure instead of requiring
     " a file on disk.  And seperate user interface component highlights from
     " text content highlights.
-    "
-    " start by erasing the default highlights, which are very annoying,
-    " specially on terminals with few colours. we do this whether we have a
-    " colorscheme or not.
 
-    if exists('g:syntax_on')
-        call UserClearContentHighlights()
-    endif
-
-    " in any case, the default vim syntax definitions are maybe 60% good
-    " anyway. setting non-tty-fg dark colours on "normal" text bothers me a
-    " little too.
+    call UserClearContentHighlights()
+    call UserColoursFailsafe()
 
     if UserCanLoadColorscheme()
         if UserRuntimeHas('colors/iceberg~.vim')
@@ -4587,19 +4635,21 @@ endif
 " load things in order
 call UserRemoveVendorAugroups()
 call UserSetCellWidths()
-call UserSetupFillchars()
 call UserSetupListchars()
+call UserInitUiFlags()
 call UserInitColourOverride()
 call UserColoursPrelude()
 call UserLoadColors()
 call s:setupClipboard()
 if has('win32') || has('gui_running')
+    set mouse=a
     call UserSetGuicursor()
 endif
 if has('gui_running')
     call UserSetGuifont()
     FnDef
 endif
+if exists(':Thin') == 2 | silent Thin | endif
 
 if v:version >= 900
     " better than plain % for code with braces embedded in strings etc.;
