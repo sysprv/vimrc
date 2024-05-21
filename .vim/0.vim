@@ -732,7 +732,7 @@ set browsedir=buffer
 " onemore is good when pasting.
 set virtualedit=block,onemore
 set history=200
-set timeout ttimeout timeoutlen=3000 ttimeoutlen=100
+set timeout timeoutlen=800 ttimeout ttimeoutlen=100
 
 " helps with navigating to a line of interest with <n>j/+ and <n>k/-,
 " but also takes up a lot of space.
@@ -751,11 +751,7 @@ set nosplitbelow splitright
 " it with horizontal splits.
 set eadirection=hor
 
-if has('gui_running')
-    set mouse=a
-else
-    set mouse=
-endif
+set mouse=
 
 " I use 'view' a lot. In Red Hat Linux, view is provided by vim-minimal,
 " which evidently does not include folding. This if statement avoids
@@ -788,7 +784,8 @@ set suffixes+=.pyc
 " contemporary
 if v:version >= 900
     " display completion matches in a popup menu
-    set wildoptions=pum wildmode=longest:full
+    set wildoptions=pum
+    set wildmode=longest:full
     set wildcharm=<tab>     " this seems clunky. but, works.
 
     " buffer list can be shown in a popup menu. a lot better than having
@@ -2310,7 +2307,6 @@ function! UserColours256()
         " trailing whitespace same as SpellBad
         highlight UserTrailingWhitespace ctermbg=24 guibg=grey25
     endif
-
 endfunction
 
 
@@ -2355,11 +2351,13 @@ command -bar Amber  highlight Normal guifg=#ffb000
 command -bar Green  highlight Normal guibg=#41ff00
 
 
-let g:UserCustomSynHash = { 'UserTrailingWhitespace': 1,
+let g:UserCustomSynHash = {
+            \ 'UserTrailingWhitespace': 1,
             \ 'UserUnicodeWhitespace': 1,
             \ 'UserDateComment': 1,
             \ 'UserHashTag': 1,
-            \ 'UserHttpURI': 1 }
+            \ 'UserHttpURI': 1
+            \ }
 
 " define custom syntax items for things we want highlighted.
 "
@@ -2558,6 +2556,13 @@ function! UserColoursPrelude()
     " gvim.
 
     if has('win32')
+        " 2024-05-21 mostly using dark termins in windows now.
+        if has('gui_running')
+            set background=light
+        else
+            set background=dark
+        endif
+    elseif &term =~# '^putty'
         set background=light
     endif
     if !l:done && has('termguicolors')
@@ -2572,9 +2577,12 @@ function! UserColoursPrelude()
             " but t_Co stays at 256. setting to 2**24 does something, but
             " t_Co itself stays at 256.
             let l:done = 1
-        elseif &term =~# '^xterm' && exists('$VTE_VERSION')
+        elseif (&term =~# '^xterm' && exists('$VTE_VERSION'))
+                || (&term =~# '^putty')
             " probably maybe VTE?
             " unlike xterm-direct, t_Co stays at 256. unlike vcon, can set it.
+            "
+            " PuTTY supports 24-bit colour by default.
             set termguicolors t_Co=16777216
             let l:done = 1
         endif
@@ -4528,7 +4536,8 @@ augroup UserVimRc
         autocmd OptionSet background
                     \ echom UserDateTime() 'background set to' v:option_new
     endif
-augroup end     " UserVimRc
+augroup end
+" /UserVimRc
 
 
 " autogroup for my weird syntax dealings
