@@ -351,20 +351,14 @@ endif
 " 2024-02-25 enable plugins again; for
 " https://github.com/chrisbra/changesPlugin
 " and https://github.com/mbbill/undotree
-"
-"set noloadplugins
-" manpager - useful
-let g:loaded_2html_plugin = -1
-let g:loaded_getscriptPlugin = -1
-let g:loaded_gzip = -1
-let g:loaded_logiPat = -1
-let g:loaded_matchparen = -1
-let g:loaded_netrwPlugin = -1
-let g:loaded_rrhelper = -1
-let g:loaded_spellfile_plugin = -1
-let g:loaded_tarPlugin = -1
-let g:loaded_vimballPlugin = -1
-let g:loaded_zipPlugin = -1
+" 2024-05-23 never really use undotree. packs also respects noloadplugins,
+" though not well documented.
+if v:version >= 900
+    " better than plain % for code with braces embedded in strings etc.;
+    " but enable only if the vim version's recent enough.
+    packadd matchit
+endif
+set noloadplugins
 "}}}
 
 " 2022-07-30 let g:did_load_filetypes = 1 does prevent filetype detection with
@@ -4648,13 +4642,6 @@ endif
 if has('gui_running')
     call UserSetGuifont()
     FnDef
-endif
-if exists(':Thin') == 2 | silent Thin | endif
-
-if v:version >= 900
-    " better than plain % for code with braces embedded in strings etc.;
-    " but enable only if the vim version's recent enough.
-    packadd matchit
 endif
 
 " ~ fini ~
