@@ -530,7 +530,7 @@ endif
 " often enough to be useful for this. vile throws up an arg: prompt for this,
 " which is nice.
 
-set noshowcmd
+set showcmd
 
 " set-formatoptions; doc fo-table
 " fo-r - add comment leader on new lines, insert mode
@@ -720,7 +720,6 @@ if exists('$TMPDIR') && ($TMPDIR !=# '/tmp')
 endif
 
 set browsedir=buffer
-"set autochdir - too cumbersome
 
 " 2024-03-01 have i tried and and stopped using onemore before?
 " onemore is good when pasting.
@@ -1168,7 +1167,7 @@ if v:version >= 802
         set cursorlineopt+=screenline
     endif
 endif
-set cursorline
+set nocursorline
 
 "-- doc 'statusline'
 " should allow three vertical splits.
