@@ -4445,12 +4445,59 @@ endfunction
 
 command -bar ClearUndo  call UserClearUndo()
 
-" for lines that don't start with [whitespace]#, prepend a #
-" and clear the last search pattern (set by :s), turning hlsearch off.
-command -range CommentOnce  <line1>,<line2>g/^\s*[^#]/s/^/# / | let @/ = ''
+" decent alternative to autochdir
+command CdBuffer   chdir %:h
+
+
+" -- comment/uncomment by line range
+function UserGetCommentPrefix() abort
+    let cms = &cms
+    if empty(cms)
+        return ''
+    endif
+    let cms_parts = split(escape(cms, '*.'), '%s')
+    " only want a prefix, can't deal with surround comments
+    if len(cms_parts) > 1
+        return ''
+    endif
+    if len(cms_parts[0]) > 5
+        " ? ? ?
+        return ''
+    endif
+    " '/' is a common comment leader, no good as is for :substitute.
+    return escape(cms_parts[0], '/!\\')
+endfunction
+
+function! UserDoComment() range abort
+    let prefix = UserGetCommentPrefix()
+    if len(prefix) == 0
+        echom "can't comment"
+        return
+    endif
+    silent execute
+                \ a:firstline . ',' . a:lastline .
+                \ 'global!/^\s*' . prefix . '/substitute/^/' . prefix . '/'
+endfunction
+
+function! UserUnComment() range abort
+    let prefix = UserGetCommentPrefix()
+    if len(prefix) == 0
+        echom "can't uncomment"
+        return
+    endif
+    silent execute
+                \ a:firstline . ',' . a:lastline .
+                \ 'substitute/\(^\s*\)' . prefix . '/\1/'
+endfunction
+
+" command -range CommentOnce  <line1>,<line2>g/^\s*[^#]/s/^/# / | let @/ = ''
 " put # just before the first non-whitespace char
 " command -range CommentOnce  <line1>,<line2>g!/^\s*#/s/\v^(\s*)([^\s])/\1# \2/
-
+"
+" without a functioncall, and if we used hlsearch, we would clear the last
+" search pattern with let @/ = ''; the function return does that here.
+command -range CommentOnce <line1>,<line2>call UserDoComment()
+command -range UnComment   <line1>,<line2>call UserUnComment()
 
 " mine own #-autogroup
 augroup UserVimRc
@@ -4512,6 +4559,11 @@ augroup UserVimRc
     autocmd FileType clojure            Lisp
 
     autocmd FileType *sql               SoftIndent 2
+    " sql filetype sets comment string to /* %s */, cumbersome for
+    " linewise commenting.
+    autocmd FileType *sql               setlocal commentstring=--\ %s
+    autocmd FileType xdefaults          setlocal commentstring=!\ %s
+    autocmd FileType text               setlocal commentstring=#\ %s
 
     " whimsical file formats with trailing whitespace sometimes
     autocmd FileType yaml               let b:user_noautomod = 1
