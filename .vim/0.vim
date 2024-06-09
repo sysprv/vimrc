@@ -2238,7 +2238,11 @@ function! UserUiStatusLine(mode, bg) abort
         " firebrick4
         " guifg - use a fixed value so that Normal can be changed freely
         " 2024-04-15 was: ctermbg 24, guibg deepskyblue4
-        highlight StatusLine ctermfg=NONE ctermbg=52 cterm=NONE guifg=#f3f3f3 guibg=firebrick4 gui=NONE
+        "
+        " 2024-06-09 set ctermfg to something light, for cases like the win32
+        " con, where we might use vim with darkbg on a light term where fg text
+        " is dark.
+        highlight StatusLine ctermfg=7 ctermbg=52 cterm=NONE guifg=#f3f3f3 guibg=firebrick4 gui=NONE
         " grey27/#444444
         " 2024-04-15 was: ctermbg 95, guibg plum4
         highlight StatusLineNC ctermfg=NONE ctermbg=236 cterm=NONE guifg=#f3f3f3 guibg=grey20 gui=NONE
@@ -2591,29 +2595,22 @@ function! UserColoursPrelude()
         " 2024-05-21 mostly using dark termins in windows now.
         if has('gui_running')
             set background=light
-        else
-            set background=dark
         endif
-    elseif &term =~# '^putty'
-        set background=light
     endif
     if !l:done && has('termguicolors')
         if &term ==# 'xterm-direct'
-            " lovely; but, pretty much have to use gui colors.
-            " unlike VTE, cterm colors and gui colors can't coexist here.
+            " doesn't support indexed colours, must use gui colours.
             set termguicolors
             let l:done = 1
         elseif &term ==# 'win32' && has('vcon')
-            " windows console since Windows 10 Insiders Build #14931 or whatever
-            set termguicolors
-            " but t_Co stays at 256. setting to 2**24 does something, but
-            " t_Co itself stays at 256.
-            let l:done = 1
-        elseif (&term =~# '^xterm' && exists('$VTE_VERSION'))
-                || (&term =~# '^putty')
-            " probably maybe VTE?
-            " unlike xterm-direct, t_Co stays at 256. unlike vcon, can set it.
+            " windows console since Windows 10 Insiders Build #14931 or
+            " whatever. t_Co stays at 16 after vim startup.
             "
+            " termguicolors works, and helps with statusline colours. but not
+            " possible to set t_Co to 2**24.
+            set t_Co=256
+            let l:done = 1
+        elseif &term =~# '^putty'
             " PuTTY supports 24-bit colour by default.
             set termguicolors t_Co=16777216
             let l:done = 1
