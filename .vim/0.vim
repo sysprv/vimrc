@@ -2080,7 +2080,8 @@ endfunction
 if has('gui_running')
     function! UserSetGuifont()
         " init default font size
-        let g:u.gfn_size = 12
+        " 2024-06-09 back on a lodpi laptop
+        let g:u.gfn_size = 11
 
         if has('linux') && has('gui_gtk')
             function! UserGetFonts() abort
