@@ -316,15 +316,26 @@ scriptencoding utf-8
 " syntax-on should be done early, not late. synload.vim and syncolor.vim have
 " many side-effects like removing autocmds.
 
-if !exists('g:syntax_on')
-    syntax on
+" 2024-06-20
+" chmod 0 /usr/share/vim/vim91/suse.vimrc
+if exists('g:syntax_on')
+    if g:syntax_on
+        syntax off
+    endif
 endif
+"if !exists('g:syntax_on') || !g:syntax_on
+"    syntax on
+"endif
 " custom syntax rules (UserApplySyntaxRules()) keep working fine even
 " when filetype syntax is disabled with a global 'syntax off'.
 
 " 2-300 can easily be insufficient.
 " 2023-10-01 rarely use syntax highlighting, keep these at default.
-"set redrawtime=700 synmaxcol=200
+"set redrawtime=700
+
+" limiting synmaxcol isn't great since it breaks syntax highlighting after the
+" offending line.
+"set synmaxcol=300
 
 
 " important for UserDateComment (language time) and gui menus; better set before
@@ -4176,8 +4187,11 @@ command -bar NoShowBreak     set showbreak=
 " helper for when a 'syntax off' -> 'syntax enable' wipes out our rules. and,
 " we want our syntax rules enabled even in empty buffers or plain text files,
 " where the Syntax autocommand won't fire.
-command -bar Syn            syntax enable | call UserApplySyntaxRules()
+command -bar SynEnab        syntax enable | call UserApplySyntaxRules()
+command -bar SynDisable     syntax off
 command -bar SynSync        syntax sync fromstart
+" turn off syntax for buffer, not globally
+command -bar SynOff         set syntax=off
 " remember: https://vimhelp.org/usr_44.txt.html#44.10
 "   :syntax sync minlines=100
 " also remember: doautocmd Syntax
