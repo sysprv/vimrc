@@ -367,9 +367,14 @@ endif
 if v:version >= 900
     " better than plain % for code with braces embedded in strings etc.;
     " but enable only if the vim version's recent enough.
+    if !&loadplugins
+        set loadplugins
+    endif
     packadd matchit
 endif
-set noloadplugins
+if &loadplugins
+    set noloadplugins
+endif
 "}}}
 
 " 2022-07-30 let g:did_load_filetypes = 1 does prevent filetype detection with
@@ -2368,7 +2373,7 @@ endfunction
 " highlights in case the colorscheme file might not be available (Visual).
 "
 " mlterm starts with t_Co 8, later changes to 256.
-function! UserColours()
+function! UserColours() abort
     call UserLog('UserColours enter win', winnr())
 
     " 2023-07-01 our colorscheme overrides are now in an external colorscheme
@@ -2412,6 +2417,10 @@ let g:UserCustomSynHash = {
 " we want these to run even when syntax highlighting is globally off.
 function! UserApplySyntaxRules()
     call UserLog('UserApplySyntaxRules enter win', winnr())
+    if &binary
+        return
+    endif
+    " don't check for g:syntax_on; we want to work even if syntax is off.
 
     " no good way to check if just a syntax item's defined (hlID/hlexists pass
     " for either syntax item or highlight group). and execute()'s rather new.
@@ -2619,8 +2628,10 @@ function! UserColoursPrelude()
             " whatever. t_Co stays at 16 after vim startup.
             "
             " termguicolors works, and helps with statusline colours. but not
-            " possible to set t_Co to 2**24.
-            set t_Co=256
+            " possible to set t_Co to 2**24. tgc does help to ignore background
+            " color of light consoles; docs say cterm attribs are used not
+            " gui...
+            set termguicolors
             let l:done = 1
         elseif &term =~# '^putty'
             " PuTTY supports 24-bit colour by default.
@@ -2632,12 +2643,8 @@ function! UserColoursPrelude()
     " could also enable tgc for PuTTY; seems default on now. but
     " terminfo/termcap might not have caught up yet.
 
-    if !l:done && exists('&t_Co') && &t_Co == 8 && $TERM !~# '^Eterm'
-        " good idea from tpope/sensible; bright without bold.
-        " will take effect under screen(1) ($TERM == 'screen').
-        set t_Co=16
-        let l:done = 1
-    endif
+    " forcing t_Co to 16 in the linux console works, but not under screen.
+    " unreliable.
 endfunction
 
 " -- colorscheme control
@@ -3233,7 +3240,7 @@ set viewoptions-=options
 
 " checking with &option-name and not +option-name;
 " disabling only for unix, both tty and gui.
-if exists('&t_TI') && exists('&t_TE') && has('unix')
+if 0 && exists('&t_TI') && exists('&t_TE') && has('unix')
     set t_TI= t_TE=
 endif
 
@@ -3733,7 +3740,7 @@ elseif g:u.has_cb_tty
     " doc :write_c
     "R use: :.,+10WRCB
     command -range WRPR     silent <line1>,<line2>:w !/usr/bin/xsel -p -i
-    command -range WRCB     silent <line1>,<line2>:w !/usr/bin/xsel -b -i
+    command! -range WRCB     silent <line1>,<line2>:w !/usr/bin/xsel -b -i
 
     " for the visual selection (not necessarily linewise).
     " yank, then [in normal mode] pass the anonymous register
