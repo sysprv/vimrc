@@ -1998,56 +1998,47 @@ endfunction
 
 " fallback definitions for the highlight groups used by our own syntax rules,
 " in case our colorscheme wrapper isn't present.
-function! UserDefineSyntaxHighlightGroups()
-    let l:hl = {}
-
-    " unlike for :syntax list, :filter works for :highlight. but :filter's not
-    " old enough to be available everywhere.
-    "
-    " highlight groups may have been cleared (but still left defined) by a
-    " colorscheme reload. we don't treat these as present. i.e. we only want
-    " to select User highlight groups that haven't been cleared.
-
-    for l:ln in split(UserRun('silent highlight'), "\n")
-        let l:matchresult = matchstr(l:ln, '^User\w\+')
-        if l:matchresult !=# '' && match(l:ln, ' cleared$') == -1
-            let l:hl[l:matchresult] = 1
-        endif
-    endfor
-
-    " because we don't want to put the UserUnicodeWhitespace in a colorscheme
-    " override, we don't do a quick exhaustive check here (like we do for
-    " syntax items).
+function! UserDefineSyntaxHighlightGroups() abort
+    " E411 - Highlight group not found: ...
 
     " grey as default can look really bad; better to just define cleared
     " highlight group to keep the syntax rules from failing, than actually set
     " colours.
-
-    if !has_key(l:hl, 'UserDateComment')
+    try
+        call UserRun('highlight UserDateComment')
+    catch /^Vim\%((\a\+)\)\=:E411:/
         highlight clear UserDateComment
-    endif
+    endtry
 
-    if !has_key(l:hl, 'UserTrailingWhitespace')
+    try
+        call UserRun('highlight UserTrailingWhitespace')
+    catch /^Vim\%((\a\+)\)\=:E411:/
         highlight clear UserTrailingWhitespace
         " turn on 'list', hope 'trail' is defined and working.
         set list
-    endif
+    endtry
 
-    if !has_key(l:hl, 'UserHashTag')
+    try
+        call UserRun('highlight UserHashTag')
+    catch /^Vim\%((\a\+)\)\=:E411:/
         highlight clear UserHashTag
-    endif
+    endtry
 
     " for URIs at top level, with syntax highlighting and not matchadd()
-    if !has_key(l:hl, 'UserHttpURI')
+    try
+        call UserRun('highlight UserHttpURI')
+    catch /^Vim\%((\a\+)\)\=:E411:/
         highlight! default link UserHttpURI Normal
-    endif
+    endtry
 
     " __UNIWS__; this isn't something we want to put in a colorscheme override
     " file, maybe - unless we work with a red background. blinking would have
     " been nice, if hi start/stop worked everywhere.
-    if !has_key(l:hl, 'UserUnicodeWhitespace')
+    try
+        call UserRun('highlight UserUnicodeWhitespace')
+    catch /^Vim\%((\a\+)\)\=:E411:/
         highlight UserUnicodeWhitespace term=standout ctermbg=red guibg=orange
-    endif
+    endtry
 
     " UserHttpURI: if using non-syntax matches (matchadd/UserMatchAdd), define
     " a ctermbg to hide spell errors. f.ex. ctermbg=255 guibg=bg
