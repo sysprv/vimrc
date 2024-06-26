@@ -2283,8 +2283,8 @@ function! UserColoursFailsafe()
     " problems. clear the term attribute.
     highlight ModeMsg       term=NONE cterm=NONE
     highlight Normal        term=NONE cterm=NONE
-    " for cterm with 8/16/88 colours
-    highlight Visual        term=reverse cterm=reverse ctermbg=NONE
+    " for cterm with 8/16/88 colours - magenta on grey
+    highlight Visual        term=reverse ctermfg=7 ctermbg=5 cterm=NONE
 
     if UserCO(g:u.coflags.spell)
         highlight SpellBad      NONE
@@ -2304,8 +2304,8 @@ function! UserColoursFailsafe()
 
     if UserCO(g:u.coflags.stat)
         " specifying ctermfg in case of a dark tty background
-        highlight StatusLine    ctermfg=white   ctermbg=brown   cterm=NONE
-        highlight StatusLineNC  ctermfg=black   ctermbg=grey    cterm=NONE
+        highlight StatusLine    ctermfg=0   ctermbg=6   cterm=NONE
+        highlight StatusLineNC  ctermfg=0   ctermbg=7   cterm=NONE
     endif
 endfunction     " UserColoursFailsafe()
 
