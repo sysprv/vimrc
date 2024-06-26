@@ -3947,8 +3947,8 @@ xnoremap    <C-g>   <nop>
 "
 " vile's 'q' (quoted motion) is interesting.
 "nnoremap    q   <nop>
-" nnoremap    q   :echo 'Temper temper / mon capitaine.'<cr>
-nnoremap    <silent>    q   :call UserUrlPasteMunge()<CR>:silent update<CR>
+" 2024-06-09 mapping for pasting now limited by filetype.
+nnoremap    q   :echo 'Temper temper / mon capitaine.'<CR>
 " -- end q-mappings adventure.
 
 " never used the tagstack. sometimes due to window focus i end up hitting
@@ -4553,6 +4553,13 @@ augroup UserVimRc
                 \ execute 'runtime! indent/' . expand('<amatch>') . '.vim'
 
     autocmd FileType text               FoText
+
+    autocmd BufNewFile,BufReadPost      *.list.txt
+                \ nnoremap <buffer> <silent> q
+                \ :call UserUrlPasteMunge()<CR>:silent update<CR>
+
+    autocmd BufNewFile,BufReadPost      *.xresources
+                \ setfiletype xdefaults
 
     " limited indentation detection - search for \t in the first page.
     " if hard tab found, switch to hard tab mode.
