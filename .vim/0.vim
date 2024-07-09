@@ -315,17 +315,12 @@ scriptencoding utf-8
 "
 " syntax-on should be done early, not late. synload.vim and syncolor.vim have
 " many side-effects like removing autocmds.
-
+"
 " 2024-06-20
-" chmod 0 /usr/share/vim/vim91/suse.vimrc
-if exists('g:syntax_on')
-    if g:syntax_on
-        syntax off
-    endif
+if !exists('g:syntax_on') || !g:syntax_on
+    syntax on
 endif
-"if !exists('g:syntax_on') || !g:syntax_on
-"    syntax on
-"endif
+
 " custom syntax rules (UserApplySyntaxRules()) keep working fine even
 " when filetype syntax is disabled with a global 'syntax off'.
 
@@ -421,6 +416,16 @@ filetype plugin on
 " in some old vim versions.
 
 function! UserRemoveVendorAugroups()
+    " 2024-07-10 no good doing a plain 'autocmd!' here - synload.vim defines
+    " Syntax * autocmd without a group, and filetype.vim defines some without
+    " groups, around line 3177. these autocmds shouldn't be removed.
+    "
+    " check for the generic last-position-jump autocmd with: echo
+    " autocmd_get({'group': '', 'event': 'BufRead', 'pattern':
+    " '*'})->js_encode()
+
+    silent autocmd! BufRead *
+
     if v:version >= 900
         silent! call autocmd_delete([{'group':'fedora'},{'group':'redhat'}])
     else
@@ -2395,14 +2400,6 @@ command -bar Amber  highlight Normal guifg=#ffb000
 command -bar Green  highlight Normal guibg=#41ff00
 
 
-let g:UserCustomSynHash = {
-            \ 'UserTrailingWhitespace': 1,
-            \ 'UserUnicodeWhitespace': 1,
-            \ 'UserDateComment': 1,
-            \ 'UserHashTag': 1,
-            \ 'UserHttpURI': 1
-            \ }
-
 " define custom syntax items for things we want highlighted.
 "
 " we want these to run even when syntax highlighting is globally off.
@@ -2422,19 +2419,10 @@ function! UserApplySyntaxRules()
     " we don't want to be too smart and keep any buffer-local var for this -
     " syntax items can get invalidated due to reasons like colorscheme
     " changes.
-
-    let l:syn = {}
-    for l:ln in split(UserRun('silent syntax list'), "\n")
-        let l:matchresult = matchstr(l:ln, '^User\w\+')
-        if l:matchresult !=# ''
-            let l:syn[l:matchresult] = 1
-        endif
-    endfor
-
-    if len(l:syn) != 0 && l:syn == g:UserCustomSynHash
-        " everything's already defined
-        return
-    endif
+    "
+    " 2024-06-30 listing syntax items and iterating can be expensive - f.ex. vim
+    " syntax now loads lua, perl, python syntaxes. don't check all defined
+    " syntax items anymore.
 
     " some or none of our custom syntax items are defined. clear and define
     " all of them.
@@ -2504,7 +2492,6 @@ function! UserApplySyntaxRules()
     if 0
         https://web.archive.org/web/20010301154434/http://www.vim.org/
     endif
-    syntax clear UserHttpURI
 
     " < (\v<) - match at beginning of word; help /\<
     "
@@ -2530,6 +2517,7 @@ function! UserApplySyntaxRules()
     " with delimiters for syntax match:
     let l:s = '=' . l:uri_re . '='
 
+    syntax clear UserHttpURI
     " toplevel:
     execute 'syntax match UserHttpURI' l:s 'contains=@NoSpell'
     " contained in other syntax matches:
@@ -3168,6 +3156,8 @@ endfunction
 command -bar Mkspell    call UserMkspell()
 
 
+" -- end spelling configuration
+
 " for disabling things that indent plugins do. overkill maybe. sometimes
 " setting b:did_indent shows up as a solution, but indent.vim::s:LoadIndent()
 " (filetype autocmd) resets it before loading indentation rules... and i don't
@@ -3197,12 +3187,18 @@ function! UserResetIndent()
         call add(l:retval, b:indentkeys_orig)
     endif
 
+    unlet b:did_indent
+
     return l:retval
 endfunction
 
-command! -bar NoIndentFancy     echo UserResetIndent()
+command! -bar InDisable     echo UserResetIndent()
+command! -bar InEnable      if &filetype !=# ''
+            \ | execute 'runtime indent/' . &filetype . '.vim'
+            \ | else
+            \ | echom 'no filetype'
+            \ | endif
 
-" -- end spelling configuration
 
 set sessionoptions-=curdir
 set sessionoptions-=globals
@@ -4106,6 +4102,7 @@ command -bar Lousy      SoftIndent 4
 command -bar Lisp       SoftIndent 2
 " shift by 4 spaces, with hard tabs
 command -bar T4x4       SoftIndent 4 | setlocal noexpandtab
+command -bar In2        SoftIndent 2
 
 " rtfm'ed - :retab! uses % as the range by default.
 
@@ -4185,8 +4182,8 @@ command -bar NoShowBreak     set showbreak=
 " helper for when a 'syntax off' -> 'syntax enable' wipes out our rules. and,
 " we want our syntax rules enabled even in empty buffers or plain text files,
 " where the Syntax autocommand won't fire.
-command -bar SynEnab        syntax enable | call UserApplySyntaxRules()
-command -bar SynDisable     syntax off
+command -bar SynEnable      syntax enable | call UserApplySyntaxRules()
+command -bar SynDisable     syntax off | silent! unlet b:current_syntax | silent! unlet g:syntax_on
 command -bar SynSync        syntax sync fromstart
 " turn off syntax for buffer, not globally
 command -bar SynOff         set syntax=off
@@ -4548,9 +4545,21 @@ augroup UserVimRc
     "
     " 2024-04-10 python autoindent's very weird. disabled.
 
-    autocmd FileType
-                \ ada,javascript,go,perl,racket,raku,ruby,rust,scala,typescript,vim
-                \ execute 'runtime! indent/' . expand('<amatch>') . '.vim'
+    autocmd FileType ada            InEnable
+    autocmd FileType c              InEnable
+    autocmd FileType java           InEnable
+    autocmd FileType perl           InEnable
+    autocmd FileType racket         InEnable
+    autocmd FileType raku           InEnable
+    autocmd FileType ruby           InEnable
+    autocmd FileType rust           InEnable
+    autocmd FileType scala          InEnable
+    autocmd FileType vim            InEnable
+
+    autocmd FileType go             InEnable
+    autocmd FileType javascript     InEnable
+    autocmd FileType json           InEnable
+    autocmd FileType typescript     InEnable
 
     autocmd FileType text               FoText
 
