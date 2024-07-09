@@ -2361,6 +2361,8 @@ function! UserColours256()
         " trailing whitespace same as SpellBad
         highlight UserTrailingWhitespace ctermbg=24 guibg=grey25
     endif
+
+    highlight Cursor guifg=black guibg=#ff7900 gui=NONE
 endfunction
 
 
