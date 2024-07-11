@@ -401,14 +401,16 @@ filetype plugin on
 " i.e., redhat/fedora /etc/vimrc duplicates some of defaults.vim, things that
 " are meant to be pulled in only when the user has no .vimrc. this seems to
 " interfere with jumping to the last location on some files. anybody remember
-" /etc/skel?
+" /etc/skel? suse.vim does ... a lot - mappings, tty type handling. they all
+" ship their own config for root. good to see that debian and bsds don't lean
+" that way.
 "
-"   vim -u ~/.vimrc
+" whenever possible (alias), run vim -u ~/.vim/0.vim
 "
 " at least the worst is in a named augroup. viml parsing is extra picky with
-" au/aug (re-opening an augroup just to do autocmd! and then having <aug>
-" END). autocmd_delete() isn't available on deathrow rhel boxen. distributions
-" use various augroup names. debian doesn't add augroups, thankfully. augroup
+" au/aug (re-opening an augroup just to do autocmd! and then having <aug> END).
+" autocmd_delete() isn't available on deathrow rhel boxen. distributions use
+" various augroup names. debian doesn't add augroups, thankfully. augroup
 " listing in viml is incomplete (:verbose augroup is no different from
 " :augroup).
 "
@@ -424,19 +426,19 @@ function! UserRemoveVendorAugroups()
     " autocmd_get({'group': '', 'event': 'BufRead', 'pattern':
     " '*'})->js_encode()
 
-    silent autocmd! BufRead *
-
-    if v:version >= 900
-        silent! call autocmd_delete([{'group':'fedora'},{'group':'redhat'}])
-    else
-        for l:vnd_aug in ['fedora', 'redhat']
-            if exists('#' . l:vnd_aug)
-                " defang
-                execute 'autocmd!' l:vnd_aug
-                " delete empty group
-                execute 'augroup!' l:vnd_aug
-            endif
-        endfor
+    " delete any ungrouped autocommands that want to run after reading any file
+    if exists('#BufRead#*')
+        autocmd! BufRead *
+    endif
+    if exists('#fedora')
+        " remove autocommands from augroup
+        autocmd! fedora
+        " remove augroup
+        augroup! fedora
+    endif
+    if exists('#redhat')
+        autocmd! redhat
+        augroup! redhat
     endif
 endfunction
 
