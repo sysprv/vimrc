@@ -1,10 +1,16 @@
-" Last-Modified: 2024-04-20T11:48:21.559363979+00:00
+" Last-Modified: 2024-07-10T19:44:06.395204206+00:00
 
 " vim:set tw=80 noml:
 set secure encoding=utf-8 fileencoding=utf-8 nobomb
 scriptencoding utf-8
 
+if &compatible
+    set nocompatible
+endif
+
 " Change log:
+"
+" 2024-07-12 set nocompatible so that vim -u 0.vim will work.
 "
 " 2024-04-16 Encountered viwo<Esc>
 "   https://www.reddit.com/r/vim/comments/1xzfjy/go_to_start_of_current_word_if_not_already_there/cfg11mr/
