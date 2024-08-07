@@ -2164,26 +2164,6 @@ function! s:setupClipboard()
     " going to the system clipboard is not great.
     set clipboard=
     return
-
-    " previously,
-    if 0
-    if g:u.has_cb_builtin
-        set clipboard=unnamed
-        if has('unnamedplus')
-            " only when built for X11
-            set clipboard+=unnamedplus
-        endif
-    elseif has('X11') && has('clipboard')
-        " debian vim used to.. maybe BSDs still do.
-        "
-        " if not gvim or win32, do not connect to X; can slow down startup due
-        " to xauth/cookie issues etc.
-        "
-        " doesn't seem to be a problem on fedora, vim-enhanced doesn't have
-        " +X11
-        set clipboard=exclude:.*
-    endif
-    endif
 endfunction
 
 
