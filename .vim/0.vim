@@ -1,4 +1,4 @@
-" Last-Modified: 2024-07-10T19:44:06.395204206+00:00
+" Last-Modified: 2024-09-30T16:41:40.410116380+00:00
 
 " vim:set tw=80 noml:
 set secure encoding=utf-8 fileencoding=utf-8 nobomb
@@ -9,6 +9,9 @@ if &compatible
 endif
 
 " Change log:
+"
+" 2024-09-30 Paste/copy fixes and adjustments - ,p without a gui clipboard - use
+" a separate register, don't fallback to unnamed.
 "
 " 2024-07-12 set nocompatible so that vim -u 0.vim will work.
 "
@@ -3427,7 +3430,7 @@ endfunction
 
 
 " return a register name, like v:register.
-function! UserGetCbReg(...)
+function! UserGetCbReg(...) abort
     " by default, work with the X CLIPBOARD
     let l:src = 'CLIPBOARD'
     let l:src_reg = '+'
@@ -3459,12 +3462,14 @@ function! UserGetCbReg(...)
         let l:result = { 'reg': l:src_reg, 'status': 0 }
     elseif g:u.has_cb_tty
         silent let l:clp = system(l:src_cmd)
+        " put shell status in a register
+        let @n = v:shell_error
         if v:shell_error
             echohl Error
             echo 'xsel invocation failed, code' v:shell_error
             echohl None
 
-            let l:result = { 'status': -2, 'reg': '_' }
+            let l:result = { 'status': -2 }
         else
             " put into a register, return register name
             call setreg(l:bounce_reg, l:clp)
@@ -3475,7 +3480,7 @@ function! UserGetCbReg(...)
         echo 'do not know how to read from' l:src
         echohl None
 
-        let l:result = { 'status': -3, 'reg': '_' }
+        let l:result = { 'status': -3 }
     endif
     return l:result
 endfunction
@@ -3490,15 +3495,17 @@ endfunction
 function! UserTeeCmdLineCb(destination)
     let l:cmdl = getcmdline()
     " also put in the unnamed register, as a yank would.
-    call setreg('', l:cmdl)
+    " call setreg('', l:cmdl)
 
     if a:destination ==# 'PRIMARY' || a:destination ==# 'CLIPBOARD'
         try
             call UserWrCb(l:cmdl, a:destination)
         catch
-            " ignored - we probably don't want to put any error messages in
-            " the command line.
+            " ignored - we don't want to put any error messages in the command
+            " line.
         endtry
+    elseif a:destination == '_"w'
+        call setreg('w', l:cmdl)
     endif
 
     return l:cmdl
@@ -3539,22 +3546,21 @@ endfunction
 " (gP). f.ex. in insert mode.. ? you've just typed a pair of delimiters and want
 " to paste in the middle. gP with virtualedit-onemore.
 
-function! UserPasteExpr()
-    return 'gP'
-    " return &ve == 'all' ? 'gP' : col('.') == col('$') - 1 ? 'gp' : 'gP'
-endfunction
+"function! UserPasteExpr()
+"    return 'gP'
+"    " return &ve == 'all' ? 'gP' : col('.') == col('$') - 1 ? 'gp' : 'gP'
+"endfunction
 
 " a little helper for tty + xsel
-function! UserReadCbRetExpr(...)
-    let l:reg = call('UserGetCbReg', a:000)
-    if l:reg.status < 0 | return "\<Ignore>" | endif
+function! UserReadCbRetExpr(p_opt) abort
+    let l:reg = UserGetCbReg()
+    if l:reg.status < 0
+        return "\<Ignore>"
+    endif
 
-    " now we'll be using @", not @*/@+. so, no register prefix is needed -
-    " but we have it, should use it anyway.
-    "
     " the following makes an expression like: "<reg>
     " let l:expr = '"' . l:reg.reg . UserPasteExpr()
-    let l:expr = '"' . l:reg.reg
+    let l:expr = '"' . l:reg.reg . a:p_opt
     return l:expr
 endfunction
 
@@ -3577,34 +3583,53 @@ endfunction
 " normal mode paste - read from clipboard and wait for the next
 " p/P/gp/gP. Of course it might be anything, like c or x..
 "
-" 2024-03-07 gp/gP's too long. add explicite mappings, always g.
-nnoremap    <expr>  <Leader>xp  UserReadCbRetExpr() . "gp"
-nnoremap    <expr>  <Leader>xP  UserReadCbRetExpr() . "gP"
+" 2024-03-07 gp/gP's too long. add explicit mappings, always g.
+"
+
+if g:u.has_cb_builtin || g:u.has_cb_tty
+    nnoremap    <expr>  <Leader>xp  UserReadCbRetExpr("gp")
+    nnoremap    <expr>  <Leader>xP  UserReadCbRetExpr("gP")
+
+    " visual mode paste - never needed it.
+
+    " command mode paste - dangerous, but tty mappings and <C-r>+ etc.
+    " work anyway. defined for completeness and consistency.
+    "
+    " cannot be a silent mapping.
+    "
+    " literal insert - doc: c_CTRL-R_CTRL-R
+
+    cnoremap    <expr>  <Leader>xp  "\<C-r>\<C-r>" . UserGetCbReg().reg
+    cnoremap            <Leader>xP  <Nop>
+
+    cnoremap            <Leader>y   <C-\>eUserTeeCmdLineCb('CLIPBOARD')<cr>
+else    " no gui, fallback to an arbitrary register (w), leaving unnamed alone
+    nnoremap            <Leader>xp  "wgp
+    nnoremap            <Leader>xP  "wgP
+
+    cnoremap            <Leader>xp  <C-r><C-r>w
+    cnoremap            <Leader>xP  <Nop>
+
+    nnoremap            <Leader>y   m`^vg_"wy``
+    xnoremap            <Leader>y   m`"wy``
+    cnoremap            <Leader>y   <C-\>eUserTeeCmdLineCb('_"w')<cr>
+endif
+
 nmap        <Leader>p           <Leader>xp
 nmap        <Leader>P           <Leader>xP
-
-" insert mode paste - still waits for the final p-like keypress
-" but we always want gP.
+" insert mode paste - still waits for the final p-like keypress but we always
+" want gP.
 imap        <Leader>xp      <C-\><C-o><Leader>xp
 imap        <Leader>xP      <C-\><C-o><Leader>xP
-imap        <Leader>p       <Leader>xP
+imap        <Leader>p       <Leader>xp
 imap        <Leader>P       <Leader>xP
 
-" visual mode paste - never needed it.
+cmap        <Leader>p       <Leader>xp
+cmap        <Leader>P       <Leader>xP
 
-" command mode paste - dangerous, but tty mappings and <C-r>+ etc.
-" work anyway. defined for completeness and consistency.
-"
-" cannot be a silent mapping.
-"
-" literal insert - doc: c_CTRL-R_CTRL-R
 
-cnoremap    <expr>  <Leader>xp  "\<C-r>\<C-r>" . UserGetCbReg().reg
-cnoremap            <Leader>xP  <Nop>
-cmap                <Leader>p   <Leader>xp
-cmap                <Leader>P   <Leader>xP
 
-if has('gui_running')
+if g:u.has_cb_builtin
 
     " paste in gui mode with <C-[S-]v>.
 
@@ -3647,20 +3672,6 @@ elseif g:u.has_cb_tty
     " xsel
     command -bang   RDPR    execute "put<bang>" UserGetCbReg('PRIMARY').reg
     command -bang   RDCB    execute "put<bang>" UserGetCbReg('CLIPBOARD').reg
-else
-    " no system clipboard, just vim fallback
-    nnoremap    <Leader>xp  gp
-    nnoremap    <Leader>xP  gP
-    nmap        <Leader>p   <Leader>xp
-    nmap        <Leader>P   <Leader>xP
-    inoremap    <Leader>xp  <C-\><C-o>gp
-    inoremap    <Leader>xP  <C-\><C-o>gP
-    imap        <Leader>p   <Leader>xp
-    imap        <Leader>P   <Leader>xP
-    cnoremap    <Leader>xp  <C-r><C-r>"
-    cnoremap    <Leader>xp  <Nop>
-    cmap        <Leader>p   <Leader>xp
-    cmap        <Leader>P   <Leader>P
 endif
 
 
@@ -3726,10 +3737,6 @@ elseif g:u.has_cb_tty
     " copy the current command line.
     " doc: getcmdline()
     cnoremap                <Leader>y   <C-\>eUserTeeCmdLineCb('CLIPBOARD')<cr>
-else
-    nnoremap                <Leader>y   m`^vg_y``
-    xnoremap                <Leader>y   m`y``
-    cnoremap                <Leader>y   <C-\>eUserTeeCmdLineCb('SELF')<cr>
 endif
 
 
