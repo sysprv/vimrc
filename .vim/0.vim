@@ -2343,7 +2343,7 @@ function! UserColours256()
             highlight SpecialKey ctermfg=214 ctermbg=235 guifg=orange guibg=grey25
             " TODO Visual?
         endif
-        highlight UserDateComment ctermfg=246 cterm=italic guifg=grey40 gui=italic
+        highlight UserDateComment ctermfg=246 guifg=grey40 gui=italic
         highlight UserHashTag ctermbg=24 guibg=#005f5f
         " trailing whitespace same as SpellBad
         highlight UserTrailingWhitespace ctermbg=24 guibg=grey25
