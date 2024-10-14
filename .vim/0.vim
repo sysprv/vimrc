@@ -4574,6 +4574,9 @@ augroup UserVimRc
     autocmd FileType clojure            Lisp
 
     autocmd FileType *sql               SoftIndent 2
+    " 2024-09-30 json - jq uses 2 spaces by default, google style guide uses
+    " 2 spaces
+    autocmd FileType json               SoftIndent 2
     " sql filetype sets comment string to /* %s */, cumbersome for
     " linewise commenting.
     autocmd FileType *sql               setlocal commentstring=--\ %s
