@@ -13,7 +13,7 @@ set laststatus=1
 set listchars=tab:\ \ ,trail:_
 set noerrorbells
 set novisualbell
-set shortmess+=I
+set shortmess=filmnrwxoOtWI
 set showcmd
 set noincsearch
 set nohlsearch
@@ -47,23 +47,6 @@ command -range WRCB     silent <line1>,<line2>:w !/usr/bin/xsel -b -i
 
 " don't confuse tiny vim (-eval), can't test with older vims.
 if version >= 704
-    " if huge+view (has eval, can't by tiny/small vim) or no view but vim -R,
-    " exit early.
-    if exists('v:argv')
-        let u_argv = v:argv
-    elseif filereadable('/proc/self/cmdline')
-        let u_argv = split(readfile('/proc/self/cmdline')[0], "\0")
-    else
-        let u_argv = []
-    endif
-    " checks only for -R, not -<other-flags>R
-    if len(u_argv) > 0 && (u_argv[0] =~# 'view$' || index(u_argv, '-R') > 0)
-        " view mode
-        set list nowrap
-        syntax off
-        finish
-    endif
-    unlet u_argv
     runtime 0.vim
 endif
 

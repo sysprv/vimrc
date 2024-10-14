@@ -1,4 +1,4 @@
-" Last-Modified: 2024-09-30T16:41:40.410116380+00:00
+" Last-Modified: 2024-10-14T17:26:18.580410850+00:00
 
 " vim:set tw=80 noml:
 set secure encoding=utf-8 fileencoding=utf-8 nobomb
@@ -487,8 +487,12 @@ let g:u = {}
 let g:u.showbreak_char = '↳'
 
 let g:u.has_x11 = exists('$DISPLAY')
-let g:u.has_cb_builtin = has('gui_running') || has('win32')
-let g:u.has_cb_tty = has('unix') && g:u.has_x11 && executable('/usr/bin/xsel')
+" plus works with tty vim if built with X11; opensuse 'vim' is actually gvim -v.
+" vim-nox11 isn't built with X11.
+let g:u.has_cb_builtin = has('gui_running') || has('win32') ||
+            \ (has('X11') && g:u.has_x11)
+let g:u.has_cb_tty = !g:u.has_cb_builtin &&
+            \ has('unix') && g:u.has_x11 && executable('/usr/bin/xsel')
 
 let g:u.term_primitive = 1
 " test: env -u DISPLAY TERM=linux vim
@@ -615,37 +619,35 @@ if has('persistent_undo')
     set undofile
 endif
 
-if &shortmess !~# '^filnxtToO'  " the vim7 nocompatible default
-    " ensure some good defaults
-    set shortmess+=o    " overwrite write msgs, good for :wn
-    set shortmess+=O    " file read msg overwrites any previous
-    set shortmess-=s    " do show search wrap message (just "W" with S)
-    set shortmess+=t    " do truncate file msgs - left
-endif
-set shortmess-=T        " try life without shortening in the middle
-
+" no: s, T,
+"
+"   F - requires patch-7.4.1570; https://github.com/vim/vim/pull/686
+"
+"   S (searchcount()) - requires patch-8.1.1270;
+"   https://github.com/vim/vim/pull/4317
+set shortmess=filmnrwxoOtWI
+" hide ins-complete-menu messages
 if has('patch-7.4.314')
-    set shortmess+=c    " hide ins-complete-menu messages
-
-    if has('patch-7.4.1570')
-        " https://github.com/vim/vim/pull/686
-        " F is really bad without the statusline; when doing :wn, after the next
-        " buffer loads, it's the name of the previous buffer that stays at the
-        " bottom of the screen. ensure it's never on.
-        set shortmess-=F
-    endif
-
-    if has('patch-8.1.1270')
-        " https://github.com/vim/vim/pull/4317
-        " see also: doc searchcount()
-        set shortmess-=S    " do show search count
-    endif
+    set shortmess+=c
 endif
 
 " a little like :behave mswin, but not all the way. think DOS EDIT.COM.
 " set keymodel=startsel selectmode=mouse,key
 " don't use SELECT mode
 set selectmode= keymodel=
+
+" 2022-12-08 - removing autoselect; too easy to unintentionally wipe the
+" clipboard that way. pasting from the system clipboard is nice, but all small
+" cuts and pastes going to the system clipboard is not great. gvim's like
+" a terminal emulator anyway - shouldn't work too hard to be a good gui app.
+"
+" 2023-01-02 - just unnamedplus is no good for win32. doesn't fail, but breaks
+" y/p.
+"
+" old memory - with default 'clipboard' and X forwarding over ssh, slow
+" startup... clearing 'clipboard' was enough to start fast, -X wasn't necessary?
+
+set clipboard=
 
 " laststatus: 0 = never, 1 = show if multiple splits, 2 = always.
 "
@@ -703,10 +705,8 @@ set autoindent
 
 "let &showbreak = g:u.showbreak_char
 
-if g:u.has_x11
-    " yes, even for vim in X terminal emulators
-    set title
-endif
+"set title -- nah
+
 "set display+=uhex
 if v:version < 802
     " newer vims set this to 'truncate' and that's fine.
@@ -2157,17 +2157,6 @@ function! UserSetGuicursor() abort
     set guicursor+=n-v-ve-i-r-c-ci-cr:blinkon0
 endfunction
 
-" 2022-12-08 - removing autoselect; too easy to unintentionally wipe the
-" clipboard that way. gvim's like a terminal emulator anyway - shouldn't work
-" too hard to be a good gui app.  2023-01-02 - just unnamedplus is no good for
-" win32. doesn't fail, but breaks y/p.
-function! s:setupClipboard()
-    " pasting from the system clipboard is nice, but all small cuts and pastes
-    " going to the system clipboard is not great.
-    set clipboard=
-    return
-endfunction
-
 
 " turn off most highlights; 'highlight clear' defaults are not great. too much
 " underlining - usually seen on serial lines, 88 color ttys (rxvt/urxvt)..
@@ -2590,7 +2579,7 @@ function! UserColoursPrelude()
         endif
     endif
     if !l:done && has('termguicolors')
-        if &term ==# 'xterm-direct'
+        if &term ==# 'xterm-direct' || &term ==# 'tmux-direct'
             " doesn't support indexed colours, must use gui colours.
             set termguicolors
             let l:done = 1
@@ -2603,6 +2592,10 @@ function! UserColoursPrelude()
             " color of light consoles; docs say cterm attribs are used not
             " gui...
             set termguicolors
+            let l:done = 1
+        elseif exists('$WT_SESSION')
+            " windows terminal, possibly with wsl2/wslg, no vcon
+            set termguicolors t_Co=16777216
             let l:done = 1
         elseif &term =~# '^putty'
             " PuTTY supports 24-bit colour by default.
@@ -4710,7 +4703,6 @@ call UserInitUiFlags()
 call UserInitColourOverride()
 call UserColoursPrelude()
 call UserLoadColors()
-call s:setupClipboard()
 if has('win32') || has('gui_running')
     set mouse=a
     call UserSetGuicursor()
