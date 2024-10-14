@@ -4708,6 +4708,9 @@ if has('win32') || has('gui_running')
     set mouse=a
     call UserSetGuicursor()
 endif
+" disable application keypad mode; default enabled in PuTTY, default off in
+" xterm.
+set t_ks= t_ke=
 if has('gui_running')
     call UserSetGuifont()
     FnDef
