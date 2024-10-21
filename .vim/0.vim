@@ -3870,9 +3870,27 @@ endif
 " prevent accidental nbsp entry; using 'execute' for mapping whitespace
 execute "inoremap \u00A0 <Space>"
 
+" use 's' for window commands instead of the default emacs-ness.
+nmap            s           <C-w>
 
-" use 's' for window commands instead of the default emacsness.
-nnoremap    s   <C-w>
+" C-w o / :only is a pain because it closes windows, can't go back to the
+" previous layout. instead, lean on tab pages.
+"
+" Mnemonic: split current buffer, but in new tab page.
+"
+" can't use the current buffer number in a command definition?
+"
+" sbuffer always reuses existing windows/tab pages.
+command -bar -addr=buffers -count=0 BufTab
+            \ if <count> == 0 || <count> == bufnr('%') | tab split
+            \ | else | tab <count>sbuffer
+            \ | endif
+
+" unconditinal new tab page
+command         BufNewTab   tab split
+
+nnoremap        <C-w>o      :BufTab<CR>
+
 " for keys like C-wf (doc CTRL-W_f), there's no option to make the split
 " vertical by default. We make do with this:
 nnoremap    <Leader>vf  <C-w>f<C-w>L
