@@ -2578,30 +2578,14 @@ function! UserColoursPrelude()
             set background=light
         endif
     endif
-    if !l:done && has('termguicolors')
-        if &term ==# 'xterm-direct' || &term ==# 'tmux-direct'
-            " doesn't support indexed colours, must use gui colours.
-            set termguicolors
-            let l:done = 1
-        elseif &term ==# 'win32' && has('vcon')
-            " windows console since Windows 10 Insiders Build #14931 or
-            " whatever. t_Co stays at 16 after vim startup.
-            "
-            " termguicolors works, and helps with statusline colours. but not
-            " possible to set t_Co to 2**24. tgc does help to ignore background
-            " color of light consoles; docs say cterm attribs are used not
-            " gui...
-            set termguicolors
-            let l:done = 1
-        elseif exists('$WT_SESSION')
-            " windows terminal, possibly with wsl2/wslg, no vcon
-            set termguicolors t_Co=16777216
-            let l:done = 1
-        elseif &term =~# '^putty'
-            " PuTTY supports 24-bit colour by default.
-            set termguicolors t_Co=16777216
-            let l:done = 1
-        endif
+
+    " enable termguicolors only if must - keep tgc off in ttys that support
+    " indexed colors. tgc doesn't apply to the tty cursor.
+
+    if !l:done && has('termguicolors') && &term =~# '-direct$'
+        " xterm-direct / tmux-direct
+        set termguicolors
+        let l:done = 1
     endif
 
     " could also enable tgc for PuTTY; seems default on now. but
