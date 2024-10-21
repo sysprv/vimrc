@@ -3987,6 +3987,8 @@ function! UserLineNumberSwitch()
 endfunction
 nnoremap    <silent> <Leader>n   :call UserLineNumberSwitch()<CR>
 
+nnoremap    <Leader>c       :let &cursorcolumn = !&cursorcolumn<CR>
+
 " quick toggle laststatus between 1 and 2
 " nnoremap    <silent> <Leader>t :let &laststatus = (&laststatus % 2) + 1<CR>
 
