@@ -3845,7 +3845,7 @@ inoremap <expr> <Leader>ip      Symbols['interpunct']
 inoremap <expr> <Leader>lz      Symbols['lozenge']
 inoremap <expr> <Leader>dg      Symbols['dagger']
 inoremap <expr> <Leader>sc      Symbols['silcrow']
-inoremap <expr> <Leader>nt      Symbols['not']
+
 " 2022-08-26
 inoremap <expr> <Leader>mm      Symbols['em dash']
 inoremap <expr> <Leader>nn      Symbols['en dash']
