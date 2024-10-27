@@ -2562,23 +2562,28 @@ function! UserColoursPrelude()
     " background. unset COLORFGBG/COLORTERM and why not even TERM when starting
     " gvim.
 
-    if has('win32')
-        " 2024-05-21 mostly using dark termins in windows now.
-        if has('gui_running')
-            set background=light
-        endif
+    if has('win32') && has('gui_running')
+        set background=light
     endif
 
     " enable termguicolors only if must - keep tgc off in ttys that support
     " indexed colors. tgc doesn't apply to the tty cursor.
 
-    if !l:done && has('termguicolors') && &term =~# '-direct$'
-        " xterm-direct / tmux-direct
-        set termguicolors
-        let l:done = 1
+    if !l:done && has('termguicolors')
+        if &term =~# '-direct$'
+            " xterm-direct / tmux-direct
+            set termguicolors
+            let l:done = 1
+        elseif has('win32') && &term == 'win32'
+            " contemporary conhost/wt seems to depend on desire for rgb colors?
+            " t_Co stays at 256.
+            set background=dark
+            set termguicolors
+            let l:done = 1
+        endif
     endif
 
-    " could also enable tgc for PuTTY; seems default on now. but
+    " could also enable tgc for PuTTY; PuTTY enables it by default. but
     " terminfo/termcap might not have caught up yet.
 
     " forcing t_Co to 16 in the linux console works, but not under screen.
