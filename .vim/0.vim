@@ -2197,7 +2197,7 @@ endfunction
 
 function! UserFillcharsBlocky() abort
     let l:fcs = {}
-    let l:fcs.vert = '|'
+    let l:fcs.vert = nr2char(0x2502)    " BOX DRAWINGS LIGHT VERTICAL
     let l:fcs.stl = 'NONE'
     let l:fcs.stlnc = 'NONE'
     let &fillchars = UserFillchars(l:fcs)
@@ -3775,7 +3775,7 @@ nmap            s           <C-w>
 " can't use the current buffer number in a command definition?
 "
 " sbuffer always reuses existing windows/tab pages.
-command -bar -addr=buffers -count=0 BufTab
+command -bar -count=0 BufTab
             \ if <count> == 0 || <count> == bufnr('%') | tab split
             \ | else | tab <count>sbuffer
             \ | endif
@@ -4622,11 +4622,17 @@ if has('win32') || has('gui_running')
     call UserSetGuicursor()
 endif
 " disable application keypad mode; default enabled in PuTTY, default off in
-" xterm.
-set t_ks= t_ke=
+" xterm - set t_ks= t_ke= , vim7 seems to need it for arrow keys.
 if has('gui_running')
     call UserSetGuifont()
     FnDef
+    " make iosevka-fixed boxed-drawings-light-vertical-s touch
+    if !has('win32')
+        set linespace=-2
+    endif
+endif
+if !g:u.term_primitive
+    let &fillchars = UserFillchars({ 'vert': nr2char(0x2502) })
 endif
 
 " ~ fini ~
