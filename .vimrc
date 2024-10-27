@@ -1,4 +1,4 @@
-" Last-Modified: 2023-11-29T15:52:52.91296010+00:00
+" Last-Modified: 2024-10-25T18:30:39.522272931+00:00
 " vim:set tw=80 noml:
 set nocompatible
 set secure encoding=utf-8 fileencoding=utf-8 nobomb
@@ -42,8 +42,6 @@ nnoremap    ,U   <Nop>
 set listchars=conceal:?,extends:>,nbsp:!,precedes:<,tab:\ \ ,trail:_
 
 set noloadplugins
-
-command -range WRCB     silent <line1>,<line2>:w !/usr/bin/xsel -b -i
 
 " don't confuse tiny vim (-eval), can't test with older vims.
 if version >= 704

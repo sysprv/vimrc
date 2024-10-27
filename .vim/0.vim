@@ -486,14 +486,6 @@ let g:u = {}
 " U+21B3 - DOWNWARDS ARROW WITH TIP RIGHTWARDS
 let g:u.showbreak_char = '↳'
 
-let g:u.has_x11 = exists('$DISPLAY')
-" plus works with tty vim if built with X11; opensuse 'vim' is actually gvim -v.
-" vim-nox11 isn't built with X11.
-let g:u.has_cb_builtin = has('gui_running') || has('win32') ||
-            \ (has('X11') && g:u.has_x11)
-let g:u.has_cb_tty = !g:u.has_cb_builtin &&
-            \ has('unix') && g:u.has_x11 && executable('/usr/bin/xsel')
-
 let g:u.term_primitive = 1
 " test: env -u DISPLAY TERM=linux vim
 "
@@ -502,9 +494,7 @@ let g:u.term_primitive = 1
 "
 " for a toplevel $TERM, if screen.$TERM exists, screen seems to set term to
 " that.
-if g:u.has_x11
-    let g:u.term_primitive = 0
-elseif has('gui_running')
+if exists('$DISPLAY') || exists('$WAYLAND_DISPLAY') || has('gui_running')
     let g:u.term_primitive = 0
 elseif &term =~# '\v^%(screen\.)?%(xterm|putty|rxvt-unicode)'
     let g:u.term_primitive = 0
@@ -3372,94 +3362,91 @@ xnoremap <silent> <Leader>k     gw
 " https://github.com/inkarkat/vim-UnconditionalPaste
 " https://github.com/tpope/vim-unimpaired/blob/master/plugin/unimpaired.vim
 
-" write a string to the clipboard.
-"
-" works for both gui and tty (@+ or xsel).
-
-function! UserWrCb(txt, destination)
-    if a:txt == '' | return | endif
-
-    " default destination - CLIPBOARD
-    let l:dest_reg = '+'
-    let l:dest_cmd = '/usr/bin/xsel -b -i'
-    if a:destination ==# 'PRIMARY'
-        let l:dest_reg = '*'
-        let l:dest_cmd = '/usr/bin/xsel -p -i'
-    endif
-
-    if g:u.has_cb_builtin
-        " vim automatically sets regtype v or V (latter if the string ends
-        " with a newline)
-        call setreg(l:dest_reg, a:txt)
-    elseif g:u.has_cb_tty
-        silent call system(l:dest_cmd, a:txt)
-        if v:shell_error
-            echohl Error
-            echo 'xsel invocation failed, code' v:shell_error
-            echohl None
-        endif
-    else
-        echohl Error
-        echo 'do not know how to write to' a:destination
-        echohl None
-    endif
-endfunction
-
-
-" return a register name, like v:register.
-function! UserGetCbReg(...) abort
-    " by default, work with the X CLIPBOARD
-    let l:src = 'CLIPBOARD'
-    let l:src_reg = '+'
-    let l:src_cmd = '/usr/bin/xsel -b -o'
-    let l:result = { 'status': -1, 'reg': '_' }
-    let l:bounce_reg = 'w'
-
-    if len(a:000) > 0 && a:1 ==# 'PRIMARY'
-        let l:src = 'PRIMARY'
-    endif
-    if l:src ==# 'PRIMARY'
-        let l:src_reg = '*'
-        let l:src_cmd = '/usr/bin/xsel -p -o'
-    endif
-
-    if g:u.has_cb_builtin
-
-        " 2023-08-18 never use line mode; when pasting data from other
-        " applications through the clipboard into vim in insert mode, putting
-        " it above the current line is very annoying.
-        "
-        " instead of setting + again to change the mode from line to char, we
-        " pass it through a different register.
-        "
-        " too bad pasting's so complicated.
-        "
-        " 2024-03-05 preserve reg mode, no more bounce reg.
-
-        let l:result = { 'reg': l:src_reg, 'status': 0 }
-    elseif g:u.has_cb_tty
-        silent let l:clp = system(l:src_cmd)
-        " put shell status in a register
-        let @n = v:shell_error
-        if v:shell_error
-            echohl Error
-            echo 'xsel invocation failed, code' v:shell_error
-            echohl None
-
-            let l:result = { 'status': -2 }
+function! UserGetClipboardStrategy(...) abort
+    let l:result = {}
+    if has('win32')
+        let l:result = { 'mode': 'native', 'reg': '+' }
+    elseif has('gui_running') && !exists('$GVIM_ENABLE_WAYLAND')
+        if len(a:000) > 0 && a:1 ==# 'PRIMARY'
+            let l:result = { 'mode': 'native', 'reg': '*' }
         else
-            " put into a register, return register name
-            call setreg(l:bounce_reg, l:clp)
-            let l:result = { 'reg': l:bounce_reg, 'status': 0 }
+            let l:result = { 'mode': 'native', 'reg': '+' }
+        endif
+    elseif exists('$WAYLAND_DISPLAY')
+        " 2024-10-23 "* / "+ don't work with wayland yet
+        let l:result = { 'mode': 'cmd', 'reg': 'w',
+                    \ 'read_cmd': '/usr/bin/wl-paste --no-newline',
+                    \ 'write_cmd': '/usr/bin/wl-copy'
+                    \ }
+    elseif exists('$DISPLAY')
+        if len(a:000) > 0 && a:1 ==# 'PRIMARY'
+            let l:result = { 'mode': 'cmd', 'reg': 'w',
+                        \ 'read_cmd': '/usr/bin/xsel -p -o',
+                        \ 'write_cmd': '/usr/bin/xsel -p -i'
+                        \ }
+        else
+            let l:result = { 'mode': 'cmd', 'reg': 'w',
+                        \ 'read_cmd': '/usr/bin/xsel -b -o',
+                        \ 'write_cmd': '/usr/bin/xsel -b -i'
+                        \ }
         endif
     else
-        echohl Error
-        echo 'do not know how to read from' l:src
-        echohl None
-
-        let l:result = { 'status': -3 }
+        let l:result = { 'mode': 'native', 'reg': 'w' }
     endif
     return l:result
+endfunction
+
+function! UserReadClipboard(...) abort
+    let l:st = call('UserGetClipboardStrategy', a:000)
+    let l:result = {}
+
+    if l:st.mode ==# 'native'
+        let l:result = { 'reg': l:st.reg, 'status': 0 }
+    elseif l:st.mode ==# 'cmd'
+        let l:cmd = l:st.read_cmd
+        silent let l:clp = system(l:cmd)
+        let l:shell_error = v:shell_error
+        if l:shell_error
+            echohl WarningMsg
+            echo 'clipboard: ' . l:cmd . ' failed, status ' . l:shell_error
+            echohl None
+            let l:result = { 'status': l:shell_error }
+        else
+            call setreg(l:st.reg, l:clp)
+            let l:result = { 'reg': l:st.reg, 'status': 0 }
+        endif
+    else
+        echohl WarningMsg
+        echo "don't know how to paste"
+        echohl None
+        let l:result = { 'status': -1 }
+    endif
+
+    return l:result
+endfunction
+
+function! UserWriteClipboard(txt, ...) abort
+    if a:txt == ''
+        return
+    endif
+
+    let l:st = call('UserGetClipboardStrategy', a:000)
+    if l:st.mode ==# 'native'
+        call setreg(l:st.reg, a:txt)
+    elseif l:st.mode ==# 'cmd'
+        let l:cmd = l:st.write_cmd
+        silent call system(l:cmd, a:txt)
+        let l:shell_error = v:shell_error
+        if l:shell_error
+            echohl WarningMsg
+            echo 'clipboard: ' . l:cmd . ' failed, status ' . l:shell_error
+            echohl None
+        endif
+    else
+        echohl WarningMsg
+        echo "don't know how to yank"
+        echohl None
+    endif
 endfunction
 
 " used for copying the current command line to the clipboard. requires a
@@ -3469,27 +3456,12 @@ endfunction
 "
 " swallows errors.
 
-function! UserTeeCmdLineCb(destination)
+function! UserTeeCmdLineCb() abort
     let l:cmdl = getcmdline()
-    " also put in the unnamed register, as a yank would.
-    " call setreg('', l:cmdl)
-
-    if a:destination ==# 'PRIMARY' || a:destination ==# 'CLIPBOARD'
-        try
-            call UserWrCb(l:cmdl, a:destination)
-        catch
-            " ignored - we don't want to put any error messages in the command
-            " line.
-        endtry
-    elseif a:destination == '_"w'
-        call setreg('w', l:cmdl)
-    endif
-
+    silent call UserWriteClipboard(l:cmdl)
     return l:cmdl
 endfunction
 
-" works for both gui and tty since UserGetCbReg() does (@+ or xsel).
-"
 " test:
 "   put a single char on column 1,
 "   in normal mode, with cursor on char, pasting a line (end nl)
@@ -3530,8 +3502,8 @@ endfunction
 
 " a little helper for tty + xsel
 function! UserReadCbRetExpr(p_opt) abort
-    let l:reg = UserGetCbReg()
-    if l:reg.status < 0
+    let l:reg = UserReadClipboard()
+    if l:reg.status != 0
         return "\<Ignore>"
     endif
 
@@ -3563,50 +3535,43 @@ endfunction
 " 2024-03-07 gp/gP's too long. add explicit mappings, always g.
 "
 
-if g:u.has_cb_builtin || g:u.has_cb_tty
-    nnoremap    <expr>  <Leader>xp  UserReadCbRetExpr("gp")
-    nnoremap    <expr>  <Leader>xP  UserReadCbRetExpr("gP")
+nnoremap    <expr>  <Leader>p   UserReadCbRetExpr("gp")
+nnoremap    <expr>  <Leader>P   UserReadCbRetExpr("gP")
 
-    " visual mode paste - never needed it.
+" visual mode paste - never needed it.
 
-    " command mode paste - dangerous, but tty mappings and <C-r>+ etc.
-    " work anyway. defined for completeness and consistency.
-    "
-    " cannot be a silent mapping.
-    "
-    " literal insert - doc: c_CTRL-R_CTRL-R
+" command mode paste - dangerous, but tty mappings and <C-r>+ etc. work anyway.
+" defined for completeness and consistency.
+"
+" cannot be a silent mapping.
+"
+" literal insert - doc: c_CTRL-R_CTRL-R
 
-    cnoremap    <expr>  <Leader>xp  "\<C-r>\<C-r>" . UserGetCbReg().reg
-    cnoremap            <Leader>xP  <Nop>
+cnoremap    <expr>  <Leader>p   "\<C-r>\<C-r>" . UserReadClipboard().reg
+cnoremap            <Leader>P   <Nop>
 
-    cnoremap            <Leader>y   <C-\>eUserTeeCmdLineCb('CLIPBOARD')<cr>
-else    " no gui, fallback to an arbitrary register (w), leaving unnamed alone
-    nnoremap            <Leader>xp  "wgp
-    nnoremap            <Leader>xP  "wgP
+cnoremap            <Leader>y   <C-\>eUserTeeCmdLineCb()<cr>
 
-    cnoremap            <Leader>xp  <C-r><C-r>w
-    cnoremap            <Leader>xP  <Nop>
+" trim-select with visual mode:
+"   m` - set previous context mark,
+"   ^ - go to first non-blank char,
+"   v - visual,
+"   g_ - go to last non-blank char,
+"   y - yank
+"       this moves the cursor.
+"       https://github.com/vim/vim/blob/master/runtime/doc/change.txt
+"       /Note that after a characterwise yank command
+"   `` - jump back
+"   and pass the unnamed register contents to the X11 selection.
+nnoremap    <expr>  <Leader>y   'm`^vg_"wy``:call UserWriteClipboard(@w)<CR>'
+xnoremap            <Leader>y   m`"wy``:call UserWriteClipboard(@w)<CR>
 
-    nnoremap            <Leader>y   m`^vg_"wy``
-    xnoremap            <Leader>y   m`"wy``
-    cnoremap            <Leader>y   <C-\>eUserTeeCmdLineCb('_"w')<cr>
-endif
-
-nmap        <Leader>p           <Leader>xp
-nmap        <Leader>P           <Leader>xP
 " insert mode paste - still waits for the final p-like keypress but we always
 " want gP.
-imap        <Leader>xp      <C-\><C-o><Leader>xp
-imap        <Leader>xP      <C-\><C-o><Leader>xP
-imap        <Leader>p       <Leader>xp
-imap        <Leader>P       <Leader>xP
+imap        <Leader>p       <C-\><C-o><Leader>p
+imap        <Leader>P       <C-\><C-o><Leader>P
 
-cmap        <Leader>p       <Leader>xp
-cmap        <Leader>P       <Leader>xP
-
-
-
-if g:u.has_cb_builtin
+if has('gui_running') || has('win32')
 
     " paste in gui mode with <C-[S-]v>.
 
@@ -3636,86 +3601,31 @@ if g:u.has_cb_builtin
     nmap    <C-S-v>         <Leader>p
     imap    <C-S-v>         <Leader>p
     cmap    <C-S-v>         <Leader>p
+
+    nmap    <C-Insert>      <Leader>y
+    xmap    <C-Insert>      <Leader>y
+    cmap    <C-Insert>      <Leader>y
+    nmap    <C-kInsert>     <Leader>y
+    xmap    <C-kInsert>     <Leader>y
+    cmap    <C-kInsert>     <Leader>y
+    nmap    <C-S-c>         <Leader>y
+    xmap    <C-S-c>         <Leader>y
+
+    " no C-c / C-S-c for the command window.
 endif
 
-if g:u.has_cb_builtin
-    " gui vim any platform, or win32 including console
-    "
-    " linewise read from PRIMARY/CLIPBOARD - without bouncing through another
-    " register
-    command -bang   RDPR    put<bang>   *
-    command -bang   RDCB    put<bang>   +
-elseif g:u.has_cb_tty
-    " xsel
-    command -bang   RDPR    execute "put<bang>" UserGetCbReg('PRIMARY').reg
-    command -bang   RDCB    execute "put<bang>" UserGetCbReg('CLIPBOARD').reg
-endif
+" lovely/awful {repl} scanning of angle bracket sequences to reduce
+" concatenation...
 
+command -bang RDPR call UserReadClipboard('PRIMARY')
+            \ | execute "put<bang>" UserGetClipboardStrategy('PRIMARY').reg
+command -bang RDCB call UserReadClipboard()
+            \ | execute "put<bang>" UserGetClipboardStrategy().reg
 
-" yank mappings - copying from vim; separate definitions for tty vs. gui - write
-" to the clipboard in whatever way works best.
+command -bar -range Yank    <line1>,<line2>y w
 
-if g:u.has_cb_builtin
-    " normal mode, copy current line - this includes the last newline,
-    " makes unnamedplus linewise.
-    "
-    " for details see ,y mapping for ttys below.
-    nnoremap        <Leader>y   m`^vg_"+y``
-
-    " write linewise to PRIMARY
-    command! -range WRPR    <line1>,<line2>y *
-    " write linewise to CLIPBOARD
-    command! -range WRCB    <line1>,<line2>y +
-
-    " visual mode, copy selection, not linewise; doc: v_zy
-    " zy and zp are rather new, not in iVim yet.
-    xnoremap    <silent>    <Leader>y   "+y
-
-    cnoremap    <Leader>y   <C-\>eUserTeeCmdLineCb('CLIPBOARD')<cr>
-
-    if has('gui_running')
-        nmap    <C-Insert>      <Leader>y
-        xmap    <C-Insert>      <Leader>y
-        cmap    <C-Insert>      <Leader>y
-        nmap    <C-kInsert>     <Leader>y
-        xmap    <C-kInsert>     <Leader>y
-        cmap    <C-kInsert>     <Leader>y
-        nmap    <C-S-c>         <Leader>y
-        xmap    <C-S-c>         <Leader>y
-
-        " no C-c / C-S-c for the command window.
-    endif
-elseif g:u.has_cb_tty
-
-    " trim-select with visual mode:
-    "   m` - set previous context mark,
-    "   ^ - go to first non-blank char,
-    "   v - visual,
-    "   g_ - go to last non-blank char,
-    "   y - yank
-    "       this moves the cursor.
-    "       https://github.com/vim/vim/blob/master/runtime/doc/change.txt
-    "       /Note that after a characterwise yank command
-    "   `` - jump back
-    "   and pass the unnamed register contents to the X11 selection.
-    nnoremap    <silent>    <Leader>y   m`^vg_y``:call UserWrCb(@", 'CLIPBOARD')<cr>
-
-    " define an ex command that takes a range and pipes to xsel
-    " doc :write_c
-    "R use: :.,+10WRCB
-    command -range WRPR     silent <line1>,<line2>:w !/usr/bin/xsel -p -i
-    command! -range WRCB     silent <line1>,<line2>:w !/usr/bin/xsel -b -i
-
-    " for the visual selection (not necessarily linewise).
-    " yank, then [in normal mode] pass the anonymous register
-    " to the X11 selection.
-    xnoremap    <silent>    <Leader>y   m`y``:call UserWrCb(@", 'CLIPBOARD')<cr>
-
-    " copy the current command line.
-    " doc: getcmdline()
-    cnoremap                <Leader>y   <C-\>eUserTeeCmdLineCb('CLIPBOARD')<cr>
-endif
-
+command -range WRPR <line1>,<line2>Yank | call UserWriteClipboard(@w, 'PRIMARY')
+command -range WRCB <line1>,<line2>Yank | call UserWriteClipboard(@w)
 
 " visually select the last modified (including pasted) text
 "nnoremap    <Leader>lp      `[v`]
