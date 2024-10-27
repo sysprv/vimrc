@@ -18,6 +18,7 @@ function! ColorOverrideIceberg() abort
 
     " Normal tty - use terminal (emulator) colours.
     highlight Normal ctermfg=NONE ctermbg=NONE cterm=NONE
+    highlight link Terminal Normal
     if &background ==# 'light'
         " guifg: pantone 19-4052 tcx classic blue
         highlight Normal guifg=#0f4c81 guibg=#f3f3f3
