@@ -1613,19 +1613,16 @@ python3 << PYEOF
 import unicodedata
 import vim
 
-# the curses.ascii module is often missing on non-unix platforms, for
-# no good reason. included inline here.
+# the curses.ascii module isn't present on non-unix platforms, for no good
+# reason. included inline here.
 
-# begine most of python 3.10 curses.ascii
-
-"""Constants and membership tests for ASCII characters"""
-
+# begine some of python 3.11 curses.ascii
 controlnames = [
-    "NUL", "SOH", "STX", "ETX", "EOT", "ENQ", "ACK", "BEL",
-    "BS",  "HT",  "LF",  "VT",  "FF",  "CR",  "SO",  "SI",
-    "DLE", "DC1", "DC2", "DC3", "DC4", "NAK", "SYN", "ETB",
-    "CAN", "EM",  "SUB", "ESC", "FS",  "GS",  "RS",  "US",
-    "SP"
+"NUL", "SOH", "STX", "ETX", "EOT", "ENQ", "ACK", "BEL",
+"BS",  "HT",  "LF",  "VT",  "FF",  "CR",  "SO",  "SI",
+"DLE", "DC1", "DC2", "DC3", "DC4", "NAK", "SYN", "ETB",
+"CAN", "EM",  "SUB", "ESC", "FS",  "GS",  "RS",  "US",
+"SP"
 ]
 
 def _ctoi(c):
@@ -1634,40 +1631,8 @@ def _ctoi(c):
     else:
         return c
 
-def isalnum(c): return isalpha(c) or isdigit(c)
-def isalpha(c): return isupper(c) or islower(c)
-def isascii(c): return 0 <= _ctoi(c) <= 127          # ?
-def isblank(c): return _ctoi(c) in (9, 32)
-def iscntrl(c): return 0 <= _ctoi(c) <= 31 or _ctoi(c) == 127
-def isdigit(c): return 48 <= _ctoi(c) <= 57
-def isgraph(c): return 33 <= _ctoi(c) <= 126
-def islower(c): return 97 <= _ctoi(c) <= 122
 def isprint(c): return 32 <= _ctoi(c) <= 126
-def ispunct(c): return isgraph(c) and not isalnum(c)
-def isspace(c): return _ctoi(c) in (9, 10, 11, 12, 13, 32)
-def isupper(c): return 65 <= _ctoi(c) <= 90
-def isxdigit(c): return isdigit(c) or \
-    (65 <= _ctoi(c) <= 70) or (97 <= _ctoi(c) <= 102)
 def isctrl(c): return 0 <= _ctoi(c) < 32
-def ismeta(c): return _ctoi(c) > 127
-
-def ascii(c):
-    if type(c) == type(""):
-        return chr(_ctoi(c) & 0x7f)
-    else:
-        return _ctoi(c) & 0x7f
-
-def ctrl(c):
-    if type(c) == type(""):
-        return chr(_ctoi(c) & 0x1f)
-    else:
-        return _ctoi(c) & 0x1f
-
-def alt(c):
-    if type(c) == type(""):
-        return chr(_ctoi(c) | 0x80)
-    else:
-        return _ctoi(c) | 0x80
 
 def unctrl(c):
     bits = _ctoi(c)
@@ -1680,8 +1645,7 @@ def unctrl(c):
     if bits & 0x80:
         return "!" + rep
     return rep
-
-# end python 3.10 curses.ascii
+# end curses.ascii
 
 screen_char = vim.eval('a:screen_char')
 
