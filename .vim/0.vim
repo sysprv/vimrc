@@ -2538,11 +2538,12 @@ function! UserColoursPrelude()
             " xterm-direct / tmux-direct
             set termguicolors
             let l:done = 1
-        elseif has('win32') && &term == 'win32'
+        elseif has('vcon') && &term ==# 'win32'
             " contemporary conhost/wt seems to depend on desire for rgb colors?
             " t_Co stays at 256.
+            "
             set background=dark
-            set termguicolors
+            set termguicolors t_ut=     " don't use BCE - must be set after tgc
             let l:done = 1
         endif
     endif
