@@ -3607,11 +3607,17 @@ command -range WRCB <line1>,<line2>Yank | call UserWriteClipboard(@w)
 "
 " maybe: redo as a filter called inside UserGetCbReg().
 
-function! UserUrlPasteMunge()
+function! UserUrlPasteMunge() abort
     let l:ve = &virtualedit
     set virtualedit=onemore
 
-    RDCB!
+    try
+        RDCB!
+    catch /^Vim\%((\a\+)\)\=:E353:/
+        echom 'nothing in clipboard'
+        return
+    endtry
+
     normal! $l
 
     " search backwards, from past eol
