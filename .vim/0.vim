@@ -1,4 +1,4 @@
-" Last-Modified: 2024-10-14T17:26:18.580410850+00:00
+" Last-Modified: 2024-11-14T00:31:23.9500325+00:00
 
 " vim:set tw=80 noml:
 set secure encoding=utf-8 fileencoding=utf-8 nobomb
@@ -10,6 +10,30 @@ endif
 
 " Change log:
 "
+" 2024-11-14 Multiple changes
+"
+"   Cleanup commenting and uncommenting; no space after prefix, use comment pack
+"   when available.
+"
+"   Centralise swap files again, now matches undo files.
+"
+"   shortmess - restore 'S' (don't show search count)
+"
+"   viminfo - don't save registers
+"
+"   Pasting - cleanup register usage, clear register if clipboard is empty or or
+"   clipboard reading command errors out.
+"
+"   Cleanup yank mappings
+"
+"   normal mode mappints for w/W to use head of word characters, clear search
+"   history.
+"
+"   cleanup echomsg / warn usage and len() 0 / empty() usage.
+"
+"   tmp files and persistent undo - lean on backupskip patterns.
+"
+
 " 2024-09-30 Paste/copy fixes and adjustments - ,p without a gui clipboard - use
 " a separate register, don't fallback to unnamed.
 "
@@ -307,6 +331,9 @@ endif
 
 " \V - very nomagic.
 
+" vim user command definitions have extra arguments for bracketed attributes
+" like <bang> so than an extra viml string concatenation is unnecessary.
+
 " -- end tips
 "
 
@@ -375,6 +402,10 @@ if v:version >= 900
         set loadplugins
     endif
     packadd matchit
+    if has('patch-9.1.0375')
+        " for gc / gcc
+        packadd comment
+    endif
 endif
 if &loadplugins
     set noloadplugins
@@ -517,7 +548,11 @@ endif
 " the way 'directory' does.
 " but no file extension's added for such files, unlike for swap files (.swp
 " is added even for centralised swap files.) inconsistent for no reason.
-let g:u.undo_dir = expand('~/.vim/var/un')
+"
+" 2024-11-10 undodir - double-slash isn't required at the end. inconsistent.
+let g:u.undo_dir = expand('~/.vim/var/un//')
+
+let g:u.swap_dir = expand('~/.vim/var/swap//')
 
 if !exists('$PARINIT')
     let $PARINIT = "rTbgqR B=.,?'_A_a_@ Q=_s>|#"
@@ -594,7 +629,12 @@ endfunction
 " version5.txt:3726 /New variation for naming swap files:/
 "
 " unlike persistent undo files, swap files are well-behaved (start with .).
-" leave them in the default place (current dir).
+"
+" not great to keep swapfiles on onedrive; not great to not be able to share
+" swap files and undo files either.
+call UserMkdirOnce(g:u.swap_dir)
+let &directory = g:u.swap_dir
+
 "
 " leave swapfile at the default (on).
 set updatecount=10
@@ -613,9 +653,12 @@ endif
 "
 "   F - requires patch-7.4.1570; https://github.com/vim/vim/pull/686
 "
-"   S (searchcount()) - requires patch-8.1.1270;
+"   S (searchcount()) - requires patch-8.1.1270; nice for explicit search, not
+"   so much when search is used in mappings. S is present in shm by default,
+"   keep it that way.
+"
 "   https://github.com/vim/vim/pull/4317
-set shortmess=filmnrwxoOtWI
+set shortmess+=filmnrwxoOtWI
 " hide ins-complete-menu messages
 if has('patch-7.4.314')
     set shortmess+=c
@@ -732,8 +775,8 @@ if exists('&modelineexpr')
     set nomodelineexpr
 endif
 
-" viminfo: don't save registers.
-set viminfo='100,<0,s0,h,r/tmp
+" viminfo: don't save registers, search pattern history.
+set viminfo=/0,'100,<0,s0,h,r/tmp
 if exists('$TMPDIR') && ($TMPDIR !=# '/tmp')
     execute 'set viminfo+=r' . $TMPDIR
 endif
@@ -2805,7 +2848,7 @@ function! UserSpoolEx(cmd)
     catch /^Vim\%((\a\+)\)\=:E/
         " echoerr throws; messy.
         echohl Error
-        echom 'unexpected error' v:exception
+        echomsg 'unexpected error' v:exception
         echohl None
     finally
         if l:close
@@ -2842,9 +2885,8 @@ function! UserPreviewBufferList() abort
     let l:bufnr = bufnr(l:lookupname)
     if l:bufnr != -1 && bufloaded(l:bufnr) && getbufvar(l:bufnr, '&buftype') == ''
         echohl Error
-        echo "can't modify regular buffer" l:bufnr
+        echomsg 'cannot modify regular buffer' l:bufnr
         echohl None
-        return
     endif
 
     " would be good if pedit could work with buffer numbers
@@ -3337,7 +3379,7 @@ function! UserGetClipboardStrategy(...) abort
     if has('win32')
         let l:result = { 'mode': 'native', 'reg': '+' }
     elseif has('gui_running') && !exists('$GVIM_ENABLE_WAYLAND')
-        if len(a:000) > 0 && a:1 ==# 'PRIMARY'
+        if !empty(a:000) && a:1 ==# 'PRIMARY'
             let l:result = { 'mode': 'native', 'reg': '*' }
         else
             let l:result = { 'mode': 'native', 'reg': '+' }
@@ -3349,7 +3391,7 @@ function! UserGetClipboardStrategy(...) abort
                     \ 'write_cmd': '/usr/bin/wl-copy'
                     \ }
     elseif exists('$DISPLAY')
-        if len(a:000) > 0 && a:1 ==# 'PRIMARY'
+        if !empty(a:000) && a:1 ==# 'PRIMARY'
             let l:result = { 'mode': 'cmd', 'reg': 'w',
                         \ 'read_cmd': '/usr/bin/xsel -p -o',
                         \ 'write_cmd': '/usr/bin/xsel -p -i'
@@ -3366,6 +3408,21 @@ function! UserGetClipboardStrategy(...) abort
     return l:result
 endfunction
 
+" takes a register name, returns the same register name or _, the black hole
+" register
+function! UserGetClearedReg(reg) abort
+    try
+        " clear register
+        call setreg(a:reg, [])
+        return a:reg
+    catch /^Vim\%((\a\+)\)\=:E730:/
+        " just for vim7 (< patch-7.4.243?) - no way to unset a register in a way
+        " that reading the register would raise E353: Nothing in register x.
+        return '_'
+    endtry
+endfunction
+
+
 function! UserReadClipboard(...) abort
     let l:st = call('UserGetClipboardStrategy', a:000)
     let l:result = {}
@@ -3378,25 +3435,34 @@ function! UserReadClipboard(...) abort
         let l:shell_error = v:shell_error
         if l:shell_error
             echohl WarningMsg
-            echo 'clipboard: ' . l:cmd . ' failed, status ' . l:shell_error
+            echomsg 'clipboard: ' . l:cmd . ' failed, status ' . l:shell_error
             echohl None
-            let l:result = { 'status': l:shell_error }
+
+            let l:clear_reg = UserGetClearedReg(l:st.reg)
+            let l:result = { 'reg': l:clear_reg, 'status': l:shell_error }
         else
-            call setreg(l:st.reg, l:clp)
-            let l:result = { 'reg': l:st.reg, 'status': 0 }
+            if !empty(l:clp)
+                call setreg(l:st.reg, l:clp)
+                let l:result = { 'reg': l:st.reg, 'status': 0 }
+            else
+                " empty clipboard
+                let l:clear_reg = UserGetClearedReg(l:st.reg)
+                let l:result = { 'reg': l:clear_reg, 'status': 0 }
+            endif
         endif
     else
         echohl WarningMsg
-        echo "don't know how to paste"
+        echomsg 'do not know how to paste'
         echohl None
-        let l:result = { 'status': -1 }
+
+        let l:result = { 'reg': '_', 'status': -1 }
     endif
 
     return l:result
 endfunction
 
 function! UserWriteClipboard(txt, ...) abort
-    if a:txt == ''
+    if empty(a:txt)
         return
     endif
 
@@ -3409,12 +3475,12 @@ function! UserWriteClipboard(txt, ...) abort
         let l:shell_error = v:shell_error
         if l:shell_error
             echohl WarningMsg
-            echo 'clipboard: ' . l:cmd . ' failed, status ' . l:shell_error
+            echomsg 'clipboard: ' . l:cmd . ' failed, status ' . l:shell_error
             echohl None
         endif
     else
         echohl WarningMsg
-        echo "don't know how to yank"
+        echomsg "do not know how to yank"
         echohl None
     endif
 endfunction
@@ -3471,15 +3537,10 @@ endfunction
 "endfunction
 
 " a little helper for tty + xsel
-function! UserReadCbRetExpr(p_opt) abort
-    let l:reg = UserReadClipboard()
-    if l:reg.status != 0
-        return "\<Ignore>"
-    endif
-
-    " the following makes an expression like: "<reg>
-    " let l:expr = '"' . l:reg.reg . UserPasteExpr()
-    let l:expr = '"' . l:reg.reg . a:p_opt
+function! UserReadCbRetExpr(p_opt, ...) abort
+    let l:clp = call('UserReadClipboard', a:000)
+    " the following makes an expression like: "<reg>gp
+    let l:expr = '"' . l:clp.reg . a:p_opt
     return l:expr
 endfunction
 
@@ -3505,6 +3566,8 @@ endfunction
 " 2024-03-07 gp/gP's too long. add explicit mappings, always g.
 "
 
+nnoremap    <expr>  <Leader>r   UserReadCbRetExpr('gp', 'PRIMARY')
+nnoremap    <expr>  <Leader>R   UserReadCbRetExpr('gP', 'PRIMARY')
 nnoremap    <expr>  <Leader>p   UserReadCbRetExpr("gp")
 nnoremap    <expr>  <Leader>P   UserReadCbRetExpr("gP")
 
@@ -3533,8 +3596,8 @@ cnoremap            <Leader>y   <C-\>eUserTeeCmdLineCb()<cr>
 "       /Note that after a characterwise yank command
 "   `` - jump back
 "   and pass the unnamed register contents to the X11 selection.
-nnoremap    <expr>  <Leader>y   'm`^vg_"wy``:call UserWriteClipboard(@w)<CR>'
-xnoremap            <Leader>y   m`"wy``:call UserWriteClipboard(@w)<CR>
+nnoremap    <Leader>y       m`^vg_"wy``:call UserWriteClipboard(@w)<CR>
+xnoremap    <Leader>y       m`"wy``:call UserWriteClipboard(@w)<CR>
 
 " insert mode paste - still waits for the final p-like keypress but we always
 " want gP.
@@ -3584,13 +3647,18 @@ if has('gui_running') || has('win32')
     " no C-c / C-S-c for the command window.
 endif
 
-" lovely/awful {repl} scanning of angle bracket sequences to reduce
-" concatenation...
+function! UserPutClipboard(bang, ...) abort
+    let l:clp = call('UserReadClipboard', a:000)
+    " skip the :put if reg has no content/clipboard is empty -
+    " don't create empty lines.
+    if l:clp.status == 0 && l:clp.reg !=# '_'
+        execute 'put' . a:bang l:clp.reg
+    endif
+endfunction
 
-command -bang RDPR call UserReadClipboard('PRIMARY')
-            \ | execute "put<bang>" UserGetClipboardStrategy('PRIMARY').reg
-command -bang RDCB call UserReadClipboard()
-            \ | execute "put<bang>" UserGetClipboardStrategy().reg
+" <bang> in quotes - should expand to either "" or "!"
+command -bang RDPR  call UserPutClipboard("<bang>", 'PRIMARY')
+command -bang RDCB  call UserPutClipboard("<bang>")
 
 command -bar -range Yank    <line1>,<line2>y w
 
@@ -3896,6 +3964,21 @@ nnoremap    <silent> <C-n>  :put _<CR>
 " mnemonic: gxk -> g expand korn
 nnoremap        gxk     viwo<Esc>i"${<Esc>ea[@]}"<Esc>
 
+" https://www.reddit.com/r/vim/comments/4aab93/comment/d0z0kyj/
+"
+" preserving @/ (search reg) is messy here, but not restoring "/ means you can
+" use 'n'; go to visual mode and n n n f.ex.
+"
+" instead, we remove \<\h from the search history the next time we do a search
+" (including use of this very mapping).
+"
+" modifying iskeyword doesn't help; 'w' still considers empty lines.
+
+nnoremap        w       /\<\h<CR>
+nnoremap        W       ?\<\h<CR>
+
+command         FixSearchHistory    call histdel('search', '^\\<\\h$')
+
 " -- ~ eof-map ~ end of most mapping definitions
 
 if !has('gui_running')
@@ -4030,7 +4113,7 @@ command -bar FoCode  setlocal
 function! UserTextIndent()
     let l:lnk2 = v:lnum - 2
     let l:lnk1 = v:lnum - 1
-    if v:lnum >= 2 && len(getline(l:lnk2)) == 0
+    if v:lnum >= 2 && empty(getline(l:lnk2))
         let l:lnk1ind = indent(l:lnk1)
         if l:lnk1ind > 0 && l:lnk1ind <= 4
             return 0
@@ -4077,7 +4160,7 @@ command -bar Unfold         normal! zR
 command -nargs=1 Ch         set cmdheight=<args>
 
 " query or set textwidth; if value given, set. always show.
-command -bar -nargs=?   Tw  if len(<q-args>) != 0
+command -bar -nargs=?   Tw  if !empty(<q-args>)
     \ |     setlocal textwidth=<args>
     \ | endif
     \ | setlocal textwidth?
@@ -4281,9 +4364,10 @@ function! UserDetectTextFile(fn)
     "echom 'passing to file:' l:fnesc
     silent let l:out = system('/usr/bin/file -b --mime ' . l:fnesc)
     if v:shell_error
-        echohl Error
-        echo 'file(1) failed, status ' . v:shell_error
+        echohl WarningMsg
+        echomsg 'file(1) failed, status ' . v:shell_error
         echohl None
+
         return -2
     endif
     " don't check the charset, but keep the output of file(1) in a buffer-local
@@ -4356,24 +4440,31 @@ endfunction
 
 function! UserDoComment() range abort
     let prefix = UserGetCommentPrefix()
-    if len(prefix) == 0
-        echom "can't comment"
+    if empty(prefix)
+        echohl WarningMsg
+        echomsg 'cannot comment'
+        echohl None
+
         return
     endif
-    silent execute
-                \ a:firstline . ',' . a:lastline .
-                \ 'global!/^\s*' . prefix . '/substitute/^/' . prefix . '/'
+    let cmd = printf('%d,%dglobal!/^\s*%s/substitute/^/%s/',
+                \ a:firstline, a:lastline, prefix, prefix)
+    silent execute cmd
 endfunction
 
 function! UserUnComment() range abort
     let prefix = UserGetCommentPrefix()
-    if len(prefix) == 0
-        echom "can't uncomment"
+    if empty(prefix)
+        echohl WarningMsg
+        echomsg 'cannot uncomment'
+        echohl None
+
         return
     endif
-    silent execute
-                \ a:firstline . ',' . a:lastline .
-                \ 'substitute/\(^\s*\)' . prefix . '/\1/'
+    " /e - don't raise error if search pattern not found; doc :s-flags
+    let cmd = printf('%d,%dsubstitute/\(^\s*\)%s/\1/e',
+                \ a:firstline, a:lastline, prefix)
+    execute cmd
 endfunction
 
 " command -range CommentOnce  <line1>,<line2>g/^\s*[^#]/s/^/# / | let @/ = ''
@@ -4469,9 +4560,9 @@ augroup UserVimRc
     autocmd FileType json               SoftIndent 2
     " sql filetype sets comment string to /* %s */, cumbersome for
     " linewise commenting.
-    autocmd FileType *sql               setlocal commentstring=--\ %s
-    autocmd FileType xdefaults          setlocal commentstring=!\ %s
-    autocmd FileType text               setlocal commentstring=#\ %s
+    autocmd FileType *sql               setlocal commentstring=--%s
+    autocmd FileType xdefaults          setlocal commentstring=!%s
+    autocmd FileType text               setlocal commentstring=#%s
 
     " whimsical file formats with trailing whitespace sometimes
     autocmd FileType yaml               let b:user_noautomod = 1
@@ -4482,7 +4573,7 @@ augroup UserVimRc
     " would be nice to be able to unload a script; maybe delete functions
     " using :scriptnames and :delf.
 
-    autocmd FileType text,markdown,vim  setlocal colorcolumn=+1
+    "autocmd FileType text,markdown,vim  setlocal colorcolumn=+1
 
     " the first line of the commit message should be < 50 chars
     " to allow for git log --oneline
@@ -4492,7 +4583,9 @@ augroup UserVimRc
     autocmd BufWritePre *   call UserUpdateBackupOptions(expand('<amatch>'))
 
     " no persistent undo info for temporary files
-    autocmd BufWritePre /tmp*,~/tmp/*   setlocal noundofile
+    autocmd BufWritePre *   if UserTestBackupskip(expand('<amatch>')) != 0
+                \ | setlocal noundofile
+                \ | endif
 
     " when editing the ex command line, enable listchars and numbers.
     " the idea is to not paste right into the command line, but do paste from
@@ -4506,6 +4599,10 @@ augroup UserVimRc
     " 2023-05-20 local list/listchars seems surprising in iVim. but number/
     " relativenumber is enough.
     autocmd CmdWinEnter :   setlocal number norelativenumber
+
+    if has('patch-8.0.1206')
+        autocmd CmdlineEnter    [/?]    FixSearchHistory
+    endif
 
     " for iVim on iOS; by default, swap seems to be automatically disabled
     " for files loaded from iCloud Drive. we keep swap files at home (appdir),
@@ -4521,7 +4618,7 @@ augroup UserVimRc
 
     if has('cmdline_hist')
         " forget :q!/:qall! ; clearing must run after viminfo's loaded.
-        autocmd VimEnter * call histdel(':', '\v^w?q')
+        autocmd VimEnter        *   call histdel('cmd', '\v^w?q')
     endif
 
     " test: fires under:
