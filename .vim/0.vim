@@ -1,4 +1,4 @@
-" Last-Modified: 2024-11-14T00:31:23.9500325+00:00
+" Last-Modified: 2024-11-17T00:03:54.150110752+00:00
 
 " vim:set tw=80 noml:
 set secure encoding=utf-8 fileencoding=utf-8 nobomb
@@ -812,9 +812,8 @@ set mouse=
 " which evidently does not include folding. This if statement avoids
 " errors that view will otherwise print while starting.
 if has('folding')
-    set foldenable
+    set nofoldenable    " default off
     set foldmethod=marker
-    set foldclose=
 endif
 
 " -- buffer switching
@@ -3973,11 +3972,17 @@ nnoremap        gxk     viwo<Esc>i"${<Esc>ea[@]}"<Esc>
 " (including use of this very mapping).
 "
 " modifying iskeyword doesn't help; 'w' still considers empty lines.
+"
+" \h doesn't work for japanese etc., of course. but 'w' by default does. our
+" mapping searches for any except whitespace+digits+punctuation.
 
-nnoremap        w       /\<\h<CR>
-nnoremap        W       ?\<\h<CR>
+let epic_w = '\<[^[:space:][:digit:][:punct:]]'
+nnoremap    <silent> <expr> t      '/' . epic_w . '<CR>'
+nnoremap    <silent> <expr> T      '?' . epic_w . '<CR>'
+xnoremap    <silent> <expr> t      '/' . epic_w . '<CR>'
+xnoremap    <silent> <expr> T      '?' . epic_w . '<CR>'
 
-command         FixSearchHistory    call histdel('search', '^\\<\\h$')
+command     FixSearchHistory    call histdel('/', escape(epic_w, '\[]'))
 
 " -- ~ eof-map ~ end of most mapping definitions
 
@@ -4558,6 +4563,7 @@ augroup UserVimRc
     " 2024-09-30 json - jq uses 2 spaces by default, google style guide uses
     " 2 spaces
     autocmd FileType json               SoftIndent 2
+    autocmd FileType json               setlocal foldmethod=syntax
     " sql filetype sets comment string to /* %s */, cumbersome for
     " linewise commenting.
     autocmd FileType *sql               setlocal commentstring=--%s
