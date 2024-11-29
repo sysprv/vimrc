@@ -13,7 +13,6 @@ set laststatus=1
 set listchars=tab:\ \ ,trail:_
 set noerrorbells
 set novisualbell
-set shortmess=filmnrwxoOtWI
 set showcmd
 set noincsearch
 set nohlsearch
