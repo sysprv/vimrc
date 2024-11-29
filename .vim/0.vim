@@ -307,7 +307,7 @@ endif
 " strtrans() (dep 'display'); 0, 10, ^@, ^J, <Nul>, <NL>, doc :key-notation
 "   https://unix.stackexchange.com/a/247331
 
-" 8g8   g8  g;  g,  gd, ga/:ascii, viwo<Esc>
+" 8g8   g8  g;  g,  gd, ga/:ascii, viwo<Esc>, "_yiw
 
 " put line in command line :<C-r><C-l>, WORD: :<C-r><C-a>
 
@@ -791,6 +791,12 @@ set browsedir=buffer
 " 2024-03-01 have i tried and and stopped using onemore before?
 " onemore is good when pasting.
 set virtualedit=block,onemore
+" selection=exclusive doesn't really consistently (v, no move, there is
+" a selection and it's the char under the cursor.) and in the linux console the
+" cursor doesn't get the same colour as hi-Visual.
+"
+" https://groups.google.com/g/vim_use/c/YBocFskMxSA
+
 set history=200
 set timeout timeoutlen=800 ttimeout ttimeoutlen=100
 
@@ -3600,7 +3606,14 @@ cnoremap            <Leader>y   <C-\>eUserTeeCmdLineCb()<cr>
 "       /Note that after a characterwise yank command
 "   `` - jump back
 "   and pass the unnamed register contents to the X11 selection.
-nnoremap    <Leader>y       m`^vg_"wy``:call UserWriteClipboard(@w)<CR>
+"nnoremap    <Leader>y       m`^vg_"wy``:call UserWriteClipboard(@w)<CR>
+"
+" without visual mode:
+"   m` - set previous context mark,
+"   ^ - go to first non-blank char,
+"   "wyg_ - to register w, yank until last non-blank char
+"   `` - jump back
+nnoremap    <Leader>y       m`^"wyg_``:call UserWriteClipboard(@w)<CR>
 xnoremap    <Leader>y       m`"wy``:call UserWriteClipboard(@w)<CR>
 
 " insert mode paste - still waits for the final p-like keypress but we always
@@ -3966,7 +3979,11 @@ nnoremap    <silent> <C-n>  :put _<CR>
 " fail and abort the rest of the mapping.
 
 " mnemonic: gxk -> g expand korn
-nnoremap        gxk     viwo<Esc>i"${<Esc>ea[@]}"<Esc>
+"nnoremap        gxk     viwo<Esc>i"${<Esc>ea[@]}"<Esc>
+"
+" "_yiw - yank current word to black hole register, cursor ends up on beginning
+" of word
+nnoremap        gxk     "_yiwi"${<Esc>ea[@]}"<Esc>
 
 " https://www.reddit.com/r/vim/comments/4aab93/comment/d0z0kyj/
 "
