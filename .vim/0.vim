@@ -1,7 +1,7 @@
-" Last-Modified: 2024-11-17T00:03:54.150110752+00:00
+" Last-Modified: 2024-11-29T20:04:33.979685719+00:00
 
 " vim:set tw=80 noml:
-set secure encoding=utf-8 fileencoding=utf-8 nobomb
+set secure nobomb
 scriptencoding utf-8
 
 if &compatible
@@ -525,12 +525,17 @@ let g:u.term_primitive = 1
 "
 " for a toplevel $TERM, if screen.$TERM exists, screen seems to set term to
 " that.
-if exists('$DISPLAY') || exists('$WAYLAND_DISPLAY') || has('gui_running')
-    let g:u.term_primitive = 0
-elseif &term =~# '\v^%(screen\.)?%(xterm|putty|rxvt-unicode)'
-    let g:u.term_primitive = 0
-elseif has('vcon') && &term ==# 'win32'
-    let g:u.term_primitive = 0
+"
+" don't do fancy things if the encoding isn't utf-8. can happen if shell init
+" files are bad, leading to unseemly statusline and fillchars.
+if &encoding == 'utf-8'
+    if exists('$DISPLAY') || exists('$WAYLAND_DISPLAY') || has('gui_running')
+        let g:u.term_primitive = 0
+    elseif &term =~# '\v^%(screen\.)?%(xterm|putty|rxvt-unicode)'
+        let g:u.term_primitive = 0
+    elseif has('vcon') && &term ==# 'win32'
+        let g:u.term_primitive = 0
+    endif
 endif
 
 let g:u.mark = '_'
@@ -1306,7 +1311,7 @@ endfunction
 
 function! UserStLnFenc()
     let l:s = ''
-    if &fileencoding !=# 'utf-8'
+    if !empty(&fileencoding) && &fileencoding !=# 'utf-8'
         let l:s = 'fenc:' . &fileencoding
     endif
     return l:s

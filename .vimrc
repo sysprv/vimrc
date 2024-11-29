@@ -1,7 +1,7 @@
 " Last-Modified: 2024-10-25T18:30:39.522272931+00:00
 " vim:set tw=80 noml:
 set nocompatible
-set secure encoding=utf-8 fileencoding=utf-8 nobomb
+set secure nobomb
 scriptencoding utf-8        " must go after 'encoding'
 
 set autoindent
