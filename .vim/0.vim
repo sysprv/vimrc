@@ -3693,9 +3693,6 @@ command -range WRCB <line1>,<line2>Yank | call UserWriteClipboard(@w)
 " maybe: redo as a filter called inside UserGetCbReg().
 
 function! UserUrlPasteMunge() abort
-    let l:ve = &virtualedit
-    set virtualedit=onemore
-
     try
         RDCB!
     catch /^Vim\%((\a\+)\)\=:E353:/
@@ -3703,6 +3700,7 @@ function! UserUrlPasteMunge() abort
         return
     endtry
 
+    " should save/restore virtualedit if onemore is no longer used.
     normal! $l
 
     " search backwards, from past eol
@@ -3743,7 +3741,6 @@ function! UserUrlPasteMunge() abort
 
     " go to new line created by RDCB! put
     normal! j0
-    let &virtualedit = l:ve
 endfunction
 
 
