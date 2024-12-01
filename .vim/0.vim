@@ -596,7 +596,7 @@ endif
 " often enough to be useful for this. vile throws up an arg: prompt for this,
 " which is nice.
 
-set showcmd
+set noshowcmd
 
 " set-formatoptions; doc fo-table
 " fo-r - add comment leader on new lines, insert mode
@@ -791,11 +791,14 @@ set browsedir=buffer
 " 2024-03-01 have i tried and and stopped using onemore before?
 " onemore is good when pasting.
 set virtualedit=block,onemore
-" selection=exclusive doesn't really consistently (v, no move, there is
+
+" set selection=exclusive doesn't really consistently (v, no move, there is
 " a selection and it's the char under the cursor.) and in the linux console the
 " cursor doesn't get the same colour as hi-Visual.
 "
 " https://groups.google.com/g/vim_use/c/YBocFskMxSA
+"
+" this isn't the emacs mark-point-region model...
 
 set history=200
 set timeout timeoutlen=800 ttimeout ttimeoutlen=100
@@ -1393,6 +1396,16 @@ function! UserStLnBufFlags()
     return '[' . join(l:l, '/') . ']'
 endfunction
 
+" line/column etc., things i want displayed on the right
+" but nothing if the buffer is a terminal in input mode.
+function! UserStLnRight() abort
+    if mode() ==# 't'
+        return ''
+    endif
+    "return UserStLnBufFlags() . '%W %l:%v %P ' . g:u.mark
+    return UserStLnBufFlags() . '%W %P ' . g:u.mark
+endfunction
+
 " NB: last double quote starts a comment and preserves the trailing space. vim
 " indicates truncated names with a leading '<'.
 "
@@ -1405,7 +1418,8 @@ endfunction
 "set statusline=%n'%{UserStLnBufFlags()}%W%H%<<%f>\ %{v:register}%=%l:%v\ %P\ %{g:u.mark}\ "
 "set statusline=%2n'%<<%f>%=\ %{UserStLnBufFlags()}%W\ %P\ %{g:u.mark}\ "
 "
-set statusline=%2n'%<<%f>%=\ %{UserStLnBufFlags()}%W\ \%l:%v\ %P\ %{g:u.mark}\ "
+" 2024-12-01
+set statusline=%2n'%<<%f>%=\ %{%UserStLnRight()%}\ "
 
 " in case we close all normal windows and end up with something like the preview
 " window as the only window - the ruler should show the same buffer flags as the
@@ -2348,7 +2362,8 @@ function! UserColours256()
         highlight UserTrailingWhitespace ctermbg=24 guibg=grey25
     endif
 
-    highlight Cursor guifg=black guibg=#ff7900 gui=NONE
+    " 2024-11-30 high-vis orange #ff7900 to firebrick3 #cd2626
+    highlight Cursor guifg=bg guibg=#cd2626 gui=NONE
 endfunction
 
 
@@ -4018,6 +4033,12 @@ endif
 " for testing colours
 cnoreabbrev histl   highlight StatusLine
 cnoreabbrev hisnc   highlight StatusLineNC
+
+if has('terminal')
+    " mapping to go to terminal-normal mode;
+    " mnemonic: tty flow control
+    tnoremap    <C-s>   <C-w>N
+endif
 
 " ----
 
