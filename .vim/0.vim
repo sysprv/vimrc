@@ -727,7 +727,8 @@ set backspace=indent,eol,start
 
 " <Left>, <Right> in visual mode (vw at the last word of a line moves to the new
 " line...)
-set whichwrap=b,s,[,],<,>
+" 2024-12-12 use space (and bs) in visual mode.
+set whichwrap=b,s
 
 
 " indentation
@@ -790,7 +791,9 @@ set browsedir=buffer
 
 " 2024-03-01 have i tried and and stopped using onemore before?
 " onemore is good when pasting.
-set virtualedit=block,onemore
+" 2024-12-10 good how? no-onemore is nice when i want to x backwards from the
+" end of a line.
+set virtualedit=block
 
 " set selection=exclusive doesn't really consistently (v, no move, there is
 " a selection and it's the char under the cursor.) and in the linux console the
