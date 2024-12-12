@@ -1398,7 +1398,7 @@ else
                 let l:pos = getpos('.')
                 call add(l:l, l:pos[1] . ':' . l:pos[2])
             endif
-        elseif &buftype ==# ''
+        else
             if &previewwindow
                 call add(l:l, 'PRV')    " %W
             endif

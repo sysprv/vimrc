@@ -70,7 +70,7 @@ def g:UserStLnBufFlags(): string
             var pos = getpos('.')
             l->add(string(pos[1]) .. ':' .. string(pos[2]))
         endif
-    elseif &buftype ==# ''
+    else
         if &previewwindow
             l->add('PRV')    # %W
         endif
