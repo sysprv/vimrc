@@ -1381,14 +1381,30 @@ endfunction
 " gather up buffer info into one function - to execute in a single %{}. should
 " usually go inside a matching pair of separators like []. other statusline
 " flags like %W should go after this.
-function! UserStLnBufFlags()
-    let l:l = [ UserStLnBufModStatus() ]
-    call add(l:l, UserStLnIndentation())
-    call add(l:l, UserStLnTextWidth())
-    call add(l:l, UserStLnFenc())
-    call add(l:l, UserStLnFf())
-    if &formatoptions =~# 'a'
-        call add(l:l, 'fo-a')
+function! UserStLnBufFlags() abort
+    let l:l = []
+    if &buftype ==# 'terminal'
+        call add(l:l, 'TERM')    " should get its own format flag for statusline
+        " something like this (line:col only in terminal normal mode) should
+        " be done more efficiently by the statusline.
+        if mode() ==# 'n'
+            let l:pos = getpos('.')
+            call add(l:l, l:pos[1] . ':' . l:pos[2])
+        endif
+    elseif &buftype ==# ''
+        if &previewwindow
+            call add(l:l, 'PRV')    " %W
+        endif
+        let l:pos = getpos('.')
+        call add(l:l, printf('%3d:%2d', l:pos[1], l:pos[2]))
+        call add(l:l, UserStLnBufModStatus())
+        call add(l:l, UserStLnIndentation())
+        call add(l:l, UserStLnTextWidth())
+        call add(l:l, UserStLnFenc())
+        call add(l:l, UserStLnFf())
+        if &formatoptions =~# 'a'
+            call add(l:l, 'fo-a')
+        endif
     endif
 
     " searching (for unicode whitespace) - costly
@@ -1399,30 +1415,14 @@ function! UserStLnBufFlags()
     return '[' . join(l:l, '/') . ']'
 endfunction
 
-" line/column etc., things i want displayed on the right
-" but nothing if the buffer is a terminal in input mode.
-function! UserStLnRight() abort
-    if mode() ==# 't'
-        return ''
-    endif
-    "return UserStLnBufFlags() . '%W %l:%v %P ' . g:u.mark
-    return UserStLnBufFlags() . '%W %P ' . g:u.mark
-endfunction
-
 " NB: last double quote starts a comment and preserves the trailing space. vim
 " indicates truncated names with a leading '<'.
-"
-" to show column: \ %{col('.')}/%{col('$')}
 "
 " current register: %{v:register}
 
 " don't forget to kee a space/separator after the filename
-"set statusline=%n'%{UserStLnBufFlags()}%W%H%<<%f>\ %=%P\ %{g:u.mark}\ "
-"set statusline=%n'%{UserStLnBufFlags()}%W%H%<<%f>\ %{v:register}%=%l:%v\ %P\ %{g:u.mark}\ "
-"set statusline=%2n'%<<%f>%=\ %{UserStLnBufFlags()}%W\ %P\ %{g:u.mark}\ "
-"
-" 2024-12-01
-set statusline=%2n'%<<%f>%=\ %{%UserStLnRight()%}\ "
+set statusline=%2n'%<<%f>%=\ %{UserStLnBufFlags()}\ %P\ %{g:u.mark}\ "
+" there ought to be a 'tstatusline' for terminal windows?
 
 " in case we close all normal windows and end up with something like the preview
 " window as the only window - the ruler should show the same buffer flags as the
@@ -1432,7 +1432,7 @@ set statusline=%2n'%<<%f>%=\ %{%UserStLnRight()%}\ "
 " print errors about conflicting with listchars, and fail to redraw properly.
 " having a statusline works better, but taking ma away from rulerformat for now.
 " + reducing the ruler width from 17 to 8.
-set rulerformat=%8(%=%M\ %P%)
+set rulerformat=%8(%=%M%)
 
 " -- enough now.
 
