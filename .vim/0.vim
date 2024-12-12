@@ -1306,9 +1306,8 @@ else
         " NB attribute check order
         if &modified    | let l:m .= '+'        | endif
         if !&modifiable | let l:m .= '-'        | endif
-
         " if neither modified nor unmodifiable:
-        if empty(l:m)   | let l:m .= '_'        | endif
+        if empty(l:m)   | let l:m = '_'         | endif
 
         if &readonly    | let l:m .= '.ro'      | endif
 

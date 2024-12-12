@@ -1,13 +1,17 @@
 vim9script
 
 def g:UserStLnBufModStatus(): string
-    var m = '_'     # neither modified nor unmodifiable
+    var m = ''
     # NB attribute check order
     if &modified
         m ..= '+'
     endif
     if !&modifiable
         m ..= '-'
+    endif
+    if empty(m)
+        # neither modified nor unmodifiable
+        m = '_'
     endif
 
     if &readonly
