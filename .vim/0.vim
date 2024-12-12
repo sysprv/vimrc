@@ -3660,15 +3660,15 @@ if has('gui_running') || has('win32')
     " just have to stick with ,xp, get used to C-q (emacs quoted-insert),
     " keeping xon/xoff flow control in mind.
 
-    nmap    <S-Insert>      <Leader>p
-    imap    <S-Insert>      <Leader>p
-    cmap    <S-Insert>      <Leader>p
-    nmap    <S-kInsert>     <Leader>p
-    imap    <S-kInsert>     <Leader>p
-    cmap    <S-kInsert>     <Leader>p
-    nmap    <C-S-v>         <Leader>p
-    imap    <C-S-v>         <Leader>p
-    cmap    <C-S-v>         <Leader>p
+    nmap    <S-Insert>      <Leader>P
+    imap    <S-Insert>      <Leader>P
+    cmap    <S-Insert>      <Leader>P
+    nmap    <S-kInsert>     <Leader>P
+    imap    <S-kInsert>     <Leader>P
+    cmap    <S-kInsert>     <Leader>P
+    nmap    <C-S-v>         <Leader>P
+    imap    <C-S-v>         <Leader>P
+    cmap    <C-S-v>         <Leader>P
 
     nmap    <C-Insert>      <Leader>y
     xmap    <C-Insert>      <Leader>y
