@@ -1296,124 +1296,132 @@ set nocursorline
 " instead of having line:col flickering all the time.
 
 " %M and %R don't do exactly what i want...
-function! UserStLnBufModStatus()
-    let l:m = ''
-    " NB attribute check order
-    if &modified    | let l:m .= '+'        | endif
-    if !&modifiable | let l:m .= '-'        | endif
 
-    " if neither modified nor unmodifiable:
-    if empty(l:m)   | let l:m .= '_'        | endif
+if v:version >= 901     " vim9script
+    " in a separate file so that vim7/8 won't try to parse the defs.
+    runtime statusline_defs.vim
+else
+    function! UserStLnBufModStatus()
+        let l:m = ''
+        " NB attribute check order
+        if &modified    | let l:m .= '+'        | endif
+        if !&modifiable | let l:m .= '-'        | endif
 
-    if &readonly    | let l:m .= '.ro'      | endif
+        " if neither modified nor unmodifiable:
+        if empty(l:m)   | let l:m .= '_'        | endif
 
-    " normal buffer without a swapfile and swapfile is globally on - warn
-    if &buftype == '' && (&g:swapfile && (!&l:swapfile || (&updatecount == 0)))
-        let l:m .= '.!swf'
-    endif
-    return l:m
-endfunction
+        if &readonly    | let l:m .= '.ro'      | endif
+
+        " normal buffer without a swapfile and swapfile is globally on - warn
+        if &buftype == '' && (&g:swapfile && (!&l:swapfile || (&updatecount == 0)))
+            let l:m .= '.!swf'
+        endif
+        return l:m
+    endfunction
 
 
-" if in paste mode, indicate that and not just the fact that paste mode
-" temporarily forces textwidth to 0.
-function! UserStLnTextWidth()
-    return &paste ? '!P' : &textwidth
-endfunction
+    " if in paste mode, indicate that and not just the fact that paste mode
+    " temporarily forces textwidth to 0.
 
-function! UserStLnFenc()
-    let l:s = ''
-    if !empty(&fileencoding) && &fileencoding !=# 'utf-8'
-        let l:s = 'fenc:' . &fileencoding
-    endif
-    return l:s
-endfunction
+    function! UserStLnTextWidth()
+        return &paste ? '!P' : &textwidth
+    endfunction
 
-function! UserStLnFf()
-    let l:s = ''
-    if &fileformat !=# 'unix'
-        let l:s = 'ff:' . &fileformat
-    endif
-    return l:s
-endfunction
+    function! UserStLnFenc()
+        let l:s = ''
+        if !empty(&fileencoding) && &fileencoding !=# 'utf-8'
+            let l:s = 'fenc:' . &fileencoding
+        endif
+        return l:s
+    endfunction
 
-" terse format indentation options
-function! UserStLnIndentation()
-    let l:s = ''
-    if &tabstop != 8
-        let l:s = '!' . &tabstop . '!,'
-    endif
-    " moniker: soft/hard
-    let l:s .= &expandtab ? 's' : 'h'
-    let l:s .= &softtabstop
-    if &shiftwidth != &softtabstop
-        let l:s .= ',' . &shiftwidth
-    endif
+    function! UserStLnFf()
+        let l:s = ''
+        if &fileformat !=# 'unix'
+            let l:s = 'ff:' . &fileformat
+        endif
+        return l:s
+    endfunction
 
-    if l:s ==# 's4'
-        " the default. no need to show.
-        return ''
-    endif
-    return 't:' . l:s
-endfunction
+    " terse format indentation options
+    function! UserStLnIndentation()
+        let l:s = ''
+        if &tabstop != 8
+            let l:s = '!' . &tabstop . '!,'
+        endif
+        " moniker: soft/hard
+        let l:s .= &expandtab ? 's' : 'h'
+        let l:s .= &softtabstop
+        if &shiftwidth != &softtabstop
+            let l:s .= ',' . &shiftwidth
+        endif
 
-" tried prev: if fillchars has 'stl', use hl Normal between the buffer
-" attrib flags and the right hand side, as:
-" %...%#Normal#%=...
-"
-" %Y is too loud, %y has brackets - use raw &filetype, show always.
-"   ! NB non-current (NC) status lines don't update immediately when the
-"   filetype changes. %y doesn't help (same behaviour as %{&filetype}).
-"   workaround: :redrawstatus, of course. actually, moving to the command line
-"   (no need to run redrawstatus) seems to be enough, with nolazyredraw.
-"
-" %w (Preview) is somewhat special, so it gets to hang around.
-"
-" would prefer parentheses, but brackets are hardcoded for default buffer names
-"   ("[No Name]", "[Scratch]").
-"
-" aside: Mathematica: brackets - https://mathematica.stackexchange.com/q/72976
-"
-" d[] for delta -> change -> modified/modifiable status.
-"   d[f] == quiescent, no unwritten changes, finalised -> delta? false.
-"
+        if l:s ==# 's4'
+            " the default. no need to show.
+            return ''
+        endif
+        return 't:' . l:s
+    endfunction
 
-" gather up buffer info into one function - to execute in a single %{}. should
-" usually go inside a matching pair of separators like []. other statusline
-" flags like %W should go after this.
-function! UserStLnBufFlags() abort
-    let l:l = []
-    if &buftype ==# 'terminal'
-        call add(l:l, 'TERM')    " should get its own format flag for statusline
-        " something like this (line:col only in terminal normal mode) should
-        " be done more efficiently by the statusline.
-        if mode() ==# 'n'
+    " tried prev: if fillchars has 'stl', use hl Normal between the buffer
+    " attrib flags and the right hand side, as: %...%#Normal#%=...
+    "
+    " %Y is too loud, %y has brackets - use raw &filetype, show always. ! NB
+    "   non-current (NC) status lines don't update immediately when the filetype
+    "   changes. %y doesn't help (same behaviour as %{&filetype}). workaround:
+    "   :redrawstatus, of course. actually, moving to the command line (no need
+    "   to run redrawstatus) seems to be enough, with nolazyredraw.
+    "
+    " %w (Preview) is somewhat special, so it gets to hang around.
+    "
+    " would prefer parentheses, but brackets are hardcoded for default buffer
+    "   names ("[No Name]", "[Scratch]").
+    "
+    " aside: Mathematica: brackets
+    " - https://mathematica.stackexchange.com/q/72976
+    "
+    " d[] for delta -> change -> modified/modifiable status. d[f] == quiescent,
+    "   no unwritten changes, finalised -> delta? false.
+    "
+
+    " gather up buffer info into one function - to execute in a single %{}.
+    " should usually go inside a matching pair of separators like []. other
+    " statusline flags like %W should go after this.
+
+    function! UserStLnBufFlags() abort
+        let l:l = []
+        if &buftype ==# 'terminal'
+            call add(l:l, 'TERM')    " should get its own format flag for statusline
+            " something like this (line:col only in terminal normal mode) should
+            " be done more efficiently by the statusline.
+            if mode() ==# 'n'
+                let l:pos = getpos('.')
+                call add(l:l, l:pos[1] . ':' . l:pos[2])
+            endif
+        elseif &buftype ==# ''
+            if &previewwindow
+                call add(l:l, 'PRV')    " %W
+            endif
             let l:pos = getpos('.')
-            call add(l:l, l:pos[1] . ':' . l:pos[2])
+            call add(l:l, printf('%3d:%2d', l:pos[1], l:pos[2]))
+            call add(l:l, UserStLnBufModStatus())
+            call add(l:l, UserStLnIndentation())
+            call add(l:l, UserStLnTextWidth())
+            call add(l:l, UserStLnFenc())
+            call add(l:l, UserStLnFf())
+            if &formatoptions =~# 'a'
+                call add(l:l, 'fo-a')
+            endif
         endif
-    elseif &buftype ==# ''
-        if &previewwindow
-            call add(l:l, 'PRV')    " %W
-        endif
-        let l:pos = getpos('.')
-        call add(l:l, printf('%3d:%2d', l:pos[1], l:pos[2]))
-        call add(l:l, UserStLnBufModStatus())
-        call add(l:l, UserStLnIndentation())
-        call add(l:l, UserStLnTextWidth())
-        call add(l:l, UserStLnFenc())
-        call add(l:l, UserStLnFf())
-        if &formatoptions =~# 'a'
-            call add(l:l, 'fo-a')
-        endif
-    endif
 
-    " searching (for unicode whitespace) - costly
+        " searching (for unicode whitespace) - costly
 
-    " erase numbers that are 0, erase empty strings
-    call filter(l:l, "v:val != 0 || v:val !=# ''")
-    "return '[' . join(l:l, '][') . ']'
-    return '[' . join(l:l, '/') . ']'
-endfunction
+        " erase numbers that are 0, erase empty strings
+        call filter(l:l, "v:val != 0 || v:val !=# ''")
+        "return '[' . join(l:l, '][') . ']'
+        return '[' . join(l:l, '/') . ']'
+    endfunction
+endif
 
 " NB: last double quote starts a comment and preserves the trailing space. vim
 " indicates truncated names with a leading '<'.
