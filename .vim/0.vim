@@ -4489,51 +4489,67 @@ command CdBuffer   chdir %:h
 
 
 " -- comment/uncomment by line range
-function UserGetCommentPrefix() abort
-    let cms = &cms
+function UserGetCommentString(cms) abort
+    let cms = a:cms
     if empty(cms)
-        return ''
+        echom '(no commentstring)'
+        return []
     endif
-    let cms_parts = split(escape(cms, '*.'), '%s')
-    " only want a prefix, can't deal with surround comments
-    if len(cms_parts) > 1
-        return ''
+    let cms_parts = split(cms, '%s')    " keep any surrounding spaces
+    if len(cms_parts) == 1
+        call add(cms_parts, '')
     endif
-    if len(cms_parts[0]) > 5
-        " ? ? ?
-        return ''
+    if len(cms_parts) != 2
+        echom '(invalid commentstring)'
+        return []
     endif
-    " '/' is a common comment leader, no good as is for :substitute.
-    return escape(cms_parts[0], '/!\\')
+    return cms_parts
 endfunction
 
-function! UserDoComment() range abort
-    let prefix = UserGetCommentPrefix()
-    if empty(prefix)
-        echohl WarningMsg
-        echomsg 'cannot comment'
-        echohl None
+" could be nice to actually printf() with the cms as the format string the way
+" comment.vim does, but then have to gather the lines in memory and put them
+" back.
+"
+" comment.vim explainer:
+"
+"   substitute(cms, '%s\@!', '%%', 'g') - %-escape. replace any % signs that are
+"   not %s with %% - for later use with printf().
+"
+" silly to reuse possibly block comments line by line, but it is more flexible
+" when hacking.
 
-        return
-    endif
-    let cmd = printf('%d,%dglobal!/^\s*%s/substitute/^/%s/',
-                \ a:firstline, a:lastline, prefix, prefix)
+function! UserDoComment() range abort
+    let cms = UserGetCommentString(&commentstring)
+    if empty(cms) | return | endif
+    " put comment strings after leading whitespace and before trailing
+    " whitespace.
+    "
+    " pick lines that have anything other than whitespace,
+    " and don't have cms-1.
+    let cmd = printf('%d,%d'
+                \ . 'global/\S/'
+                \ . 'global!/%s/'
+                \ . 'substitute/^\s*\zs\(.*\)\ze/%s\1%s/',
+                \ a:firstline, a:lastline, escape(cms[0], '/!\\*.'),
+                \ escape(cms[0], '/'), escape(cms[1], '/'))
+    " silent to hide the N substitutions on N lines msg
     silent execute cmd
 endfunction
 
 function! UserUnComment() range abort
-    let prefix = UserGetCommentPrefix()
-    if empty(prefix)
-        echohl WarningMsg
-        echomsg 'cannot uncomment'
-        echohl None
-
-        return
+    let cms = UserGetCommentString(&commentstring)
+    if empty(cms) | return | endif
+    " anchoring to the beginning-of-line and end-of-line (cms-1, if present) has
+    " the effect of removing one commenting level at a time (also for non-block
+    " comments.)
+    let s = '^\s*\zs' . escape(cms[0], '/!\\*.')
+    " regexp or - only use if cms-1 is not the empty string
+    if !empty(cms[1])
+        let s = s . '\|' . escape(cms[1], '/!\\*.') . '$'
     endif
     " /e - don't raise error if search pattern not found; doc :s-flags
-    let cmd = printf('%d,%dsubstitute/\(^\s*\)%s/\1/e',
-                \ a:firstline, a:lastline, prefix)
-    execute cmd
+    let cmd = printf('%d,%dsubstitute/%s//ge', a:firstline, a:lastline, s)
+    silent execute cmd
 endfunction
 
 " command -range CommentOnce  <line1>,<line2>g/^\s*[^#]/s/^/# / | let @/ = ''
@@ -4628,11 +4644,9 @@ augroup UserVimRc
     " 2 spaces
     autocmd FileType json               SoftIndent 2
     autocmd FileType json               setlocal foldmethod=syntax
-    " sql filetype sets comment string to /* %s */, cumbersome for
-    " linewise commenting.
-    autocmd FileType *sql               setlocal commentstring=--%s
-    autocmd FileType xdefaults          setlocal commentstring=!%s
-    autocmd FileType text               setlocal commentstring=#%s
+    autocmd FileType xdefaults          setlocal commentstring=!\ %s
+    autocmd FileType text               setlocal commentstring=#\ %s
+    "autocmd FileType text               setlocal commentstring=/*\ %s\ */
 
     " whimsical file formats with trailing whitespace sometimes
     autocmd FileType yaml               let b:user_noautomod = 1
