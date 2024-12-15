@@ -40,10 +40,10 @@ nnoremap    ,U   <Nop>
 " listchars extends important for nowrap view
 set listchars=conceal:?,extends:>,nbsp:!,precedes:<,tab:\ \ ,trail:_
 
-set noloadplugins
-
 " don't confuse tiny vim (-eval), can't test with older vims.
 if version >= 704
     runtime 0.vim
+else
+    set noloadplugins
 endif
 

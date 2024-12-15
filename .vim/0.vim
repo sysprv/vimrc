@@ -395,21 +395,32 @@ endif
 " and https://github.com/mbbill/undotree
 " 2024-05-23 never really use undotree. packs also respects noloadplugins,
 " though not well documented.
+"let g:loaded_getscriptPlugin = 2
+"let g:loaded_gzip = 2
+"let g:loaded_logiPat = 2
+"let g:loaded_manpager_plugin = 2
+" -- g:loaded_matchparen
+"let g:loaded_netrwPlugin = 2
+" -- g:loaded_rrhelper
+" -- g:loaded_spellfile_plugin
+"let g:loaded_tarPlugin = 2
+"let g:loaded_2html_plugin = 2
+"let g:loaded_tutor_mode_plugin = 2
+"let g:loaded_vimballPlugin = 2
+"let g:loaded_zipPlugin = 2
+
 if v:version >= 900
     " better than plain % for code with braces embedded in strings etc.;
     " but enable only if the vim version's recent enough.
-    if !&loadplugins
-        set loadplugins
-    endif
     packadd matchit
     if has('patch-9.1.0375')
         " for gc / gcc
         packadd comment
     endif
 endif
-if &loadplugins
-    set noloadplugins
-endif
+" preventing loading by setting variables works but all the files still show up
+" with :scriptnames
+set noloadplugins
 "}}}
 
 " 2022-07-30 let g:did_load_filetypes = 1 does prevent filetype detection with
@@ -489,6 +500,9 @@ let g:undotree_DiffCommand = "/usr/bin/diff -u"
 let g:undotree_WindowLayout = 2
 let g:undotree_ShortIndicators = 1
 let g:undotree_HelpLine = 0
+
+" by default ftplugin/racket maps K to raco docs -- <kw>
+let g:no_racket_maps = 1
 
 " never used grepprg
 
@@ -4625,6 +4639,8 @@ augroup UserVimRc
     autocmd FileType markdown           let b:user_noautomod = 1
 
     autocmd FileType jproperties        Lousy | setlocal fileencoding=latin1
+
+    autocmd FileType racket             runtime plugin/matchparen.vim
 
     " would be nice to be able to unload a script; maybe delete functions
     " using :scriptnames and :delf.
