@@ -594,7 +594,7 @@ command -bar Inc    set incsearch! | set incsearch?
 " 2024-04-21 hlsearch's distracting in multiple windows with different search
 " patterns.
 set nohlsearch
-set noshowmatch
+set showmatch matchtime=1
 
 
 " setting 'ignorecase' can be surprising.
