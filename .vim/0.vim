@@ -413,10 +413,6 @@ if v:version >= 900
     " better than plain % for code with braces embedded in strings etc.;
     " but enable only if the vim version's recent enough.
     packadd matchit
-    if has('patch-9.1.0375')
-        " for gc / gcc
-        packadd comment
-    endif
 endif
 " preventing loading by setting variables works but all the files still show up
 " with :scriptnames
@@ -4527,9 +4523,8 @@ function! UserDoComment() range abort
     " pick lines that have anything other than whitespace,
     " and don't have cms-1.
     let cmd = printf('%d,%d'
-                \ . 'global/\S/'
                 \ . 'global!/%s/'
-                \ . 'substitute/^\s*\zs\(.*\)\ze/%s\1%s/',
+                \ . 'substitute/^\s*\zs\(.\+\)\ze/%s\1%s/',
                 \ a:firstline, a:lastline, escape(cms[0], '/!\\*.'),
                 \ escape(cms[0], '/'), escape(cms[1], '/'))
     " silent to hide the N substitutions on N lines msg
@@ -4560,6 +4555,12 @@ endfunction
 " search pattern with let @/ = ''; the function return does that here.
 command -range CommentOnce <line1>,<line2>call UserDoComment()
 command -range UnComment   <line1>,<line2>call UserUnComment()
+
+nnoremap    gcc     :CommentOnce<CR>
+nnoremap    guc     :UnComment<CR>
+xnoremap    gcc     :CommentOnce<CR>
+xnoremap    guc     :UnComment<CR>
+
 
 " mine own #-autogroup
 augroup UserVimRc
