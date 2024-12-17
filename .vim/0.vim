@@ -507,7 +507,12 @@ let g:no_racket_maps = 1
 " https://www.linusakesson.net/programming/vimsuspend/index.php (old)
 " https://twitter.com/marcan42/status/1494213855387734019
 " fsync directory? aio_fsync?
-set nofsync swapsync=
+set nofsync
+" silly breakage - nvim decided to bail on this option
+if !has('nvim')
+    set swapsync=
+endif
+
 " how files should be written - whether to rename, or put the new data
 " into the same file. the vi default behaviour is yes, and it's the most
 " natural with vim as $EDITOR.
@@ -566,8 +571,12 @@ endif
 "
 " 2024-11-10 undodir - double-slash isn't required at the end. inconsistent.
 let g:u.undo_dir = expand('~/.vim/var/un//')
-
 let g:u.swap_dir = expand('~/.vim/var/swap//')
+if has('nvim')
+    " nvim changed undo format; don't let things mix.
+    let g:u.undo_dir = expand('~/.vim/var-nvim/un//')
+    let g:u.swap_dir = expand('~/.vim/var-nvim/swap//')
+endif
 
 if !exists('$PARINIT')
     let $PARINIT = "rTbgqR B=.,?'_A_a_@ Q=_s>|#"
@@ -2381,6 +2390,8 @@ function! UserColours256()
         " trailing whitespace same as SpellBad
         highlight UserTrailingWhitespace ctermbg=24 guibg=grey25
     endif
+
+    highlight UserUnicodeWhitespace term=standout ctermbg=red guibg=orange
 
     " 2024-11-30 high-vis orange #ff7900 to firebrick3 #cd2626
     highlight Cursor guifg=bg guibg=#cd2626 gui=NONE
