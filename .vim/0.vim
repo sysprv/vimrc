@@ -2065,47 +2065,46 @@ endfunction
 
 " fallback definitions for the highlight groups used by our own syntax rules,
 " in case our colorscheme wrapper isn't present.
-function! UserDefineSyntaxHighlightGroups() abort
-    " E411 - Highlight group not found: ...
+function! UserDefineSyntaxHighlightGroups()
+    " both hlexists() and hlID() return non-zero when a syntax item's defined,
+    " doesn't require highlight group definition.
+    "
+    " run hi discarding output, check v:errmsg.
 
     " grey as default can look really bad; better to just define cleared
     " highlight group to keep the syntax rules from failing, than actually set
     " colours.
-    try
-        call UserRun('highlight UserDateComment')
-    catch /^Vim\%((\a\+)\)\=:E411:/
-        highlight clear UserDateComment
-    endtry
 
-    try
-        call UserRun('highlight UserTrailingWhitespace')
-    catch /^Vim\%((\a\+)\)\=:E411:/
+    silent! highlight UserDateComment
+    if v:errmsg ==? 'E411: Highlight group not found: UserDateComment'
+        highlight clear UserDateComment
+    endif
+
+    silent! highlight UserTrailingWhitespace
+    if v:errmsg ==? 'E411: Highlight group not found: UserTrailingWhitespace'
         highlight clear UserTrailingWhitespace
         " turn on 'list', hope 'trail' is defined and working.
         set list
-    endtry
+    endif
 
-    try
-        call UserRun('highlight UserHashTag')
-    catch /^Vim\%((\a\+)\)\=:E411:/
+    silent! highlight UserHashTag
+    if v:errmsg ==? 'E411: Highlight group not found: UserHashTag'
         highlight clear UserHashTag
-    endtry
+    endif
 
     " for URIs at top level, with syntax highlighting and not matchadd()
-    try
-        call UserRun('highlight UserHttpURI')
-    catch /^Vim\%((\a\+)\)\=:E411:/
+    silent! highlight UserHttpURI
+    if v:errmsg ==? 'E411: Highlight group not found: UserHttpURI'
         highlight! default link UserHttpURI Normal
-    endtry
+    endif
 
     " __UNIWS__; this isn't something we want to put in a colorscheme override
     " file, maybe - unless we work with a red background. blinking would have
     " been nice, if hi start/stop worked everywhere.
-    try
-        call UserRun('highlight UserUnicodeWhitespace')
-    catch /^Vim\%((\a\+)\)\=:E411:/
-        highlight UserUnicodeWhitespace term=standout ctermbg=red guibg=orange
-    endtry
+    silent! highlight UserUnicodeWhitespace
+    if v:errmsg ==? 'E411: Highlight group not found: UserUnicodeWhitespace'
+        highlight! default link UserUnicodeWhitespace Error
+    endif
 
     " UserHttpURI: if using non-syntax matches (matchadd/UserMatchAdd), define
     " a ctermbg to hide spell errors. f.ex. ctermbg=255 guibg=bg
