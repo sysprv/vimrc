@@ -72,15 +72,15 @@ def g:UserStLnBufFlags(): string
         # be done more efficiently by the statusline.
         if mode() ==# 'n'
             var pos = getpos('.')
-            l->add(string(pos[1]) .. ':' .. string(pos[2]))
+            l->add(printf('<%3d:%-2d>', pos[1], pos[2]))
         endif
     else
+        l->add(g:UserStLnBufModStatus())
         if &previewwindow
             l->add('PRV')    # %W
         endif
         var pos = getpos('.')
-        l->add(printf('%3d:%2d', pos[1], pos[2]))
-        l->add(g:UserStLnBufModStatus())
+        l->add(printf('<%3d:%-2d>', pos[1], pos[2]))
         l->add(g:UserStLnIndentation())
         l->add(g:UserStLnTextWidth())
         l->add(g:UserStLnFenc())

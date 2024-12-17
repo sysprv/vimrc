@@ -1416,15 +1416,15 @@ else
             " be done more efficiently by the statusline.
             if mode() ==# 'n'
                 let l:pos = getpos('.')
-                call add(l:l, l:pos[1] . ':' . l:pos[2])
+                call add(l:l, '<%3d:%-2d>', l:pos[1], l:pos[2]))
             endif
         else
+            call add(l:l, UserStLnBufModStatus())
             if &previewwindow
                 call add(l:l, 'PRV')    " %W
             endif
             let l:pos = getpos('.')
-            call add(l:l, printf('%3d:%2d', l:pos[1], l:pos[2]))
-            call add(l:l, UserStLnBufModStatus())
+            call add(l:l, printf('<%3d:%-2d>', l:pos[1], l:pos[2]))
             call add(l:l, UserStLnIndentation())
             call add(l:l, UserStLnTextWidth())
             call add(l:l, UserStLnFenc())
