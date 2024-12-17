@@ -4623,6 +4623,7 @@ augroup UserVimRc
     autocmd FileType rust           InEnable
     autocmd FileType scala          InEnable
     autocmd FileType vim            InEnable
+    " no indenting for python; everything's too broken.
 
     autocmd FileType go             InEnable
     autocmd FileType javascript     InEnable
