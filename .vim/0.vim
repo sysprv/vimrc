@@ -556,7 +556,9 @@ endif
 let g:u.mark = '_'
 if !g:u.term_primitive
     " fence, guard; defend; idle time
-    let g:u.mark = nr2char(0x95F2)
+    "let g:u.mark = nr2char(0x95F2)
+    " to relax, as in rikyū
+    let g:u.mark = nr2char(0x4F11)
 endif
 
 " would like to stick to the default behaviour of keeping undo files in the
