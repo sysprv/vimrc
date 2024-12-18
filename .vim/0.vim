@@ -3346,6 +3346,8 @@ xnoremap    <bs>    x
 inoremap    <C-u>   <C-g>u<C-u>
 " same for deleting words; from tpope's vim-sensible
 inoremap    <C-w>   <C-g>u<C-w>
+inoremap    .       .<C-g>u
+inoremap    ;       ;<C-g>u
 
 "" insert timestamp
 "
@@ -3368,14 +3370,14 @@ if has('terminal')
     tnoremap <expr> <Leader>dd              UserDate()
 endif
 
-nnoremap        <silent> <Leader>t  "=UserTimeShort()<cr>p:put _<cr>
-inoremap <expr> <silent> <Leader>t  "\<C-g>u" . UserTimeShort() . "\<C-g>u"
+nnoremap        <silent> <Leader>t      "=UserTimeShort()<cr>p:put _<cr>
+inoremap <expr> <silent> <Leader>t      "\<C-g>u" . UserTimeShort() . "\<C-g>u"
 
 nnoremap        <silent> <Leader>dT     "=UserDateTime()<cr>p:put _<cr>
-inoremap <expr> <silent> <Leader>dT     UserDateTime()
+inoremap <expr> <silent> <Leader>dT     "\<C-g>u" . UserDateTime() . "\<C-g>u"
 
 nnoremap        <silent> <leader>dU     "=UserUtcNow()<cr>p:put _<cr>
-inoremap <expr> <silent> <Leader>dU     UserUtcNow()
+inoremap <expr> <silent> <Leader>dU     "\<C-g>u" . UserUtcNow() . "\<C-g>u"
 
 "" see also: insert mode, <C-r>=    doc i_CTRL-R
 
