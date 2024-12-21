@@ -229,7 +229,7 @@ endif
 " trying various options. Tired now, don't want to touch it for the next 10
 " years, when it'll be safe to move to vim9script.
 
-" notes:
+" begin notes:
 
 " Other vimmers:
 " Yasuhiro Matsumoto
@@ -294,8 +294,13 @@ endif
 " Re-implementing the mode message by decoding mode() seemed fun at one time
 " but it was slow.
 
+" doc :w_c - write to command -- [range]w !<cmd>, no filtering (command output
+" not put back into buffer).
 "
-" -- tips
+" filtering ( :[range]!<filter-pipeline> ) - doc :range!
+
+"
+" -- begin tips:
 
 " :sball - show all buffers; inverse: :only / C-w o
 "   <F11>
@@ -335,7 +340,7 @@ endif
 " like <bang> so than an extra viml string concatenation is unnecessary.
 
 " -- end tips
-"
+" -- end notes
 
 " colour
 "
@@ -519,6 +524,10 @@ endif
 set backupcopy=yes
 
 set modeline
+
+" pretty bad default that'll never get fixed now.
+" https://groups.google.com/g/vim_dev/c/SGcwy7GViNs
+set shellredir=>\ %s\ 2>\ vim_shell_redir_stderr
 
 let g:mapleader = ','
 
@@ -4574,6 +4583,33 @@ nnoremap    gcc     :CommentOnce<CR>
 nnoremap    guc     :UnComment<CR>
 xnoremap    gcc     :CommentOnce<CR>
 xnoremap    guc     :UnComment<CR>
+
+
+" wrapper for filtering through an external command safely, without clobbering
+" the current buffer on error.
+function! Filter(cmd) range abort
+    let f_stdin = tempname()
+    let f_stderr = tempname()
+    let text = getline(a:firstline, a:lastline)
+    call writefile(text, f_stdin)
+    let stdout = split(system(a:cmd . ' < ' . f_stdin . ' 2> ' . f_stderr), "\n")
+    call delete(f_stdin)
+    if v:shell_error
+        echohl ErrorMsg
+        echo 'shell error ' . v:shell_error
+        echohl None
+
+        execute 'pedit' f_stderr
+    else
+        " first append any new text
+        execute a:lastline . 'put=stdout'
+        " then delete input range
+        execute a:firstline . ',' . a:lastline . 'd_'
+        call delete(f_stderr)
+    endif
+endfunction
+
+command -range -nargs=+ Filter <line1>,<line2>call Filter(<q-args>)
 
 
 " mine own #-autogroup
