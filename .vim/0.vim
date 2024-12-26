@@ -556,6 +556,8 @@ if &encoding == 'utf-8'
         let g:u.term_primitive = 0
     elseif &term =~# '\v^%(screen\.)?%(xterm|putty|rxvt-unicode)'
         let g:u.term_primitive = 0
+    elseif &term =~# '^tmux'
+        let g:u.term_primitive = 0
     elseif has('vcon') && &term ==# 'win32'
         let g:u.term_primitive = 0
     endif
