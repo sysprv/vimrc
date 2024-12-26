@@ -525,9 +525,8 @@ set backupcopy=yes
 
 set modeline
 
-" pretty bad default that'll never get fixed now.
+" shellredir - pretty bad stuff that'll never get fixed now.
 " https://groups.google.com/g/vim_dev/c/SGcwy7GViNs
-set shellredir=>\ %s\ 2>\ vim_shell_redir_stderr
 
 let g:mapleader = ','
 
@@ -4587,25 +4586,38 @@ xnoremap    guc     :UnComment<CR>
 
 " wrapper for filtering through an external command safely, without clobbering
 " the current buffer on error.
+"
+" test: :Filter echo to-stdout; echo to-stderr >&2; exit 10
 function! Filter(cmd) range abort
     let f_stdin = tempname()
     let f_stderr = tempname()
     let text = getline(a:firstline, a:lastline)
     call writefile(text, f_stdin)
-    let stdout = split(system(a:cmd . ' < ' . f_stdin . ' 2> ' . f_stderr), "\n")
-    call delete(f_stdin)
+    unlet text
+    " braces to compose shell redir
+    let stdout = split(system('{ ' . a:cmd . ' } < ' . f_stdin . ' 2> ' . f_stderr), "\n")
     if v:shell_error
         echohl ErrorMsg
         echo 'shell error ' . v:shell_error
         echohl None
-
-        execute 'pedit' f_stderr
+        if !empty(stdout)
+            " failed with some output - dump into a new window
+            split +enew
+            put=stdout
+        endif
     else
+        " filter succeeded.
         " first append any new text
         execute a:lastline . 'put=stdout'
         " then delete input range
         execute a:firstline . ',' . a:lastline . 'd_'
-        call delete(f_stderr)
+    endif
+    call delete(f_stdin)
+    if getfsize(f_stderr) > 0
+        " stderr has something - open in a new window
+        execute 'split' f_stderr
+    else
+        call delete(f_stderr)   " no stderr
     endif
 endfunction
 
