@@ -3548,6 +3548,10 @@ function! UserReadClipboard(...) abort
         let l:result = { 'reg': '_', 'status': -1 }
     endif
 
+    " mode() isn't very reliable, can't be used here to made decisions on
+    " linewise register mode vs. charwise, when the function might be called in
+    " insert-normal mode.
+
     return l:result
 endfunction
 
@@ -3696,10 +3700,21 @@ cnoremap            <Leader>y   <C-\>eUserTeeCmdLineCb()<cr>
 nnoremap    <Leader>y       m`^"wyg_``:call UserWriteClipboard(@w)<CR>
 xnoremap    <Leader>y       m`"wy``:call UserWriteClipboard(@w)<CR>
 
-" insert mode paste - still waits for the final p-like keypress but we always
-" want gP.
-imap        <Leader>p       <C-\><C-o><Leader>p
-imap        <Leader>P       <C-\><C-o><Leader>P
+"imap        <Leader>p       <C-\><C-o><Leader>p
+"imap        <Leader>P       <C-\><C-o><Leader>P
+" 2024-12-25 insert mode paste - going to normal mode and pasting is bad when
+" the clipboard text is linewise (ends witn newlines).
+"
+"   - <C-g>u    - start new change
+"   - <C-r><C-r><reg>   - literal insert register
+"   - <C-g>u    - start new change
+inoremap    <expr>  <Leader>P   "\<C-g>u"
+            \ . "\<C-r>\<C-r>" . UserReadClipboard().reg
+            \ . "\<C-g>u"
+" will this ever be useful?
+inoremap    <expr>  <Leader>p   "\<C-g>u"
+            \ . "\<Right>\<C-r>\<C-r>" . UserReadClipboard().reg
+            \ . "\<C-g>u"
 
 if has('gui_running') || has('win32')
 
