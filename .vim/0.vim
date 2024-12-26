@@ -2615,10 +2615,6 @@ function! UserColoursPrelude()
 
     let l:done = 0
 
-    if !l:done && has('gui_running')
-        let l:done = 1
-    endif
-
     " hints for when the defaults or vim's guessing fails.
     " https://www.freedesktop.org/software/systemd/man/sd_session_get_type.html#
     " can't check tty(1), screen(1) -> devpts. maybe things to check:
@@ -2651,10 +2647,6 @@ function! UserColoursPrelude()
     " background. unset COLORFGBG/COLORTERM and why not even TERM when starting
     " gvim.
 
-    if has('win32') && has('gui_running')
-        set background=light
-    endif
-
     " enable termguicolors only if must - keep tgc off in ttys that support
     " indexed colors. tgc doesn't apply to the tty cursor.
 
@@ -2671,6 +2663,20 @@ function! UserColoursPrelude()
             set termguicolors t_ut=     " don't use BCE - must be set after tgc
             let l:done = 1
         endif
+    endif
+
+    " always set after checking, to help ourselves later :verbose set bg?
+    if !l:done && (has('gui_running') || exists('$DISPLAY'))
+        " last resort; default: background=light
+        if &background !=# 'light'
+            set background=light
+        endif
+        let l:done = 1
+    endif
+    " vim default's light but most unfortunate situations are dark
+    if !l:done && (&background !=# 'dark')
+        set background=dark
+        let l:done = 1
     endif
 
     " could also enable tgc for PuTTY; PuTTY enables it by default. but
