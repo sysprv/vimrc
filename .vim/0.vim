@@ -4559,7 +4559,7 @@ function! UserDoComment() range abort
     " pick lines that have anything other than whitespace,
     " and don't have cms-1.
     let cmd = printf('%d,%d'
-                \ . 'global!/%s/'
+                \ . 'global!/^\s*%s/'
                 \ . 'substitute/^\s*\zs\(.\+\)\ze/%s\1%s/',
                 \ a:firstline, a:lastline, escape(cms[0], '/!\\*.'),
                 \ escape(cms[0], '/'), escape(cms[1], '/'))
