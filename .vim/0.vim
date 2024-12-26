@@ -2055,14 +2055,26 @@ command -bar NoAutomod  let b:user_noautomod = 1
 
 " if a file named 'index' exists, load it; don't create it.
 " living without command-t, CtrlP etc.
-function! UserOpenIndexFile()
+function! UserOpenIndexFile() abort
     if filereadable('index')
-        edit +setlocal\ nomodifiable index
+        "edit +setlocal\ nomodifiable index
+        view index
+        normal! gg
+        " leave 10 lines for the index window. the rest is the new main window
+        " that fill load the first named file in the index file.
+        let height = &lines - 10
+        if height >= 20
+            execute height . 'split'
+            " cursor in new split, go to named file.
+            normal! gf
+        endif
     else
         echom 'no index'
     endif
 endfunction
 
+" like :Explore
+command Index       call UserOpenIndexFile()
 
 " ---- highlight (colour) definitions
 " Overrides for builtin highlights:
@@ -4290,9 +4302,6 @@ command -bar ScrEphem   Scratch | setlocal bufhidden=unload
 
 " pretty-print g:u
 command -bar PrintU ScrEphem | put =json_encode(g:u) | .! jq --sort-keys .
-
-" like :Explore
-command Index       call UserOpenIndexFile()
 
 command -bar Nolist         windo setlocal nolist
 command -bar ListDef        let g:u.lcs.cur = g:u.lcs.def
