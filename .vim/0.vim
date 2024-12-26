@@ -604,7 +604,10 @@ command -bar Inc    set incsearch! | set incsearch?
 " 2024-04-21 hlsearch's distracting in multiple windows with different search
 " patterns.
 set nohlsearch
-set showmatch matchtime=1
+" 2024-12-26 showmatch is irritating and often wrong in vimscript angle bracket
+" matching
+"set showmatch matchtime=1
+set noshowmatch
 
 
 " setting 'ignorecase' can be surprising.
