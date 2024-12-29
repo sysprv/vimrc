@@ -1331,7 +1331,7 @@ set nocursorline
 
 " %M and %R don't do exactly what i want...
 
-if v:version >= 901     " vim9script
+if v:version >= 900     " vim9script
     " in a separate file so that vim7/8 won't try to parse the defs.
     runtime statusline_defs.vim
 else
