@@ -2370,6 +2370,7 @@ function! UserColoursFailsafe()
 endfunction     " UserColoursFailsafe()
 
 function! UserColours256()
+    let g:colors_overridden = 0
     let l:bg = &background
 
     if UserCO(g:u.coflags.stat)
@@ -2391,6 +2392,8 @@ function! UserColours256()
             highlight NonText ctermfg=NONE ctermbg=7 guifg=#9fa7bd guibg=#dcdfe7
             highlight SpecialKey ctermfg=164 ctermbg=252
                         \ guifg=#aa336a guibg=#dcdfe7
+            " guifg: pantone 19-4052 tcx classic blue
+            highlight Normal guifg=#0f4c81 guibg=#f3f3f3
         endif
         highlight UserDateComment ctermfg=241 ctermbg=254
                     \ guifg=grey40 guibg=azure2 gui=italic
@@ -2410,6 +2413,7 @@ function! UserColours256()
             highlight NonText ctermfg=NONE ctermbg=235 guifg=#444b71 guibg=grey25
             highlight SpecialKey ctermfg=214 ctermbg=235 guifg=orange guibg=grey25
             " TODO Visual?
+            highlight Normal guifg=#f3f3f3 guibg=#000000
         endif
         highlight UserDateComment ctermfg=246 guifg=grey40 gui=italic
         highlight UserHashTag ctermbg=24 guibg=#005f5f
@@ -2421,6 +2425,8 @@ function! UserColours256()
 
     " 2024-11-30 high-vis orange #ff7900 to firebrick3 #cd2626
     highlight Cursor guifg=bg guibg=#cd2626 gui=NONE
+
+    let g:colors_overridden = 1
 endfunction
 
 
@@ -2801,9 +2807,12 @@ function! UserLoadColors()
     call UserColoursFailsafe()
 
     if UserCanLoadColorscheme()
-        if UserRuntimeHas('colors/iceberg~.vim')
+        if v:version >= 900 && UserRuntimeHas('colors/wildcharm.vim')
+            " wildcharm and lunaperche support both light and dark bg
+            Colorscheme wildcharm
+        elseif UserRuntimeHas('colors/iceberg~.vim')
             " load iceberg with our overrides.
-            colorscheme iceberg~
+            Colorscheme iceberg~
         endif
 
         " other good: PaperColor?
