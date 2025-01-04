@@ -1,4 +1,4 @@
-" Last-Modified: 2024-11-29T20:04:33.979685719+00:00
+" Last-Modified: 2025-01-04T16:08:27.186845495+00:00
 
 " vim:set tw=80 noml:
 set secure nobomb
@@ -3658,6 +3658,18 @@ function! UserReadCbRetExpr(p_opt, ...) abort
     return l:expr
 endfunction
 
+" for insert-normal mode; if the clipboard register's in line mode, paste-before
+" will put the clipboard text before the current line, no matter where the
+" cursor is. this is jarring in insert mode. take the clipboard text and force
+" it into a register in linewise mode.
+function! UserReadCbCharacterwiseRetExpr(p_opt, ...) abort
+    let l:clp = call('UserReadClipboard', a:000)
+    if getregtype(l:clp.reg) ==# 'V'
+        " source register is linewise, convert - append nothing, change type
+        call setreg(l:c_reg, '', 'av')
+    endif
+    return '"' . l:clp.reg . a:p_opt
+endfunction
 
 " mappings to copy/paste using the X clipboard from tty vim, without resorting
 " to the +X11 vim feature.
@@ -3722,19 +3734,28 @@ xnoremap    <Leader>y       m`"wy``:call UserWriteClipboard(@w)<CR>
 
 "imap        <Leader>p       <C-\><C-o><Leader>p
 "imap        <Leader>P       <C-\><C-o><Leader>P
+"
 " 2024-12-25 insert mode paste - going to normal mode and pasting is bad when
-" the clipboard text is linewise (ends witn newlines).
+" the clipboard register is linewise - the pasted text will end up in a line
+" above the current line, no matter where the cursor is.
+"
+" test: <abc def >, paste text ending with newlines when cursor is at end of
+" line/on d (paste before, paste after)
+inoremap    <expr> <Leader>p    "\<C-\>\<C-o>" . UserReadCbCharacterwiseRetExpr("gp")
+inoremap    <expr> <Leader>P    "\<C-\>\<C-o>" . UserReadCbCharacterwiseRetExpr("gP")
+"
+" alternatively with C-r C-r/p/o:
 "
 "   - <C-g>u    - start new change
 "   - <C-r><C-r><reg>   - literal insert register
 "   - <C-g>u    - start new change
-inoremap    <expr>  <Leader>P   "\<C-g>u"
-            \ . "\<C-r>\<C-r>" . UserReadClipboard().reg
-            \ . "\<C-g>u"
+"inoremap    <expr>  <Leader>P   "\<C-g>u"
+            "\ . "\<C-r>\<C-r>" . UserReadClipboard().reg
+            "\ . "\<C-g>u"
 " will this ever be useful?
-inoremap    <expr>  <Leader>p   "\<C-g>u"
-            \ . "\<Right>\<C-r>\<C-r>" . UserReadClipboard().reg
-            \ . "\<C-g>u"
+"inoremap    <expr>  <Leader>p   "\<C-g>u"
+            "\ . "\<Right>\<C-r>\<C-r>" . UserReadClipboard().reg
+            "\ . "\<C-g>u"
 
 if has('gui_running') || has('win32')
 
@@ -3778,6 +3799,9 @@ if has('gui_running') || has('win32')
 
     " no C-c / C-S-c for the command window.
 endif
+
+" copy the contents of double-quoted strings
+nmap    <Leader>"   vi"<Leader>y
 
 function! UserPutClipboard(bang, ...) abort
     let l:clp = call('UserReadClipboard', a:000)
