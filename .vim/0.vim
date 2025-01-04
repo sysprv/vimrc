@@ -590,11 +590,6 @@ if has('nvim')
     let g:u.swap_dir = expand('~/.vim/var-nvim/swap//')
 endif
 
-if !exists('$PARINIT')
-    let $PARINIT = "rTbgqR B=.,?'_A_a_@ Q=_s>|#"
-endif
-
-
 " it's fine usually. incsearch can be an unwelcome surprise over ssh.
 " doesn't handle chained :g/:v.
 " doc 'is'
@@ -3425,20 +3420,36 @@ inoremap <expr> <silent> <Leader>dU     "\<C-g>u" . UserUtcNow() . "\<C-g>u"
 ""      see also: plugin/justify.vim; doesn't seem as good as par.
 ""
 "" mapping deciphered:
-"" { - go to beginning of paragraph
+"" { - go to beginning of paragraph exclusive
 "" !}par... - doc ! (https://vimhelp.org/change.txt.html#%21)
 ""      filter to end of paragraph
 "" } - move to end of paragraph
 "" http://www.softpanorama.org/Editors/Vimorama/vim_piping.shtml#Using_vi_as_a_simple_program_generator
 "" http://www.nicemice.net/par/par-doc.var
+"
+" 2024-12-30 {!} (start with exclusive mothin) somehow knows that the first
+" empty line in range - the paragraph separator - should be preserved? this
+" breaks when the same thing is attempted with seperate :d and :p.
+"
+"nnoremap        <Leader>j     {!}/usr/bin/par 78<cr>}
+"
+" export current textwidth or default 78 with an expression register
+" substitution
+"nnoremap    <Leader>j {!}/usr/bin/par w<C-r>=(&tw == 0 ? 78 : &tw)<CR> j<CR>
+"
+" use Filter. <bs> to remove the ! inserted by vim
+"
+" opensuse package par is parity archiver, and exits with ok status on unknown
+" arguments like w78. par formatter package is par_text.
+"
+"" mapping deciphered:
+"" { - go to beginning of paragraph exclusive
+"" j - back into paragraph (like vip)
+"" !} - fills in line range in the command window
+"" Filter...<CR>
+"" } - move to end of paragraph
 
-if executable('/usr/bin/par')
-    "nnoremap        <Leader>j     {!}/usr/bin/par 78<cr>}
-
-    " export current textwidth or default 78 with an expression register
-    " substitution
-    nnoremap    <Leader>j {!}/usr/bin/par w<C-r>=(&tw == 0 ? 78 : &tw)<CR> j<CR>
-endif
+nnoremap    <Leader>j {j!}<BS>call Filter('par w' . (&tw == 0 ? 78 : &tw))<CR>}
 
 " join paragraphs to one line, for sharing.
 "
@@ -4331,7 +4342,7 @@ command -bar Scratch    new
 command -bar ScrEphem   Scratch | setlocal bufhidden=unload
 
 " pretty-print g:u
-command -bar PrintU ScrEphem | put =json_encode(g:u) | .! jq --sort-keys .
+command -bar PrintU ScrEphem | put =json_encode(g:u) | .Filter jq --sort-keys .
 
 command -bar Nolist         windo setlocal nolist
 command -bar ListDef        let g:u.lcs.cur = g:u.lcs.def
@@ -4646,7 +4657,8 @@ function! Filter(cmd) range abort
         echohl None
         if !empty(stdout)
             " failed with some output - dump into a new window
-            split +enew
+            "split +enew
+            ScrEphem
             put=stdout
         endif
     else
@@ -4654,12 +4666,13 @@ function! Filter(cmd) range abort
         " first append any new text
         execute a:lastline . 'put=stdout'
         " then delete input range
-        execute a:firstline . ',' . a:lastline . 'd_'
+        execute a:firstline . ',' . a:lastline . 'deletep'
     endif
     call delete(f_stdin)
     if getfsize(f_stderr) > 0
         " stderr has something - open in a new window
-        execute 'split' f_stderr
+        ScrEphem
+        execute 'edit' f_stderr
     else
         call delete(f_stderr)   " no stderr
     endif
