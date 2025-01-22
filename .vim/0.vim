@@ -3730,8 +3730,8 @@ cnoremap            <Leader>y   <C-\>eUserTeeCmdLineCb()<cr>
 "   ^ - go to first non-blank char,
 "   "wyg_ - to register w, yank until last non-blank char
 "   `` - jump back
-nnoremap    <Leader>y       m`^"wyg_``:call UserWriteClipboard(@w)<CR>
-xnoremap    <Leader>y       m`"wy``:call UserWriteClipboard(@w)<CR>
+nnoremap    <silent> <Leader>y       m`^"wyg_``:call UserWriteClipboard(@w)<CR>
+xnoremap    <silent> <Leader>y       m`"wy``:call UserWriteClipboard(@w)<CR>
 
 "imap        <Leader>p       <C-\><C-o><Leader>p
 "imap        <Leader>P       <C-\><C-o><Leader>P
