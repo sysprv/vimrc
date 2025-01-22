@@ -2424,7 +2424,9 @@ function! UserColours256()
     highlight UserUnicodeWhitespace term=standout ctermbg=red guibg=orange
 
     " 2024-11-30 high-vis orange #ff7900 to firebrick3 #cd2626
-    highlight Cursor guifg=bg guibg=#cd2626 gui=NONE
+    if UserCO(g:u.coflags.ui)
+        highlight Cursor guifg=bg guibg=goldenrod gui=NONE
+    endif
 
     let g:colors_overridden = 1
 endfunction
