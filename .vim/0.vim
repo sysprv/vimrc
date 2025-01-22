@@ -2372,6 +2372,11 @@ function! UserColours256()
         call UserUiStatusLine(g:u.ui, l:bg)
     endif
 
+    if UserCO(g:u.coflags.ui)
+        " non-gui tty - don't override terminal (emulator) colours.
+        highlight Normal ctermfg=NONE ctermbg=NONE cterm=NONE
+    endif
+
     if l:bg ==# 'light'
         if UserCO(g:u.coflags.spell)
             highlight SpellBad
