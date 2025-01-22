@@ -2651,6 +2651,15 @@ function! UserColoursPrelude()
     " enable termguicolors only if must - keep tgc off in ttys that support
     " indexed colors. tgc doesn't apply to the tty cursor.
 
+    " always set after checking, to help ourselves later :verbose set bg?
+    if !l:done && has('gui_running')
+        " last resort; default: background=light - unless windows?
+        if &background !=# 'light'
+            set background=light
+        endif
+        let l:done = 1
+    endif
+
     if !l:done && has('termguicolors')
         if &term =~# '-direct$'
             " xterm-direct / tmux-direct
@@ -2660,23 +2669,15 @@ function! UserColoursPrelude()
             " contemporary conhost/wt seems to depend on desire for rgb colors?
             " t_Co stays at 256.
             "
-            set background=dark
+            " with the right windows terminal settings about contrast/colours,
+            " no need to force the background.
             set termguicolors t_ut=     " don't use BCE - must be set after tgc
             let l:done = 1
         endif
     endif
 
-    " always set after checking, to help ourselves later :verbose set bg?
-    if !l:done && (has('gui_running') || exists('$DISPLAY'))
-        " last resort; default: background=light
-        if &background !=# 'light'
-            set background=light
-        endif
-        let l:done = 1
-    endif
-    " vim default's light but most unfortunate situations are dark
-    if !l:done && (&background !=# 'dark')
-        set background=dark
+    if !l:done && exists('$COLORFGBG')
+        " it's probably me
         let l:done = 1
     endif
 
