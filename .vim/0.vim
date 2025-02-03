@@ -2810,8 +2810,11 @@ function! UserLoadColors()
     call UserColoursFailsafe()
 
     if UserCanLoadColorscheme()
-        if v:version >= 900 && UserRuntimeHas('colors/wildcharm.vim')
-            " wildcharm and lunaperche support both light and dark bg
+        " wildcharm and lunaperche support both light and dark bg
+        if UserRuntimeHas('colors/wildcharm-p0.vim')
+            " wildcharm patched for old vims and to not set term Normal
+            Colorscheme wildcharm-p0
+        elseif v:version >= 900 && UserRuntimeHas('colors/wildcharm.vim')
             Colorscheme wildcharm
         elseif UserRuntimeHas('colors/iceberg~.vim')
             " load iceberg with our overrides.
