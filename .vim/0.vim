@@ -780,7 +780,7 @@ if v:version < 802
     " newer vims set this to 'truncate' and that's fine.
     set display+=lastline
 endif
-set scrolloff=0
+set scrolloff=2
 " scrolljump is efficient but jarring.
 "set scrolljump=5
 "
@@ -3674,7 +3674,7 @@ function! UserReadCbCharacterwiseRetExpr(p_opt, ...) abort
     let l:clp = call('UserReadClipboard', a:000)
     if getregtype(l:clp.reg) ==# 'V'
         " source register is linewise, convert - append nothing, change type
-        call setreg(l:c_reg, '', 'av')
+        call setreg(l:clp.reg, '', 'av')
     endif
     return '"' . l:clp.reg . a:p_opt
 endfunction
