@@ -3717,8 +3717,9 @@ nnoremap    <expr>  <Leader>P   UserReadCbRetExpr("gP")
 "
 " literal insert - doc: c_CTRL-R_CTRL-R
 
-cnoremap    <expr>  <Leader>p   "\<C-r>\<C-r>" . UserReadClipboard().reg
-cnoremap            <Leader>P   <Nop>
+" insert under the cursor, pushing what was under cursor to the right
+cnoremap    <expr>  <Leader>P   "\<C-r>\<C-r>" . UserReadClipboard().reg
+cmap                <Leader>p   <Right><Leader>P
 
 cnoremap            <Leader>y   <C-\>eUserTeeCmdLineCb()<cr>
 
