@@ -624,8 +624,9 @@ endif
 " graphics.) v:count is what's good to know; the statusline doesn't update
 " often enough to be useful for this. vile throws up an arg: prompt for this,
 " which is nice.
-
-set noshowcmd
+"
+" 2025-02-10 re-enabled. it's slow but i keep looking for the visual feedback.
+set showcmd
 
 " set-formatoptions; doc fo-table
 " fo-r - add comment leader on new lines, insert mode
