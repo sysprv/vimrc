@@ -2669,7 +2669,8 @@ function! UserColoursPrelude()
     endif
 
     if !l:done && has('termguicolors')
-        if &term =~# '-direct$'
+        " 2025-02-10 recent versions of vim (patch 9.1.1054) do this.
+        if !has('patch 9.1.1054') && &term =~# '-direct$'
             " xterm-direct / tmux-direct
             set termguicolors
             let l:done = 1
