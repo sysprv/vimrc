@@ -3751,6 +3751,9 @@ cnoremap            <Leader>y   <C-\>eUserTeeCmdLineCb()<cr>
 nnoremap    <silent> <Leader>y       m`^"wyg_``:call UserWriteClipboard(@w)<CR>
 xnoremap    <silent> <Leader>y       m`"wy``:call UserWriteClipboard(@w)<CR>
 
+"
+" insert-mode paste
+"
 "imap        <Leader>p       <C-\><C-o><Leader>p
 "imap        <Leader>P       <C-\><C-o><Leader>P
 "
@@ -3760,8 +3763,14 @@ xnoremap    <silent> <Leader>y       m`"wy``:call UserWriteClipboard(@w)<CR>
 "
 " test: <abc def >, paste text ending with newlines when cursor is at end of
 " line/on d (paste before, paste after)
-inoremap    <expr> <Leader>p    "\<C-\>\<C-o>" . UserReadCbCharacterwiseRetExpr("gp")
-inoremap    <expr> <Leader>P    "\<C-\>\<C-o>" . UserReadCbCharacterwiseRetExpr("gP")
+"inoremap    <expr> <Leader>p    "\<C-\>\<C-o>" . UserReadCbCharacterwiseRetExpr("gp")
+"inoremap    <expr> <Leader>P    "\<C-\>\<C-o>" . UserReadCbCharacterwiseRetExpr("gP")
+"
+" 2025-02-11 why did i revert from C-r C-r ? just because of the text length? let's try.
+" 2025-02-27 switch to non-indenting paste. indenting doesn't work well often anyway.
+inoremap    <expr>  <Leader>p   "\<C-g>u\<Right>\<C-r>\<C-o>" . UserReadClipboard().reg
+inoremap    <expr>  <Leader>P   "\<C-g>u\<C-r>\<C-o>" . UserReadClipboard().reg
+
 "
 " alternatively with C-r C-r/p/o:
 "
