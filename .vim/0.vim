@@ -2376,6 +2376,8 @@ function! UserColours256()
     if UserCO(g:u.coflags.ui)
         " non-gui tty - don't override terminal (emulator) colours.
         highlight Normal ctermfg=NONE ctermbg=NONE cterm=NONE
+
+        highlight VertSplit ctermbg=NONE guibg=NONE
     endif
 
     if l:bg ==# 'light'
