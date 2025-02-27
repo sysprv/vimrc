@@ -2672,9 +2672,12 @@ function! UserColoursPrelude()
 
     if !l:done && has('termguicolors')
         " 2025-02-10 recent versions of vim (patch 9.1.1054) do this.
-        if !has('patch 9.1.1054') && &term =~# '-direct$'
+        " recent versions of vim flip flop.
+        if &term =~# '-direct$'
             " xterm-direct / tmux-direct
-            set termguicolors
+            if !&termguicolors
+                set termguicolors
+            endif
             let l:done = 1
         elseif has('vcon') && &term ==# 'win32'
             " contemporary conhost/wt seems to depend on desire for rgb colors?
