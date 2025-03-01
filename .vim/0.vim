@@ -414,11 +414,6 @@ endif
 "let g:loaded_vimballPlugin = 2
 "let g:loaded_zipPlugin = 2
 
-if v:version >= 900
-    " better than plain % for code with braces embedded in strings etc.;
-    " but enable only if the vim version's recent enough.
-    packadd matchit
-endif
 " preventing loading by setting variables works but all the files still show up
 " with :scriptnames
 set noloadplugins
@@ -518,11 +513,9 @@ let g:no_racket_maps = 1
 " https://www.linusakesson.net/programming/vimsuspend/index.php (old)
 " https://twitter.com/marcan42/status/1494213855387734019
 " fsync directory? aio_fsync?
-set nofsync
-" silly breakage - nvim decided to bail on this option
-if !has('nvim')
-    set swapsync=
-endif
+silent! set nofsync swapsync=
+
+" 2025-02-28 keeping 'swapfile' enabled doesn't make file loading slow
 
 " how files should be written - whether to rename, or put the new data
 " into the same file. the vi default behaviour is yes, and it's the most
@@ -817,8 +810,8 @@ if exists('&modelineexpr')
     set nomodelineexpr
 endif
 
-" viminfo: don't save registers, search pattern history.
-set viminfo=/0,'100,<0,s0,h,r/tmp
+" viminfo: don't save registers. why wasn't i saving search pattern history?
+set viminfo='100,<0,s0,h,r/tmp
 if exists('$TMPDIR') && ($TMPDIR !=# '/tmp')
     execute 'set viminfo+=r' . $TMPDIR
 endif
@@ -1668,7 +1661,7 @@ function! UserAlert(lines)
         let l:opts = UserPopupNotfOpts()
         call popup_notification(a:lines, l:opts)
     else
-        echom a:lines
+        echom join(a:lines, ',')
     endif
 endfunction
 
