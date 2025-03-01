@@ -357,19 +357,19 @@ endif
 " syntax-on should be done early, not late. synload.vim and syncolor.vim have
 " many side-effects like removing autocmds.
 "
-" 2024-06-20
-if !exists('g:syntax_on') || !g:syntax_on
+" 2025-02-28 foldmethod=syntax can make vim unusable with large files (f.ex.
+" json), blocks file loading. regexpengine=2 doesn't help. neither does lowering
+" redrawtime.
+set regexpengine=2
+if 0 && (!exists('g:syntax_on') || !g:syntax_on)
     syntax on
 endif
+syntax off
 
 " custom syntax rules (UserApplySyntaxRules()) keep working fine even
 " when filetype syntax is disabled with a global 'syntax off'.
 
-" 2-300 can easily be insufficient.
-" 2023-10-01 rarely use syntax highlighting, keep these at default.
-"set redrawtime=700
-
-" limiting synmaxcol isn't great since it breaks syntax highlighting after the
+" lowering synmaxcol isn't great since it breaks syntax highlighting after the
 " offending line.
 "set synmaxcol=300
 
@@ -501,6 +501,12 @@ let g:undotree_DiffCommand = "/usr/bin/diff -u"
 let g:undotree_WindowLayout = 2
 let g:undotree_ShortIndicators = 1
 let g:undotree_HelpLine = 0
+
+" python indenting; doc: ft-python-indent
+" flag named paren but applies to brackets too.
+let g:python_indent = {}
+let g:python_indent.closed_paren_align_last_line = 0
+let g:python_indent.searchpair_timeout = 3
 
 " by default ftplugin/racket maps K to raco docs -- <kw>
 let g:no_racket_maps = 1
@@ -4350,6 +4356,17 @@ command -bar SynOff         set syntax=off
 "   :syntax sync minlines=100
 " also remember: doautocmd Syntax
 
+command! -bar SynLoad   if &filetype !=# ''
+            \ | execute 'runtime syntax/' . &filetype . '.vim'
+            \ | syntax reset
+            \ | else
+            \ | echom 'no filetype'
+            \ | endif
+
+command! -bar Enable3   if &filetype !=# ''
+            \ | InEnable
+            \ | SynLoad
+            \ | endif
 
 " mnemonic to open all folds in buffer
 command -bar Unfold         normal! zR
@@ -4772,22 +4789,22 @@ augroup UserVimRc
     "
     " 2024-04-10 python autoindent's very weird. disabled.
 
-    autocmd FileType ada            InEnable
-    autocmd FileType c              InEnable
-    autocmd FileType java           InEnable
-    autocmd FileType perl           InEnable
-    autocmd FileType racket         InEnable
-    autocmd FileType raku           InEnable
-    autocmd FileType ruby           InEnable
-    autocmd FileType rust           InEnable
-    autocmd FileType scala          InEnable
-    autocmd FileType vim            InEnable
-    " no indenting for python; everything's too broken.
-
-    autocmd FileType go             InEnable
-    autocmd FileType javascript     InEnable
-    autocmd FileType json           InEnable
-    autocmd FileType typescript     InEnable
+    autocmd FileType ada            Enable3
+    autocmd FileType c              Enable3
+    autocmd FileType java           Enable3
+    autocmd FileType python         Enable3
+    autocmd FileType perl           Enable3
+    autocmd FileType racket         Enable3
+    autocmd FileType raku           Enable3
+    autocmd FileType ruby           Enable3
+    autocmd FileType rust           Enable3
+    autocmd FileType scala          Enable3
+    autocmd FileType vim            Enable3
+    autocmd FileType go             Enable3
+    autocmd FileType javascript     Enable3
+    autocmd FileType json           Enable3
+    autocmd FileType typescript     Enable3
+    autocmd FileType *sh            InEnable
 
     autocmd FileType text               FoText
 
@@ -4816,7 +4833,6 @@ augroup UserVimRc
     " 2024-09-30 json - jq uses 2 spaces by default, google style guide uses
     " 2 spaces
     autocmd FileType json               SoftIndent 2
-    autocmd FileType json               setlocal foldmethod=syntax
     autocmd FileType xdefaults          setlocal commentstring=!\ %s
     autocmd FileType text               setlocal commentstring=#\ %s
     "autocmd FileType text               setlocal commentstring=/*\ %s\ */
