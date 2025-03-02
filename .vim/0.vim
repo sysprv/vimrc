@@ -1,4 +1,4 @@
-" Last-Modified: 2025-01-04T16:08:27.186845495+00:00
+" Last-Modified: 2025-03-02T18:24:05.744211310+00:00
 
 " vim:set tw=80 noml:
 set secure nobomb
@@ -9,6 +9,8 @@ if &compatible
 endif
 
 " Change log:
+"
+" 2025-03-02 Only load syntax rules for some filetypes, similar to indentation.
 "
 " 2024-11-14 Multiple changes
 "
@@ -4351,7 +4353,6 @@ command -bar SynOff         set syntax=off
 
 command! -bar SynLoad   if &filetype !=# ''
             \ | execute 'runtime syntax/' . &filetype . '.vim'
-            \ | syntax reset
             \ | else
             \ | echom 'no filetype'
             \ | endif
@@ -4773,7 +4774,7 @@ augroup UserVimRc
     " default: hard tabs; C, Go, plain old Unix.
 
     " keeping 'filetype indent off', load indent rules just for a few we like.
-    " no: *sh, xml, sql, yaml, markdown.
+    " no: xml, sql, yaml, markdown.
     "
     " see $VIM/indent.vim
     "
@@ -4784,19 +4785,20 @@ augroup UserVimRc
 
     autocmd FileType ada            Enable3
     autocmd FileType c              Enable3
+    autocmd FileType go             Enable3
     autocmd FileType java           Enable3
-    autocmd FileType python         Enable3
+    autocmd FileType javascript     Enable3
+    autocmd FileType json           Enable3
     autocmd FileType perl           Enable3
+    autocmd FileType python         Enable3
     autocmd FileType racket         Enable3
     autocmd FileType raku           Enable3
     autocmd FileType ruby           Enable3
     autocmd FileType rust           Enable3
     autocmd FileType scala          Enable3
-    autocmd FileType vim            Enable3
-    autocmd FileType go             Enable3
-    autocmd FileType javascript     Enable3
-    autocmd FileType json           Enable3
     autocmd FileType typescript     Enable3
+    autocmd FileType vim            Enable3
+    " *sh - only indentation. colours aren't right often
     autocmd FileType *sh            InEnable
 
     autocmd FileType text               FoText
@@ -4879,8 +4881,8 @@ augroup UserVimRc
     " autocmd-pattern - * includes path separators.
     autocmd BufReadPost /private/var/mobile/*       setlocal swapfile<
 
-    " if swapfile exists, always open read-only
-    "autocmd SwapExists *    let v:swapchoice = 'o'
+    " if swapfile exists, quit (just status 1, no messages, echom doesn't work)
+    autocmd SwapExists *    let v:swapchoice = 'q'
 
     "autocmd TermResponse * echom 'termresponse:' strtrans(v:termresponse)
 
