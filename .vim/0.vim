@@ -4745,6 +4745,32 @@ endfunction
 command -range -nargs=+ Filter <line1>,<line2>call Filter(<q-args>)
 
 
+function! UserSwapChoice(swapname) abort
+    if !exists('*swapinfo')
+        return ''
+    endif
+
+    let swapname = a:swapname
+    let sw = swapinfo(swapname)
+    if exists("sw.pid")
+        echowindow 'open in pid ' . sw['pid']
+        " read-only modifiable allows edits, a pain to back out from.
+        set nomodifiable
+        return 'o'  " open read-only
+    endif
+    let afile = sw['fname']
+    " time isn't reliable
+    if !sw['dirty'] && ((getftime('afile') - sw['mtime']) >= 3600)
+        return 'd'
+    endif
+    if sw['dirty'] && (sw['mtime'] > getftime('afile'))
+        echowindow 'swap recovering'
+        autocmd UserVimRc BufUnload call delete(swapname)
+        return 'r'
+    endif
+    return ''   " ask
+endfunction
+
 " mine own #-autogroup
 augroup UserVimRc
     autocmd!
@@ -4882,8 +4908,11 @@ augroup UserVimRc
     " autocmd-pattern - * includes path separators.
     autocmd BufReadPost /private/var/mobile/*       setlocal swapfile<
 
-    " if swapfile exists, quit (just status 1, no messages, echom doesn't work)
-    autocmd SwapExists *    let v:swapchoice = 'q'
+    " if swapfile exists, open read-only without the lecturing. q (quit),
+    " a (abort) are rather useless, fails silently when trying to open
+    " a file-with-swap in a new split. a little better with new vim run - just
+    " exits with status 1.
+    autocmd SwapExists *    let v:swapchoice = UserSwapChoice(v:swapname)
 
     "autocmd TermResponse * echom 'termresponse:' strtrans(v:termresponse)
 
