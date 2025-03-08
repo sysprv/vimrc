@@ -1,0 +1,14 @@
+#!/bin/sh
+
+umask 027
+
+if ! [[ -d ~/.vim/colors ]]; then
+    mkdir -p ~/.vim/colors
+fi
+
+set -e -u
+
+cp .vimrc                       ~/.vimrc
+cp .vim/0.vim                   ~/.vim/
+cp .vim/statusline_defs.vim     ~/.vim/
+cp .vim/colors/wildcharm-p0.vim ~/.vim/colors/
