@@ -4744,10 +4744,18 @@ endfunction
 
 command -range -nargs=+ Filter <line1>,<line2>call Filter(<q-args>)
 
+function! UserAppendBuf(buf, text) abort
+    return appendbufline(a:buf, '$', a:text)
+endfunction
 
+" requires swapinfo() and appendbufline()/setbufline()
+" swapinfo()        8.1.0313
+" appendbufline()   8.1.0037
+" setbufline()      8.0.1039
+"
+" enough to work on current iVim.
 function! UserSwapChoice(swapname) abort
-    " requires swapinfo() and appendbufline()
-    if v:version < 820
+    if !has('patch-8.1.0313')
         return ''
     endif
 
@@ -4759,10 +4767,10 @@ function! UserSwapChoice(swapname) abort
     let swapname = a:swapname
     let sw = swapinfo(swapname)
     let swapchoice = ''     " ask
-    call appendbufline(msgbuf, '$', 'swapname = ' . swapname)
-    call appendbufline(msgbuf, '$', string(sw))
+    call UserAppendBuf(msgbuf, 'swapname = ' . swapname)
+    call UserAppendBuf(msgbuf, string(sw))
     if exists('sw.pid')
-        call appendbufline(msgbuf, '$', 'file opened by pid ' . sw['pid'])
+        call UserAppendBuf(msgbuf, 'file opened by pid ' . sw['pid'])
         " read-only modifiable allows edits, a pain to back out from.
         set nomodifiable
         let swapchoice = 'o'  " open read-only
@@ -4770,18 +4778,18 @@ function! UserSwapChoice(swapname) abort
         let afile = sw['fname']
         " time isn't reliable
         if !sw['dirty'] && ((getftime('afile') - sw['mtime']) >= 3600)
-            call appendbufline(msgbuf, '$', swapname . ': deleting')
+            call UserAppendBuf(msgbuf, swapname . ': deleting')
             let swapchoice = 'd'
         elseif sw['dirty'] && (sw['mtime'] > getftime('afile'))
-            call appendbufline(msgbuf, '$', swapname . ': recovering + queuing for rename')
+            call UserAppendBuf(msgbuf, swapname . ': recovering + queuing for rename')
             let b:swapname_old = swapname
             autocmd UserVimRc BufUnload
                         \ call rename(b:swapname_old, b:swapname_old . '-recovered')
             let swapchoice = 'r'
         endif
     endif
-    call appendbufline(msgbuf, '$', 'swapchoice = ''' . swapchoice . '''')
-    call appendbufline(msgbuf, '$', '--')
+    call UserAppendBuf(msgbuf, 'swapchoice = ''' . swapchoice . '''')
+    call UserAppendBuf(msgbuf, '--')
     return swapchoice
 endfunction
 
