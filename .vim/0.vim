@@ -4746,29 +4746,43 @@ command -range -nargs=+ Filter <line1>,<line2>call Filter(<q-args>)
 
 
 function! UserSwapChoice(swapname) abort
-    if !exists('*swapinfo')
+    " requires swapinfo() and appendbufline()
+    if v:version < 820
         return ''
     endif
 
+    let msgbuf = bufadd('!swap-messages')
+    call setbufvar(msgbuf, '&buftype', 'nofile')
+    call bufload(msgbuf)
+    call setbufvar(msgbuf, '&buflisted', 1)
+
     let swapname = a:swapname
     let sw = swapinfo(swapname)
-    if exists("sw.pid")
-        echowindow 'open in pid ' . sw['pid']
+    let swapchoice = ''     " ask
+    call appendbufline(msgbuf, '$', 'swapname = ' . swapname)
+    call appendbufline(msgbuf, '$', string(sw))
+    if exists('sw.pid')
+        call appendbufline(msgbuf, '$', 'file opened by pid ' . sw['pid'])
         " read-only modifiable allows edits, a pain to back out from.
         set nomodifiable
-        return 'o'  " open read-only
+        let swapchoice = 'o'  " open read-only
+    else
+        let afile = sw['fname']
+        " time isn't reliable
+        if !sw['dirty'] && ((getftime('afile') - sw['mtime']) >= 3600)
+            call appendbufline(msgbuf, '$', swapname . ': deleting')
+            let swapchoice = 'd'
+        elseif sw['dirty'] && (sw['mtime'] > getftime('afile'))
+            call appendbufline(msgbuf, '$', swapname . ': recovering + queuing for rename')
+            let b:swapname_old = swapname
+            autocmd UserVimRc BufUnload
+                        \ call rename(b:swapname_old, b:swapname_old . '-recovered')
+            let swapchoice = 'r'
+        endif
     endif
-    let afile = sw['fname']
-    " time isn't reliable
-    if !sw['dirty'] && ((getftime('afile') - sw['mtime']) >= 3600)
-        return 'd'
-    endif
-    if sw['dirty'] && (sw['mtime'] > getftime('afile'))
-        echowindow 'swap recovering'
-        autocmd UserVimRc BufUnload call delete(swapname)
-        return 'r'
-    endif
-    return ''   " ask
+    call appendbufline(msgbuf, '$', 'swapchoice = ''' . swapchoice . '''')
+    call appendbufline(msgbuf, '$', '--')
+    return swapchoice
 endfunction
 
 " mine own #-autogroup
