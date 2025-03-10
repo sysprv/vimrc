@@ -583,12 +583,31 @@ endif
 " is added even for centralised swap files.) inconsistent for no reason.
 "
 " 2024-11-10 undodir - double-slash isn't required at the end. inconsistent.
-let g:u.undo_dir = expand('~/.vim/var/un//')
-let g:u.swap_dir = expand('~/.vim/var/swap//')
+"
+" 2025-03-10 'directory' is global, so we're stuck with %-separated
+" filenames and possibly filename length limits. there's no way to set it per
+" file in a directory hierarchy like how we can with 'backupdir'. similar for
+" 'undodir' but BufWritePre should do the right thing there - undo files are
+" written only when the buffer's written.
+"
+" Yet Another Twist - with 'undodir', the undo filename is the percent-path
+" thing whenever 'undodir' is not '.'. so hooking BufWritePre and creating
+" a directory hierarchy for undo files ends up in despondence.
+"
+" dirs should end with // even on windows.
+"
+" going back to swap file near file. they're transient, unlike backups and
+" undofiles.
+"
+"let g:u.swap_dir = expand('~') . '/.vim/var/swap//'
+let g:u.swap_dir = '.'
+let g:u.undo_dir = expand('~') . '/.vim/var/un//'
 if has('nvim')
     " nvim changed undo format; don't let things mix.
-    let g:u.undo_dir = expand('~/.vim/var-nvim/un//')
-    let g:u.swap_dir = expand('~/.vim/var-nvim/swap//')
+    let g:u.undo_dir = expand('~') . '/.vim/var-nvim/un//'
+endif
+if has('ivim')
+    let g:u.swap_dir = expand('~') . '/.vim/var/swap//'
 endif
 
 " it's fine usually. incsearch can be an unwelcome surprise over ssh.
@@ -668,8 +687,10 @@ endfunction
 "
 " not great to keep swapfiles on onedrive; not great to not be able to share
 " swap files and undo files either.
-call UserMkdirOnce(g:u.swap_dir)
-let &directory = g:u.swap_dir
+if g:u.swap_dir != '.'
+    call UserMkdirOnce(g:u.swap_dir)
+    execute 'set directory^=' . g:u.swap_dir
+endif
 
 "
 " leave swapfile at the default (on).
@@ -680,8 +701,10 @@ set updatecount=10
 " copious amounts of backup files.
 
 if has('persistent_undo')
-    call UserMkdirOnce(g:u.undo_dir)
-    let &undodir = g:u.undo_dir
+    if g:u.undo_dir != '.'
+        call UserMkdirOnce(g:u.undo_dir)
+        execute 'set undodir^=' . g:u.undo_dir
+    endif
     set undofile
 endif
 
@@ -2072,6 +2095,7 @@ endfunction
 
 " like :Explore
 command Index       call UserOpenIndexFile()
+
 
 " ---- highlight (colour) definitions
 " Overrides for builtin highlights:
@@ -4766,10 +4790,15 @@ function! UserSwapChoice(swapname) abort
 
     let swapname = a:swapname
     let sw = swapinfo(swapname)
+    let b:swapname_old = swapname
     let swapchoice = ''     " ask
-    call UserAppendBuf(msgbuf, 'swapname = ' . swapname)
+    call UserAppendBuf(msgbuf, 'old swapname = ' . swapname)
+    " the new swap file name (f.ex. .swo) that'll be created for the new buffer
+    " isn't available until later, i.e. swapname('%') returns nothing.
     call UserAppendBuf(msgbuf, string(sw))
     if exists('sw.pid')
+        " having a pid in the swapfile doesn't mean that process is still
+        " running.
         call UserAppendBuf(msgbuf, 'file opened by pid ' . sw['pid'])
         " read-only modifiable allows edits, a pain to back out from.
         set nomodifiable
@@ -4782,9 +4811,7 @@ function! UserSwapChoice(swapname) abort
             let swapchoice = 'd'
         elseif sw['dirty'] && (sw['mtime'] > getftime('afile'))
             call UserAppendBuf(msgbuf, swapname . ': recovering + queuing for rename')
-            let b:swapname_old = swapname
-            autocmd UserVimRc BufUnload
-                        \ call rename(b:swapname_old, b:swapname_old . '-recovered')
+            autocmd UserVimRc BufUnload RenameOldSwap
             let swapchoice = 'r'
         endif
     endif
@@ -4792,6 +4819,10 @@ function! UserSwapChoice(swapname) abort
     call UserAppendBuf(msgbuf, '--')
     return swapchoice
 endfunction
+
+command RenameOldSwap   if exists('b:swapname_old')
+            \ | call rename(b:swapname_old, b:swapname_old . '-recovered')
+            \ | endif
 
 " mine own #-autogroup
 augroup UserVimRc
