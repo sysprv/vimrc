@@ -3876,7 +3876,9 @@ command -range WRPR <line1>,<line2>Yank | call UserWriteClipboard(@w, 'PRIMARY')
 command -range WRCB <line1>,<line2>Yank | call UserWriteClipboard(@w)
 
 " visually select the last modified (including pasted) text
-"nnoremap    <Leader>lp      `[v`]
+" for getpos, ' works: getpos("'["), getpos("']")
+" 2025-03-23 why was this commented out
+nnoremap    <Leader>M      `[v`]
 
 " url paste adapter - if pasting a url, often it's convenient to treat
 " it in line mode - repeated pastes etc. but urls copied from browsers
