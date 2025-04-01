@@ -4798,10 +4798,20 @@ function! UserSwapChoice(swapname) abort
     let sw = swapinfo(swapname)
     let b:swapname_old = swapname
     let swapchoice = ''     " ask
+    let filetime = getftime(expand('<afile>'))
+    " log/inspect
+    call UserAppendBuf(msgbuf, 'filename = ' . expand('<afile>'))
     call UserAppendBuf(msgbuf, 'old swapname = ' . swapname)
+    let dirty = 0
+    if exists('sw.dirty')
+        let dirty = sw['dirty']
+    endif
+    let dirty_msg = dirty ? 'yes' : 'no'
+    call UserAppendBuf(msgbuf, 'dirty: ' . dirty_msg)
+    call UserAppendBuf(msgbuf, 'filetime: ' . strftime('%F', filetime))
+    call UserAppendBuf(msgbuf, 'swap mtime: ' . strftime('%F', sw['mtime']))
     " the new swap file name (f.ex. .swo) that'll be created for the new buffer
     " isn't available until later, i.e. swapname('%') returns nothing.
-    call UserAppendBuf(msgbuf, string(sw))
     if exists('sw.pid')
         " having a pid in the swapfile doesn't mean that process is still
         " running.
@@ -4812,16 +4822,17 @@ function! UserSwapChoice(swapname) abort
     else
         let afile = sw['fname']
         " time isn't reliable
-        if !sw['dirty'] && ((getftime('afile') - sw['mtime']) >= 3600)
+        if dirty && ((filetime - sw['mtime']) >= 3600)
             call UserAppendBuf(msgbuf, swapname . ': deleting')
             let swapchoice = 'd'
-        elseif sw['dirty'] && (sw['mtime'] > getftime('afile'))
+        elseif dirty && (sw['mtime'] > filetime)
             call UserAppendBuf(msgbuf, swapname . ': recovering + queuing for rename')
             autocmd UserVimRc BufUnload RenameOldSwap
             let swapchoice = 'r'
         endif
     endif
     call UserAppendBuf(msgbuf, 'swapchoice = ''' . swapchoice . '''')
+    call UserAppendBuf(msgbuf, string(sw))
     call UserAppendBuf(msgbuf, '--')
     return swapchoice
 endfunction
