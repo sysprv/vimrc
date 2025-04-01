@@ -3938,6 +3938,10 @@ function! UserUrlPasteMunge() abort
     normal! j0
 endfunction
 
+function! UserAddUrlPasteMapping()
+    nnoremap <buffer> <silent> q :call UserUrlPasteMunge()<CR>:silent update<CR>
+endfunction
+
 
 " -- end copy/paste adventures.
 
@@ -4885,9 +4889,8 @@ augroup UserVimRc
 
     autocmd FileType text               FoText
 
-    autocmd BufNewFile,BufReadPost      *.list.txt
-                \ nnoremap <buffer> <silent> q
-                \ :call UserUrlPasteMunge()<CR>:silent update<CR>
+    autocmd BufNewFile,BufReadPost      *.list.txt,linkdump*.txt
+                \ call UserAddUrlPasteMapping()
 
     autocmd BufNewFile,BufReadPost      *.xresources
                 \ setfiletype xdefaults
