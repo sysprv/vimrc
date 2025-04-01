@@ -1,4 +1,4 @@
-" Last-Modified: 2025-03-02T18:24:05.744211310+00:00
+" Last-Modified: 2025-04-01T08:36:00.335401179+00:00
 
 " vim:set tw=80 noml:
 set secure nobomb
@@ -9,6 +9,11 @@ if &compatible
 endif
 
 " Change log:
+"
+" 2025-04-01 Wrap :runtime and :colorscheme so that the sourced code can't
+" modify the current buffer. courtesy of having a stray unquoted i in
+" a colorscheme that loaded the colorscheme code into each file vim wanted to
+" edit.
 "
 " 2025-03-02 Only load syntax rules for some filetypes, similar to indentation.
 "
@@ -1351,9 +1356,29 @@ set nocursorline
 
 " %M and %R don't do exactly what i want...
 
+
+" helper for loading (with 'runtime' or 'colorscheme') files without any stray
+" 'i' s messing up the buffer and maybe vim startup
+function! ExecuteNomodifiable(cmd) abort
+    let b:_mod = 0
+    if &modifiable
+        set nomodifiable
+        let b:_mod = 1
+    endif
+    try
+        execute a:cmd
+    finally
+        if b:_mod
+            set modifiable
+        endif
+        unlet b:_mod
+    endtry
+endfunction
+
+
 if v:version >= 900     " vim9script
     " in a separate file so that vim7/8 won't try to parse the defs.
-    runtime statusline_defs.vim
+    call ExecuteNomodifiable('runtime statusline_defs.vim')
 else
     function! UserStLnBufModStatus()
         let l:m = ''
@@ -2823,8 +2848,16 @@ else
     endfunction
 endif
 
-command -bar -nargs=1 -complete=color Colorscheme
-            \ call PushBg1710() | colorscheme <args> | call PopBg1710()
+function! ColorScheme(name) abort
+    call PushBg1710()
+    try
+        call ExecuteNomodifiable('colorscheme ' . a:name)
+    finally
+        call PopBg1710()
+    endtry
+endfunction
+
+command -bar -nargs=1 -complete=color Colorscheme   call ColorScheme(<q-args>)
 
 
 " syntax for text isn't worth the trouble but we like good UI colours. for
@@ -2832,7 +2865,7 @@ command -bar -nargs=1 -complete=color Colorscheme
 " UserColours() again after enabling termguicolors. do all the ui/content
 " color changes and loading of a color scheme.
 
-function! UserLoadColors()
+function! UserLoadColors() abort
 
     " most colorschemes don't pull their own weight. would be great if a
     " colorscheme + reload behaviour would take a closure instead of requiring
@@ -2842,34 +2875,46 @@ function! UserLoadColors()
     call UserClearContentHighlights()
     call UserColoursFailsafe()
 
-    if UserCanLoadColorscheme()
-        " wildcharm and lunaperche support both light and dark bg
-        if UserRuntimeHas('colors/wildcharm-p0.vim')
-            " wildcharm patched for old vims and to not set term Normal
-            Colorscheme wildcharm-p0
-        elseif v:version >= 900 && UserRuntimeHas('colors/wildcharm.vim')
-            Colorscheme wildcharm
-        elseif UserRuntimeHas('colors/iceberg~.vim')
-            " load iceberg with our overrides.
-            Colorscheme iceberg~
+    try
+        if UserCanLoadColorscheme()
+            " wildcharm and lunaperche support both light and dark bg
+            let colorscheme = 'default'
+            if UserRuntimeHas('colors/wildcharm-p0.vim')
+                " wildcharm patched for old vims and to not set term Normal
+                let colorscheme = 'wildcharm-p0'
+            elseif v:version >= 900 && UserRuntimeHas('colors/wildcharm.vim')
+                let colorscheme = 'wildcharm'
+            elseif UserRuntimeHas('colors/iceberg~.vim')
+                " load iceberg with our overrides.
+                let colorscheme = iceberg~'
+            endif
+            if colorscheme !=# 'default'
+                call ColorScheme(colorscheme)
+            endif
+
+            " other good: PaperColor?
+            "
+            " honorable mention:
+            "
+            "   monochromenote - https://github.com/koron/vim-monochromenote
+            "
+            " zenchrome (https://github.com/g0xA52A2A/zenchrome.vim/) is a nice,
+            " comprehensive framework; should integrate it into this vimrc
+            " someday.
         endif
-
-        " other good: PaperColor?
-        "
-        " honorable mention:
-        "
-        "   monochromenote - https://github.com/koron/vim-monochromenote
-        "
-        " zenchrome (https://github.com/g0xA52A2A/zenchrome.vim/) is a nice,
-        " comprehensive framework; should integrate it into this vimrc
-        " someday.
-
-    endif
-
-    " if no colorscheme found/loaded, the ColorScheme autocmd won't fire. load
-    " our UI colour overrides.
-
-    if !exists('g:colors_name') | call UserColours() | endif
+    catch /^Vim\%((\a\+)\)\=:E/
+        if exists('g:colors_name')
+            unlet g:colors_name
+        endif
+        " throw doesn't do what i want; neither does throw 'x ' . v:exception
+        echoerr v:exception
+    finally
+        " if no colorscheme found/loaded, the ColorScheme autocmd won't fire.
+        " load our UI colour overrides.
+        if !exists('g:colors_name')
+            call UserColours()
+        endif
+    endtry
 endfunction
 
 
@@ -3300,12 +3345,8 @@ function! UserResetIndent()
 endfunction
 
 command! -bar InDisable     echo UserResetIndent()
-command! -bar InEnable      if &filetype !=# ''
-            \ | execute 'runtime indent/' . &filetype . '.vim'
-            \ | else
-            \ | echom 'no filetype'
-            \ | endif
-
+command! -bar InEnable
+            \ call ExecuteNomodifiable('runtime indent/' . &filetype . '.vim')
 
 set sessionoptions-=curdir
 set sessionoptions-=globals
@@ -4382,11 +4423,8 @@ command -bar SynOff         set syntax=off
 "   :syntax sync minlines=100
 " also remember: doautocmd Syntax
 
-command! -bar SynLoad   if &filetype !=# ''
-            \ | execute 'runtime syntax/' . &filetype . '.vim'
-            \ | else
-            \ | echom 'no filetype'
-            \ | endif
+command! -bar SynLoad
+            \ call ExecuteNomodifiable('runtime syntax/' . &filetype . '.vim')
 
 command! -bar Enable3   if &filetype !=# ''
             \ | InEnable
@@ -4934,7 +4972,7 @@ augroup UserVimRc
 
     autocmd FileType jproperties        Lousy | setlocal fileencoding=latin1
 
-    autocmd FileType racket             runtime plugin/matchparen.vim
+    autocmd FileType racket             call ExecuteNomodifiable('runtime plugin/matchparen.vim')
 
     " would be nice to be able to unload a script; maybe delete functions
     " using :scriptnames and :delf.
