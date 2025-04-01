@@ -2879,15 +2879,19 @@ function! UserLoadColors() abort
         if UserCanLoadColorscheme()
             " wildcharm and lunaperche support both light and dark bg
             let colorscheme = 'default'
-            if UserRuntimeHas('colors/wildcharm-p0.vim')
+            let candidates = [ 'iceberg~' ]     " load iceberg with our overrides.
+            if v:version >= 900
+                call add(candidates, 'wildcharm')
+            else
                 " wildcharm patched for old vims and to not set term Normal
-                let colorscheme = 'wildcharm-p0'
-            elseif v:version >= 900 && UserRuntimeHas('colors/wildcharm.vim')
-                let colorscheme = 'wildcharm'
-            elseif UserRuntimeHas('colors/iceberg~.vim')
-                " load iceberg with our overrides.
-                let colorscheme = iceberg~'
+                call add(candidates, 'wildcharm-p0')
             endif
+            for candidate in candidates
+                if UserRuntimeHas('colors/' . candidate . '.vim')
+                    let colorscheme = candidate
+                    break
+                endif
+            endfor
             if colorscheme !=# 'default'
                 call ColorScheme(colorscheme)
             endif

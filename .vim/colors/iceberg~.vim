@@ -8,25 +8,25 @@ if !UserRuntimeHas('colors/iceberg.vim')
 endif
 
 
-function! ColorOverrideIceberg() abort
+function! ColorPatchIceberg() abort
     " prevent auto-reloading stuff while we're in here
     if exists('g:colors_name')
         unlet g:colors_name
     endif
 
-    highlight VertSplit ctermbg=NONE guibg=NONE
+    highlight link Terminal             Normal
+    " override terminal statusline colours defined by iceberg
+    highlight! link StatusLineTerm       StatusLine
+    highlight! link StatusLineTermNC     StatusLineNC
+    highlight link LineNrAbove          LineNr
+    highlight link LineNrBelow          LineNr
+    highlight link MessageWindow        PMenu
+    highlight link PopupNotification    Todo
+    highlight link PopupSelected        PmenuSel
+    highlight link CurSearch            IncSearch
 
-    " Normal tty - use terminal (emulator) colours.
-    highlight Normal ctermfg=NONE ctermbg=NONE cterm=NONE
-    highlight link Terminal Normal
-    if &background ==# 'light'
-        " guifg: pantone 19-4052 tcx classic blue
-        highlight Normal guifg=#0f4c81 guibg=#f3f3f3
-    else    " background ==# 'dark'
-        " don't like the dark blue of iceberg; and the
-        " forground could be a little brigter.
-        highlight Normal guifg=#f3f3f3 guibg=#000000
-
+    if &background !=# 'light'
+        " background ==# 'dark'
         highlight LineNr ctermfg=242
         highlight VertSplit ctermfg=214 guifg=orange
         highlight Visual ctermbg=17
@@ -36,12 +36,7 @@ function! ColorOverrideIceberg() abort
 endfunction
 
 
-call PushBg1710()
-try
-    runtime colors/iceberg.vim
-finally
-    call PopBg1710()
-endtry
+runtime colors/iceberg.vim
 
-call ColorOverrideIceberg()
+call ColorPatchIceberg()
 
