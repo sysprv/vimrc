@@ -1,4 +1,4 @@
-" Last-Modified: 2025-04-01T08:36:00.335401179+00:00
+" Last-Modified: 2025-04-08T19:44:55.219776399+00:00
 
 " vim:set tw=80 noml:
 set secure nobomb
@@ -9,6 +9,12 @@ if &compatible
 endif
 
 " Change log:
+"
+" 2025-04-08 Try to optimize syntax rule setting, re-introduce flag
+" b:user_syntax to save double work on Syntax vs. BufWinEnter.
+"
+" 2025-04-07 Back to iceberg; now it's safe to keep syntax highlighting enabled
+" by default again.
 "
 " 2025-04-01 Wrap :runtime and :colorscheme so that the sourced code can't
 " modify the current buffer. courtesy of having a stray unquoted i in
@@ -368,10 +374,11 @@ endif
 " json), blocks file loading. regexpengine=2 doesn't help. neither does lowering
 " redrawtime.
 set regexpengine=2
-if 0 && (!exists('g:syntax_on') || !g:syntax_on)
+
+" alternative: :syntax manual
+if get(g:, 'syntax_on', 0) != 1
     syntax on
 endif
-syntax off
 
 " custom syntax rules (UserApplySyntaxRules()) keep working fine even
 " when filetype syntax is disabled with a global 'syntax off'.
@@ -2525,9 +2532,10 @@ command -bar Green  highlight Normal guibg=#41ff00
 " define custom syntax items for things we want highlighted.
 "
 " we want these to run even when syntax highlighting is globally off.
-function! UserApplySyntaxRules()
-    call UserLog('UserApplySyntaxRules enter win', winnr())
-    if &binary
+function! UserApplySyntaxRules() abort
+    let l:user_syntax = get(b:, 'user_syntax', 0)
+    call UserLog('UserApplySyntaxRules enter win', winnr(), l:user_syntax)
+    if &binary || l:user_syntax
         return
     endif
     " don't check for g:syntax_on; we want to work even if syntax is off.
@@ -2553,6 +2561,8 @@ function! UserApplySyntaxRules()
     " additive.
     "
     " we could wrap each of the definitions in an if has_key...
+    "
+    " 2025-04-08 do try buffer-local flag, to skip double work on BufWinEnter.
 
     syntax clear UserTrailingWhitespace
     syntax match UserTrailingWhitespace /\s\+$/
@@ -2644,6 +2654,8 @@ function! UserApplySyntaxRules()
     execute 'syntax match UserHttpURI' l:s 'contains=@NoSpell'
     " contained in other syntax matches:
     execute 'syntax match UserHttpURI' l:s 'transparent contained containedin=ALLBUT,UserHttpURI contains=@NoSpell'
+
+    let b:user_syntax = 1
 endfunction
 
 
@@ -2880,12 +2892,6 @@ function! UserLoadColors() abort
             " wildcharm and lunaperche support both light and dark bg
             let colorscheme = 'default'
             let candidates = [ 'iceberg~' ]     " load iceberg with our overrides.
-            if v:version >= 900
-                call add(candidates, 'wildcharm')
-            else
-                " wildcharm patched for old vims and to not set term Normal
-                call add(candidates, 'wildcharm-p0')
-            endif
             for candidate in candidates
                 if UserRuntimeHas('colors/' . candidate . '.vim')
                     let colorscheme = candidate
@@ -4418,11 +4424,13 @@ command -bar NoShowBreak     set showbreak=
 " helper for when a 'syntax off' -> 'syntax enable' wipes out our rules. and,
 " we want our syntax rules enabled even in empty buffers or plain text files,
 " where the Syntax autocommand won't fire.
-command -bar SynEnable      syntax enable | call UserApplySyntaxRules()
-command -bar SynDisable     syntax off | silent! unlet b:current_syntax | silent! unlet g:syntax_on
-command -bar SynSync        syntax sync fromstart
-" turn off syntax for buffer, not globally
-command -bar SynOff         set syntax=off
+command -bar SynEnableGlobal    syntax enable | call UserApplySyntaxRules()
+command -bar SynDisableGlobal   syntax off | silent! unlet b:current_syntax | silent! unlet g:syntax_on
+command -bar SynSync            syntax sync fromstart
+" turn off syntax for buffer, not globally; similar to :ownsyntax NONE?
+" set syntax=OFF (and =ON)
+" NB: clears our User* syntax items.
+" synload.vim SynSet() handles setting 'syntax' to &filetype
 " remember: https://vimhelp.org/usr_44.txt.html#44.10
 "   :syntax sync minlines=100
 " also remember: doautocmd Syntax
@@ -4921,24 +4929,32 @@ augroup UserVimRc
     " also make indenting fragile - namely, unclosed quotes.
     "
     " 2024-04-10 python autoindent's very weird. disabled.
+    " 2025-04-07 fixed with g:python_indent?
 
-    autocmd FileType ada            Enable3
-    autocmd FileType c              Enable3
-    autocmd FileType go             Enable3
-    autocmd FileType java           Enable3
-    autocmd FileType javascript     Enable3
-    autocmd FileType json           Enable3
-    autocmd FileType perl           Enable3
-    autocmd FileType python         Enable3
-    autocmd FileType racket         Enable3
-    autocmd FileType raku           Enable3
-    autocmd FileType ruby           Enable3
-    autocmd FileType rust           Enable3
-    autocmd FileType scala          Enable3
-    autocmd FileType typescript     Enable3
-    autocmd FileType vim            Enable3
+    " for plugins that like to touch tabstop - always reset tabstop to global
+    autocmd BufNewFile,BufReadPost *    if &tabstop != &g:tabstop
+                \ | setlocal tabstop<
+                \ | endif
+
+    autocmd FileType ada            InEnable
+    autocmd FileType c              InEnable
+    autocmd FileType go             InEnable
+    autocmd FileType java           InEnable
+    autocmd FileType javascript     InEnable
+    autocmd FileType json           InEnable
+    autocmd FileType perl           InEnable
+    autocmd FileType python         InEnable
+    autocmd FileType racket         InEnable
+    autocmd FileType raku           InEnable
+    autocmd FileType ruby           InEnable
+    autocmd FileType rust           InEnable
+    autocmd FileType scala          InEnable
+    autocmd FileType typescript     InEnable
+    autocmd FileType vim            InEnable
+    autocmd FileType terraform      InEnable
     " *sh - only indentation. colours aren't right often
     autocmd FileType *sh            InEnable
+    autocmd FileType *sh,perl       set syntax=OFF
 
     autocmd FileType text               FoText
 
@@ -4951,11 +4967,6 @@ augroup UserVimRc
     " limited indentation detection - search for \t in the first page.
     " if hard tab found, switch to hard tab mode.
     autocmd FileType conf if match(getline(2, 23), "\t")!=-1 | HardIndent | endif
-
-    " these ftplugins mess with 'tabstop' - undo that.
-    autocmd FileType markdown           Lousy
-    autocmd FileType python             Lousy
-    autocmd FileType rust               Lousy
 
     autocmd FileType lisp               Lisp
     autocmd FileType scheme             Lisp
@@ -5060,7 +5071,18 @@ augroup UserVimRcSyntax
     "
     " possible match for just empty: {} https://vi.stackexchange.com/a/22961
 
-    autocmd Syntax      *       call UserApplySyntaxRules()
+    " for the 'syntax' option; buffer-local.
+    "
+    " for any Syntax event, start by turning flag off; don't complicate it.
+    " otherwise syntax may be loaded without our rules.
+    autocmd Syntax      *       let b:user_syntax = 0
+    autocmd Syntax      \cuser  call UserApplySyntaxRules()
+    " don't re-apply User* syntax rules if syntax is being turned off
+    autocmd Syntax      *       if expand('<amatch>') !=? 'OFF'
+                \ |     call UserApplySyntaxRules()
+                \ | endif
+
+    "autocmd Syntax      *       call UserLog('autoevent Syntax, amatch=' . expand('<amatch>'))
 
     " -----------------------------------------------
 
