@@ -2317,6 +2317,77 @@ function! UserClearContentHighlights()
 endfunction
 
 
+function! UserMinimalContentHighlights()
+    " https://vimhelp.org/syntax.txt.html#%7Bgroup-name%7D
+    let his = [ 'Comment', 'Constant', 'Identifier', 'Statement', 'PreProc',
+                \ 'Type', 'Special', 'Underlined', 'Ignore', 'Error', 'Todo',
+                \ 'Added', 'Changed', 'Removed' ]
+    for hi in his
+        execute 'highlight!' 'clear' hi
+        execute 'highlight!' 'link' hi 'Normal'
+    endfor
+endfunction
+
+
+" bring some sanity to vim UI element colours.
+" remember; TERM(vt100, vt220) -> term, TERM(ansi, linux, xterm) -> cterm
+"
+" Only needs to run on non-gui, non-256-colour ttys.
+function! UserColoursFailsafe()
+    highlight ColorColumn   term=NONE cterm=NONE
+    highlight CursorColumn  term=NONE cterm=NONE
+    highlight CursorLine    term=NONE cterm=NONE
+    highlight CursorLineNr  term=NONE cterm=NONE
+    highlight EndOfBuffer   term=NONE cterm=NONE
+    highlight ErrorMsg      term=standout
+    highlight LineNr        NONE
+    highlight MatchParen    term=NONE cterm=NONE
+    highlight TabLine       NONE
+    highlight ToolbarLine   NONE
+    highlight VisualNOS     NONE
+    " in some situations the default bold attribute of ModeMsg caused
+    " problems. clear the term attribute.
+    highlight ModeMsg       term=NONE cterm=NONE
+    highlight Normal        term=NONE cterm=NONE
+    " for cterm with 8/16/88 colours - magenta on grey
+    highlight Visual        term=reverse ctermfg=7 ctermbg=5 cterm=NONE
+
+    if UserCO(g:u.coflags.spell)
+        highlight SpellBad      NONE
+    endif
+
+    " we want to be safe for monochrome ttys, and at the same time
+    " clear cterm and gui attributes that can be bad in 256 color and gui modes.
+    " since the attributes here are initial values and get inherited later.
+    " and bearable with screen(1) defaults, where t_Co == 8.
+
+    " NonText - by default used, among others, for the end-of-buffer tildes.
+    " here, with low-color ttys in mind, we don't want to set a ctermbg.
+    " listchars: eol, extends, precedes
+    highlight NonText       term=NONE ctermfg=NONE ctermbg=NONE cterm=NONE
+    " listchars: tab, nbsp, trail (+ space, multispace, lead)
+    highlight SpecialKey    ctermfg=blue ctermbg=NONE cterm=NONE
+
+    if UserCO(g:u.coflags.stat)
+        " specifying ctermfg in case of a dark tty background
+        highlight StatusLine    ctermfg=0   ctermbg=6   cterm=NONE
+        highlight StatusLineNC  ctermfg=0   ctermbg=7   cterm=NONE
+    endif
+endfunction     " UserColoursFailsafe()
+
+
+" a minimal colorscheme implementation, delegate everything to tty.
+" better than the default colours.
+function! UserColoursTty()
+    highlight clear
+    if exists('g:syntax_on')
+        syntax reset
+    endif
+    "call UserClearContentHighlights()
+    call UserMinimalContentHighlights()
+    call UserColoursFailsafe()
+endfunction
+
 
 " 2022-09-04 on ultrawide monitors with slow VMware graphics, stl/stlnc
 " can cause windows gvim to crash.
@@ -2376,65 +2447,32 @@ function! UserUiStatusLine(mode, bg) abort
 endfunction
 
 
-" bring some sanity to vim UI element colours.
-" remember; TERM(vt100, vt220) -> term, TERM(ansi, linux, xterm) -> cterm
-"
-" Only needs to run on non-gui, non-256-colour ttys.
-function! UserColoursFailsafe()
-    highlight ColorColumn   term=NONE cterm=NONE
-    highlight CursorColumn  term=NONE cterm=NONE
-    highlight CursorLine    term=NONE cterm=NONE
-    highlight CursorLineNr  term=NONE cterm=NONE
-    highlight EndOfBuffer   term=NONE cterm=NONE
-    highlight ErrorMsg      term=standout
-    highlight LineNr        NONE
-    highlight MatchParen    term=NONE cterm=NONE
-    highlight TabLine       NONE
-    highlight ToolbarLine   NONE
-    highlight VisualNOS     NONE
-    " in some situations the default bold attribute of ModeMsg caused
-    " problems. clear the term attribute.
-    highlight ModeMsg       term=NONE cterm=NONE
-    highlight Normal        term=NONE cterm=NONE
-    " for cterm with 8/16/88 colours - magenta on grey
-    highlight Visual        term=reverse ctermfg=7 ctermbg=5 cterm=NONE
-
-    if UserCO(g:u.coflags.spell)
-        highlight SpellBad      NONE
-    endif
-
-    " we want to be safe for monochrome ttys, and at the same time
-    " clear cterm and gui attributes that can be bad in 256 color and gui modes.
-    " since the attributes here are initial values and get inherited later.
-    " and bearable with screen(1) defaults, where t_Co == 8.
-
-    " NonText - by default used, among others, for the end-of-buffer tildes.
-    " here, with low-color ttys in mind, we don't want to set a ctermbg.
-    " listchars: eol, extends, precedes
-    highlight NonText       term=NONE ctermfg=NONE ctermbg=NONE cterm=NONE
-    " listchars: tab, nbsp, trail (+ space, multispace, lead)
-    highlight SpecialKey    ctermfg=blue ctermbg=NONE cterm=NONE
-
-    if UserCO(g:u.coflags.stat)
-        " specifying ctermfg in case of a dark tty background
-        highlight StatusLine    ctermfg=0   ctermbg=6   cterm=NONE
-        highlight StatusLineNC  ctermfg=0   ctermbg=7   cterm=NONE
-    endif
-endfunction     " UserColoursFailsafe()
-
 function! UserColours256()
     let g:colors_overridden = 0
     let l:bg = &background
 
     if UserCO(g:u.coflags.stat)
         call UserUiStatusLine(g:u.ui, l:bg)
+        " make terminal statuslines the same as ordinary statuslines
+        highlight StatusLineTerm NONE
+        highlight! link StatusLineTerm StatusLine
+        highlight StatusLineTermNC NONE
+        highlight! link StatusLineTermNC StatusLineNC
     endif
 
     if UserCO(g:u.coflags.ui)
         " non-gui tty - don't override terminal (emulator) colours.
         highlight Normal ctermfg=NONE ctermbg=NONE cterm=NONE
 
-        highlight VertSplit ctermbg=NONE guibg=NONE
+        highlight Terminal NONE
+        highlight! link Terminal Normal
+
+        if !g:u.term_primitive && &fillchars =~# 'vert:' . nr2char(0x2502)
+            " thin, BOX DRAWINGS LIGHT VERTICAL
+            highlight VertSplit NONE
+        else
+            highlight VertSplit ctermbg=NONE guibg=NONE
+        endif
     endif
 
     if l:bg ==# 'light'
@@ -2511,9 +2549,6 @@ function! UserColours() abort
     " wrapper.
     if UserCanLoadColorscheme()
         call UserColours256()
-    else
-        call UserClearContentHighlights()
-        call UserColoursFailsafe()
     endif
 
     " juse use tty defaults for the mode display - regardless of colorscheme
@@ -2862,6 +2897,9 @@ endif
 
 function! ColorScheme(name) abort
     call PushBg1710()
+
+    call UserClearContentHighlights()
+    call UserColoursFailsafe()
     try
         call ExecuteNomodifiable('colorscheme ' . a:name)
     finally
@@ -2877,6 +2915,14 @@ command -bar -nargs=1 -complete=color Colorscheme   call ColorScheme(<q-args>)
 " UserColours() again after enabling termguicolors. do all the ui/content
 " color changes and loading of a color scheme.
 
+" other good: PaperColor?
+"
+" honorable mention:
+"
+"   monochromenote - https://github.com/koron/vim-monochromenote
+"
+" zenchrome (https://github.com/g0xA52A2A/zenchrome.vim/) is a nice,
+" comprehensive framework; should integrate it into this vimrc someday.
 function! UserLoadColors() abort
 
     " most colorschemes don't pull their own weight. would be great if a
@@ -2884,38 +2930,33 @@ function! UserLoadColors() abort
     " a file on disk.  And seperate user interface component highlights from
     " text content highlights.
 
-    call UserClearContentHighlights()
-    call UserColoursFailsafe()
-
     try
+        let l:candidates = []
+        " doesn't care about colours
+        if UserRuntimeHas('colors/tty.vim')
+            call insert(l:candidates, 'tty')
+            let l:colorscheme = l:candidates[0]
+        endif
         if UserCanLoadColorscheme()
-            " wildcharm and lunaperche support both light and dark bg
-            let colorscheme = 'default'
-            let candidates = [ 'iceberg~' ]     " load iceberg with our overrides.
-            for candidate in candidates
+            " not including 'default'
+            call insert(l:candidates, 'quiet')
+            call insert(l:candidates, 'iceberg~')
+
+            for l:candidate in l:candidates
                 if UserRuntimeHas('colors/' . candidate . '.vim')
-                    let colorscheme = candidate
+                    let l:colorscheme = l:candidate
                     break
                 endif
             endfor
-            if colorscheme !=# 'default'
-                call ColorScheme(colorscheme)
-            endif
-
-            " other good: PaperColor?
-            "
-            " honorable mention:
-            "
-            "   monochromenote - https://github.com/koron/vim-monochromenote
-            "
-            " zenchrome (https://github.com/g0xA52A2A/zenchrome.vim/) is a nice,
-            " comprehensive framework; should integrate it into this vimrc
-            " someday.
+        endif
+        if exists('l:colorscheme')
+            call ColorScheme(l:colorscheme)
         endif
     catch /^Vim\%((\a\+)\)\=:E/
         if exists('g:colors_name')
             unlet g:colors_name
         endif
+        call UserColoursTty()
         " throw doesn't do what i want; neither does throw 'x ' . v:exception
         echoerr v:exception
     finally
@@ -4781,6 +4822,10 @@ nnoremap    gcc     :CommentOnce<CR>
 nnoremap    guc     :UnComment<CR>
 xnoremap    gcc     :CommentOnce<CR>
 xnoremap    guc     :UnComment<CR>
+
+
+nnoremap    <C-Left>    g;
+nnoremap    <C-Right>   g,
 
 
 " wrapper for filtering through an external command safely, without clobbering

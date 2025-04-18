@@ -14,10 +14,9 @@ function! ColorPatchIceberg() abort
         unlet g:colors_name
     endif
 
-    highlight link Terminal             Normal
-    " override terminal statusline colours defined by iceberg
-    highlight! link StatusLineTerm       StatusLine
-    highlight! link StatusLineTermNC     StatusLineNC
+    " highlights Terminal, StatusLineTerm, StatusLineTermNC
+    " overridden for all colorschemes in vimrc:UserColours()/UserColours256()
+
     highlight link LineNrAbove          LineNr
     highlight link LineNrBelow          LineNr
     highlight link MessageWindow        PMenu
@@ -25,12 +24,11 @@ function! ColorPatchIceberg() abort
     highlight link PopupSelected        PmenuSel
     highlight link CurSearch            IncSearch
 
-    if &background !=# 'light'
-        " background ==# 'dark'
+    if &background ==# 'dark'
         highlight LineNr ctermfg=242
         highlight VertSplit ctermfg=214 guifg=orange
         highlight Visual ctermbg=17
-    endif   " if-background
+    endif
 
     let g:colors_name = 'iceberg~'
 endfunction
