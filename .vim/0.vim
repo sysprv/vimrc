@@ -527,7 +527,10 @@ let g:no_racket_maps = 1
 " https://www.linusakesson.net/programming/vimsuspend/index.php (old)
 " https://twitter.com/marcan42/status/1494213855387734019
 " fsync directory? aio_fsync?
-silent! set nofsync swapsync=
+set nofsync
+if exists('+swapsync')
+set swapsync=
+endif
 
 " 2025-02-28 keeping 'swapfile' enabled doesn't make file loading slow
 
@@ -853,7 +856,9 @@ if exists('$TMPDIR') && ($TMPDIR !=# '/tmp')
     execute 'set viminfo+=r' . $TMPDIR
 endif
 
+if exists('+browsedir')
 set browsedir=buffer
+endif
 
 " 2024-03-01 have i tried and and stopped using onemore before?
 " onemore is good when pasting.
