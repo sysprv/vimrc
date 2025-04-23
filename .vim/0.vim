@@ -511,12 +511,6 @@ let g:undotree_WindowLayout = 2
 let g:undotree_ShortIndicators = 1
 let g:undotree_HelpLine = 0
 
-" python indenting; doc: ft-python-indent
-" flag named paren but applies to brackets too.
-let g:python_indent = {}
-let g:python_indent.closed_paren_align_last_line = 0
-let g:python_indent.searchpair_timeout = 3
-
 " by default ftplugin/racket maps K to raco docs -- <kw>
 let g:no_racket_maps = 1
 
@@ -1572,7 +1566,8 @@ endfunction
 
 " like 2022-07-05T12:57:18.568367478+00:00
 "
-" https://bugs.python.org/issue15443 - datetime doesn't support nanoseconds.
+" https://github.com/python/cpython/issues/59648 - datetime doesn't support
+" nanoseconds.
 "
 " 2022-07-05 syntax highlighting can break easily here. if using an endmarker,
 " the ending endmarker should be at col 0 (beginning of line.) if a dot is
@@ -4993,7 +4988,7 @@ augroup UserVimRc
     autocmd FileType javascript     InEnable
     autocmd FileType json           InEnable
     autocmd FileType perl           InEnable
-    autocmd FileType python         InEnable
+    " python indent - no
     autocmd FileType racket         InEnable
     autocmd FileType raku           InEnable
     autocmd FileType ruby           InEnable
@@ -5004,7 +4999,9 @@ augroup UserVimRc
     autocmd FileType terraform      InEnable
     " *sh - only indentation. colours aren't right often
     autocmd FileType *sh            InEnable
-    autocmd FileType *sh,perl       set syntax=OFF
+    autocmd FileType *sh            set syntax=OFF
+    autocmd FileType perl           set syntax=OFF
+    autocmd FileType json           set syntax=OFF
 
     autocmd FileType text               FoText
 
