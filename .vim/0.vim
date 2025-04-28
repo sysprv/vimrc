@@ -3884,24 +3884,14 @@ xnoremap    <silent> <Leader>y       m`"wy``:call UserWriteClipboard(@w)<CR>
 "inoremap    <expr> <Leader>p    "\<C-\>\<C-o>" . UserReadCbCharacterwiseRetExpr("gp")
 "inoremap    <expr> <Leader>P    "\<C-\>\<C-o>" . UserReadCbCharacterwiseRetExpr("gP")
 "
+" echo -ne 'xkc\n' | xsel -i -b
+"
 " 2025-02-11 why did i revert from C-r C-r ? just because of the text length? let's try.
 " 2025-02-27 switch to non-indenting paste. indenting doesn't work well often anyway.
-inoremap    <expr>  <Leader>p   "\<C-g>u\<Right>\<C-r>\<C-o>" . UserReadClipboard().reg
-inoremap    <expr>  <Leader>P   "\<C-g>u\<C-r>\<C-o>" . UserReadClipboard().reg
+" 2025-04-24 C-r C-o pasts above with the reg is linewise; back to C-r C-r
+inoremap    <expr>  <Leader>p   "\<C-g>u\<C-r>\<C-r>" . UserReadClipboard().reg
+inoremap    <expr>  <Leader>P   "\<C-g>u\<C-r>\<C-p>" . UserReadClipboard().reg
 
-"
-" alternatively with C-r C-r/p/o:
-"
-"   - <C-g>u    - start new change
-"   - <C-r><C-r><reg>   - literal insert register
-"   - <C-g>u    - start new change
-"inoremap    <expr>  <Leader>P   "\<C-g>u"
-            "\ . "\<C-r>\<C-r>" . UserReadClipboard().reg
-            "\ . "\<C-g>u"
-" will this ever be useful?
-"inoremap    <expr>  <Leader>p   "\<C-g>u"
-            "\ . "\<Right>\<C-r>\<C-r>" . UserReadClipboard().reg
-            "\ . "\<C-g>u"
 
 if has('gui_running') || has('win32')
 
@@ -3925,13 +3915,13 @@ if has('gui_running') || has('win32')
     " keeping xon/xoff flow control in mind.
 
     nmap    <S-Insert>      <Leader>P
-    imap    <S-Insert>      <Leader>P
+    imap    <S-Insert>      <Leader>p
     cmap    <S-Insert>      <Leader>P
     nmap    <S-kInsert>     <Leader>P
-    imap    <S-kInsert>     <Leader>P
+    imap    <S-kInsert>     <Leader>p
     cmap    <S-kInsert>     <Leader>P
     nmap    <C-S-v>         <Leader>P
-    imap    <C-S-v>         <Leader>P
+    imap    <C-S-v>         <Leader>p
     cmap    <C-S-v>         <Leader>P
 
     nmap    <C-Insert>      <Leader>y
