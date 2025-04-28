@@ -4979,6 +4979,11 @@ augroup UserVimRc
     autocmd FileType json           InEnable
     autocmd FileType perl           InEnable
     " python indent - no
+    " try with Eric Mc Sween's simpler code from 2004
+    " or vim-python-pep8-indent
+    if globpath('~/.vim/indent', 'python.vim') != ''
+        autocmd FileType python         InEnable
+    endif
     autocmd FileType racket         InEnable
     autocmd FileType raku           InEnable
     autocmd FileType ruby           InEnable
