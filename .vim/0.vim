@@ -4995,7 +4995,9 @@ augroup UserVimRc
     " *sh - only indentation. colours aren't right often
     autocmd FileType *sh            InEnable
     autocmd FileType *sh            set syntax=OFF
-    autocmd FileType perl           set syntax=OFF
+    " trial
+    "autocmd FileType perl           set syntax=OFF
+    " 2025-04-25 json - trailing comma error's ugly
     autocmd FileType json           set syntax=OFF
 
     autocmd FileType text               FoText
