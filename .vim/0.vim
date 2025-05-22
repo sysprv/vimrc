@@ -4472,6 +4472,32 @@ function! UserTextIndent()
 endfunction
 
 
+function! UserPythonIndent() abort
+    if v:lnum >=2
+        let l:lineno_cur = v:lnum
+        let l:indent_cur = indent(l:lineno_cur)
+        let l:lineno_above = v:lnum - 1
+        let l:indent_above = indent(l:lineno_above)
+        let l:line_cur = getline(l:lineno_cur)
+        if len(l:line_cur) > 0
+            let l:last_char = l:line_cur[len(l:line_cur) - 1]
+            if index([']', '}'], l:last_char) > -1
+                return l:indent_cur - &shiftwidth
+            endif
+        endif
+        let l:line_above = getline(l:lineno_above)
+        if len(l:line_above) > 0
+            let l:last_char = l:line_above[len(l:line_above) - 1]
+            if index([':', '{', '['], l:last_char) > -1
+                return l:indent_above + &shiftwidth
+            endif
+        endif
+    endif
+
+    return -1
+endfunction
+
+
 " for small screens (iVim) - iPhone 15 Pro Max, Menlo:h11.0
 command -bar Mobile  Wr | setlocal textwidth=70 nonumber norelativenumber
 
@@ -5015,11 +5041,8 @@ augroup UserVimRc
     autocmd FileType json           InEnable
     autocmd FileType perl           InEnable
     " python indent - no
-    " try with Eric Mc Sween's simpler code from 2004
-    " or vim-python-pep8-indent
-    if globpath('~/.vim/indent', 'python.vim') != ''
-        autocmd FileType python         InEnable
-    endif
+    "autocmd FileType python         InEnable
+    autocmd FileType python         setlocal indentexpr=UserPythonIndent()
     autocmd FileType racket         InEnable
     autocmd FileType raku           InEnable
     autocmd FileType ruby           InEnable
