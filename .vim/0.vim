@@ -4373,8 +4373,8 @@ endfunction
 
 set completefunc=UserSymComplFn
 
-" completion - only use current buffer, not includes etc.
-set complete=.
+" completion - only use current buffer + other windows, not includes etc.
+set complete=.,w
 
 set completeopt=menu,menuone    " maybe: popup/preview
 if v:version >= 801
