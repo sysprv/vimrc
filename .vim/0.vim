@@ -3802,7 +3802,8 @@ function! UserReadCbCharacterwiseRetExpr(p_opt, ...) abort
     let l:clp = call('UserReadClipboard', a:000)
     if getregtype(l:clp.reg) ==# 'V'
         " source register is linewise, convert - append nothing, change type
-        call setreg(l:clp.reg, '', 'av')
+        "call setreg(l:clp.reg, '', 'av')
+        call setreg(l:clp.reg, trim(getreg(l:clp.reg), "\r", 2), 'v')
     endif
     return '"' . l:clp.reg . a:p_opt
 endfunction
@@ -3870,27 +3871,62 @@ nnoremap    <silent> <Leader>y       m`^"wyg_``:call UserWriteClipboard(@w)<CR>
 xnoremap    <silent> <Leader>y       m`"wy``:call UserWriteClipboard(@w)<CR>
 
 "
-" insert-mode paste
+" insert-mode paste / insert-paste
 "
 "imap        <Leader>p       <C-\><C-o><Leader>p
 "imap        <Leader>P       <C-\><C-o><Leader>P
 "
-" 2024-12-25 insert mode paste - going to normal mode and pasting is bad when
-" the clipboard register is linewise - the pasted text will end up in a line
-" above the current line, no matter where the cursor is.
+" 2024-12-25 going to normal mode and pasting is bad when the clipboard register
+" is linewise - the pasted text will end up in a line above the current line, no
+" matter where the cursor is.
 "
 " test: <abc def >, paste text ending with newlines when cursor is at end of
 " line/on d (paste before, paste after)
-"inoremap    <expr> <Leader>p    "\<C-\>\<C-o>" . UserReadCbCharacterwiseRetExpr("gp")
-"inoremap    <expr> <Leader>P    "\<C-\>\<C-o>" . UserReadCbCharacterwiseRetExpr("gP")
+"inoremap    <expr> <Leader>z    "\<C-\>\<C-o>" . UserReadCbCharacterwiseRetExpr("gp")
+
 "
 " echo -ne 'xkc\n' | xsel -i -b
+"
+" printf '[abc\n\txy^H!z\n\t\tpqr]\n' | xsel -i -b
 "
 " 2025-02-11 why did i revert from C-r C-r ? just because of the text length? let's try.
 " 2025-02-27 switch to non-indenting paste. indenting doesn't work well often anyway.
 " 2025-04-24 C-r C-o pasts above with the reg is linewise; back to C-r C-r
-inoremap    <expr>  <Leader>p   "\<C-g>u\<C-r>\<C-r>" . UserReadClipboard().reg
-inoremap    <expr>  <Leader>P   "\<C-g>u\<C-r>\<C-p>" . UserReadClipboard().reg
+"inoremap    <expr>  <Leader>p   "\<C-g>u\<C-r>\<C-r>" . UserReadClipboard().reg
+"inoremap    <expr>  <Leader>P   "\<C-g>u\<C-r>\<C-p>" . UserReadClipboard().reg
+"
+" 2025-04-29
+"
+"   1 - new undo point
+"   2 - insert-normal
+"   3 - set paste, back to insert mode
+"   4 - insert register
+"   5 - insert-normal
+"   6 - set nopaste, back to insert mode
+
+function! UserPasteInsertMode(insp, pastemode) abort
+    let reg = UserReadClipboard().reg
+    let expr = "\<C-g>u"
+    if (a:pastemode)
+        let expr .= "\<C-\>\<C-o>:set paste\<CR>"
+    endif
+    let expr .= a:insp . reg
+    if (a:pastemode)
+        let expr .= "\<C-\>\<C-o>:set nopaste\<CR>"
+    endif
+    return expr
+endfunction
+
+inoremap    <expr>  <Leader>p   UserPasteInsertMode("<C-r><C-r>", 1)
+inoremap    <expr>  <Leader>q   UserPasteInsertMode("<C-r><C-r>", 0)
+inoremap    <expr>  <Leader>r   UserPasteInsertMode("<C-r><C-p>", 0)
+
+" both C-r C-o and C-r C-p have 'P'-like linewise-insert-above behaviour.
+inoremap    <expr>  <Leader>P   UserPasteInsertMode("<C-r><C-p>", 1)
+
+if exists('+pastetoggle')
+    set pastetoggle=<F2>
+endif
 
 
 if has('gui_running') || has('win32')
@@ -4199,7 +4235,7 @@ else
     nnoremap    <C-t>           :echo 'ヨシ！'<cr>
     nnoremap    <C-LeftMouse>   :echo 'ヨシ！'<cr>
 endif
-imap            <C-t>           <Esc><C-t>
+"imap <C-t> <Esc><C-t> -- insert shiftwidth at start, useful
 imap            <C-LeftMouse>   <Esc><C-LeftMouse>
 
 " three-state switch for 'number' and 'relativenumber'.
