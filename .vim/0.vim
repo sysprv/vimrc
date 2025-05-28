@@ -1,4 +1,4 @@
-" Last-Modified: 2025-04-08T19:44:55.219776399+00:00
+" Last-Modified: 2025-05-22T20:52:13.52261356+00:00
 
 " vim:set tw=80 noml:
 set secure nobomb
@@ -9,6 +9,8 @@ if &compatible
 endif
 
 " Change log:
+"
+" 2025-05-22 Better wildmenu for buffer switching.
 "
 " 2025-04-08 Try to optimize syntax rule setting, re-introduce flag
 " b:user_syntax to save double work on Syntax vs. BufWinEnter.
@@ -898,6 +900,15 @@ if has('folding')
     set foldmethod=marker
 endif
 
+
+" don't complete until unique (like default bash behaviour)
+set wildmode=list:longest,list
+set wildmenu
+" don't complete swap, undo files and others.
+set wildignore+=.*.swp,.*.un~,*.pyc
+set suffixes+=.pyc
+
+
 " -- buffer switching
 "
 " Trying out a mapping to show buffers quickly and unobtrusively.
@@ -907,22 +918,37 @@ endif
 " NB: can't be a silent mapping.
 "
 " used to use '+', but turns out it's somewhat useful.
-nnoremap    K           :ls!<cr>:b<space>
+"nnoremap    K           :ls!<cr>:b<space>
 
+" 2025-05-22 default wildmenu for :b skips buffers without names, that's no
+" good.
+"
+" first, define a custom command completion function.
+function! UserBufferComplFn(arglead, cmdline, cursorpos) abort
+    let ls_out = UserRun(':ls!')
+    " splitting removes the first empty line from :ls!
+    let lst = split(ls_out, "\n")
+    return join(lst, "\n")
+endfunction
 
-" don't complete until unique (like default bash behaviour)
-set wildmode=list:longest,list
-set wildmenu
-" don't complete swap, undo files and others.
-set wildignore+=.*.swp,.*.un~,*.pyc
-set suffixes+=.pyc
+" then, a custom command that extracts the buffer number from the :ls!
+" output and passes it to :b, handling no-args (no wildmenu selection)
+command -nargs=* -complete=custom,UserBufferComplFn     Bnum
+            \ if len(<q-args>) > 0
+            \ | execute str2nr(get([<f-args>], 0)) . 'b'
+            \ | endif
+
+" wildmenu without wildoptions-pum looks weird
+nnoremap    K           :ls!<CR>:Bnum<Space>
 
 " contemporary
 if v:version >= 900
     " display completion matches in a popup menu
-    set wildoptions=pum
+    set wildoptions=pum,fuzzy
     set wildmode=longest:full
     set wildcharm=<tab>     " this seems clunky. but, works.
+
+    nnoremap    K   :Bnum<Space><C-r>=nr2char(&wildcharm)<CR>
 
     " buffer list can be shown in a popup menu. a lot better than having
     " :ls shift window contents up. requires wildoptions, wildmode full or
@@ -936,11 +962,6 @@ if v:version >= 900
     " completion, <tab> (wildchar_m_) to trigger wildcard expansion popup.
     "
     " https://gist.github.com/g0xA52A2A/7cb1be24a078724f4522444a0da5de0a
-
-    nnoremap    K   :b<Space><C-r>=nr2char(&wildcharm)<CR>
-
-    " use NFA regexp engine?
-    "set regexpengine=2
 
     set diffopt+=indent-heuristic
     set diffopt+=algorithm:patience
@@ -3123,7 +3144,7 @@ function! UserPreviewBufferList() abort
 
     " would be good if pedit could work with buffer numbers
     let l:p_opts = '+setlocal\ nobuflisted\ buftype=nofile\ bufhidden=unload\ noswapfile'
-    let l:ls = split(UserRun('ls'), "\n")
+    let l:ls = split(UserRun('ls!'), "\n")
     execute 'pedit' l:p_opts l:bn
     wincmd P            " switch to preview window
     if &previewwindow
