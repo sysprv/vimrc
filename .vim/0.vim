@@ -412,27 +412,17 @@ endif
 "   manpager - vim can be a rather nice manpager.
 "
 " 2024-02-25 enable plugins again; for
-" https://github.com/chrisbra/changesPlugin
 " and https://github.com/mbbill/undotree
-" 2024-05-23 never really use undotree. packs also respects noloadplugins,
-" though not well documented.
-"let g:loaded_getscriptPlugin = 2
-"let g:loaded_gzip = 2
-"let g:loaded_logiPat = 2
-"let g:loaded_manpager_plugin = 2
-" -- g:loaded_matchparen
-"let g:loaded_netrwPlugin = 2
-" -- g:loaded_rrhelper
-" -- g:loaded_spellfile_plugin
-"let g:loaded_tarPlugin = 2
-"let g:loaded_2html_plugin = 2
-"let g:loaded_tutor_mode_plugin = 2
-"let g:loaded_vimballPlugin = 2
-"let g:loaded_zipPlugin = 2
 
 " preventing loading by setting variables works but all the files still show up
 " with :scriptnames
 set noloadplugins
+if globpath(&packpath, 'pack/mbbill') != ''
+    packadd undotree
+endif
+if globpath(&packpath, 'pack/python-mode') != ''
+    packadd python-mode
+endif
 "}}}
 
 " 2022-07-30 let g:did_load_filetypes = 1 does prevent filetype detection with
@@ -455,7 +445,7 @@ set noloadplugins
 "
 " linux distributions may enable these by default, may not happen on windows.
 
-filetype indent off
+filetype indent on
 filetype plugin on
 
 " 2022-07-28 clear out autocommands of other people.
@@ -3411,12 +3401,14 @@ function! UserResetIndent()
         call add(l:retval, b:indentkeys_orig)
     endif
 
-    unlet b:did_indent
+    if exists('b:did_indent')
+        unlet b:did_indent
+    endif
 
     return l:retval
 endfunction
 
-command! -bar InDisable     echo UserResetIndent()
+command! -bar InDisable     call UserResetIndent()
 command! -bar InEnable
             \ call ExecuteNomodifiable('runtime indent/' . &filetype . '.vim')
 
@@ -4493,32 +4485,6 @@ function! UserTextIndent()
 endfunction
 
 
-function! UserPythonIndent() abort
-    if v:lnum >=2
-        let l:lineno_cur = v:lnum
-        let l:indent_cur = indent(l:lineno_cur)
-        let l:lineno_above = v:lnum - 1
-        let l:indent_above = indent(l:lineno_above)
-        let l:line_cur = getline(l:lineno_cur)
-        if len(l:line_cur) > 0
-            let l:last_char = l:line_cur[len(l:line_cur) - 1]
-            if index([']', '}'], l:last_char) > -1
-                return l:indent_cur - &shiftwidth
-            endif
-        endif
-        let l:line_above = getline(l:lineno_above)
-        if len(l:line_above) > 0
-            let l:last_char = l:line_above[len(l:line_above) - 1]
-            if index([':', '{', '['], l:last_char) > -1
-                return l:indent_above + &shiftwidth
-            endif
-        endif
-    endif
-
-    return -1
-endfunction
-
-
 " for small screens (iVim) - iPhone 15 Pro Max, Menlo:h11.0
 command -bar Mobile  Wr | setlocal textwidth=70 nonumber norelativenumber
 
@@ -5043,40 +5009,29 @@ augroup UserVimRc
     "
     " see $VIM/indent.vim
     "
+    " descent: rust; keep: ada, c, go, java, javascript, json, perl, racket,
+    " raku, ruby, rust, scala, typescript, vim, terraform, *sh
+    "
     " 2023-10-31 been here before; things that make syntax highlighting fragile,
     " also make indenting fragile - namely, unclosed quotes.
     "
-    " 2024-04-10 python autoindent's very weird. disabled.
-    " 2025-04-07 fixed with g:python_indent?
+    " 2024-04-10 python.vim autoindent's very weird. disabled.
+    " 2025-04-07 fixed with g:python_indent? not always, sometimes indentation
+    " goes haywire.
 
     " for plugins that like to touch tabstop - always reset tabstop to global
     autocmd BufNewFile,BufReadPost *    if &tabstop != &g:tabstop
                 \ | setlocal tabstop<
                 \ | endif
 
-    autocmd FileType ada            InEnable
-    autocmd FileType c              InEnable
-    autocmd FileType go             InEnable
-    autocmd FileType java           InEnable
-    autocmd FileType javascript     InEnable
-    autocmd FileType json           InEnable
-    autocmd FileType perl           InEnable
-    " python indent - no
-    "autocmd FileType python         InEnable
-    autocmd FileType python         setlocal indentexpr=UserPythonIndent()
-    autocmd FileType racket         InEnable
-    autocmd FileType raku           InEnable
-    autocmd FileType ruby           InEnable
-    autocmd FileType rust           InEnable
-    autocmd FileType scala          InEnable
-    autocmd FileType typescript     InEnable
-    autocmd FileType vim            InEnable
-    autocmd FileType terraform      InEnable
-    " *sh - only indentation. colours aren't right often
-    autocmd FileType *sh            InEnable
+    " python indent - no; only allow python-mode
+    " (pymode#indent#get_indent(v:lnum))
+    autocmd FileType python     if &indentexpr !~# '^pymode#'
+                \ | InDisable
+                \ | endif
+
+    " *sh - only indentation, no syntax highlighting.
     autocmd FileType *sh            set syntax=OFF
-    " trial
-    "autocmd FileType perl           set syntax=OFF
     " 2025-04-25 json - trailing comma error's ugly
     autocmd FileType json           set syntax=OFF
 
