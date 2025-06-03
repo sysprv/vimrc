@@ -4026,8 +4026,7 @@ function! UserUrlPasteMunge() abort
         return
     endtry
 
-    " should save/restore virtualedit if onemore is no longer used.
-    normal! $l
+    normal! $
 
     " search backwards, from past eol
     let l:urlpos = searchpos('\vhttps?://\S+', 'bn', line('.'))
@@ -4036,8 +4035,19 @@ function! UserUrlPasteMunge() abort
         " if the url's for a tweet, erase the query parameters.
         if search('\v//%(x|twitter)\.com/\w+/status/\d+\?', 'bn', line('.')) == line('.')
             " to the black hole register, delete backwards until (including) ?
-            " but excluding what the cursor was on.
-            normal! "_dF?
+            " but excluding what the cursor was on. F is exclusive, cursor must
+            " start from beyond the pasted text. or visual mode (breaks gv/<>
+            " marks).
+            "
+            " move backwards, count, delete forward.
+            let l:url_last_char_col = col('.')
+            normal! F?
+            let l:url_qm_char_col = col('.')
+            let l:delete_count = l:url_last_char_col - l:url_qm_char_col + 1
+            if l:delete_count > 0
+                execute 'normal!' l:delete_count . '"_x'
+            endif
+
             WRCB
         endif
         let l:ln = getline('.')
@@ -4072,6 +4082,9 @@ endfunction
 function! UserAddUrlPasteMapping()
     nnoremap <buffer> <silent> q :call UserUrlPasteMunge()<CR>:silent update<CR>
 endfunction
+
+" mapping to url-paste regardless of filetype
+nnoremap    <silent>    <Leader>q :call UserUrlPasteMunge()<CR>:silent update<CR>
 
 
 " -- end copy/paste adventures.
@@ -5135,6 +5148,7 @@ augroup UserVimRc
         autocmd OptionSet background
                     \ echom UserDateTime() 'background set to' v:option_new
     endif
+
 augroup end
 " /UserVimRc
 
