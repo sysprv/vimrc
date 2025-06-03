@@ -2805,12 +2805,16 @@ function! UserColoursPrelude()
         let l:done = 1
     endif
 
-    " could also enable tgc for PuTTY; PuTTY enables it by default. but
-    " terminfo/termcap might not have caught up yet.
+    " could also enable tgc for PuTTY; PuTTY has support turned on by default.
+    " but terminfo/termcap might not have caught up yet.
+    "
+    " PuTTY doesn't support OSC 11, vim doesn't define t_RB and defaults to
+    " background=dark.
 
     " forcing t_Co to 16 in the linux console works, but not under screen.
     " unreliable.
 endfunction
+
 
 " -- colorscheme control
 " mnemonic: co/CO == colour override
