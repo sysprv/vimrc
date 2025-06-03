@@ -799,7 +799,8 @@ set autoindent
 
 "let &showbreak = g:u.showbreak_char
 
-"set title -- nah
+" somewhat useful with tmux pane titles
+set title
 
 "set display+=uhex
 if v:version < 802
