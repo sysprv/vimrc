@@ -4037,8 +4037,8 @@ function! UserUrlPasteMunge() abort
     let l:urlpos = searchpos('\vhttps?://\S+', 'bn', line('.'))
     lockvar l:urlpos
     if l:urlpos[0] == line('.')
-        " if the url's for a tweet, erase the query parameters.
-        if search('\v//%(x|twitter)\.com/\w+/status/\d+\?', 'bn', line('.')) == line('.')
+        " if the url's for a tweet or user profile, erase the query parameters.
+        if search('\v//%(x|twitter)\.com/.*\?', 'bn', line('.')) == line('.')
             " to the black hole register, delete backwards until (including) ?
             " but excluding what the cursor was on. F is exclusive, cursor must
             " start from beyond the pasted text. or visual mode (breaks gv/<>
