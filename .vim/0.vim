@@ -394,13 +394,8 @@ endif
 " filetype config and menus ('langmenu').
 if has('win32')
     " :lang ctype C.utf8 fails on windows 11, E197.
-    language en_US.utf8
-
-    " if langmenu wasn't set, it would default to v:lang which is en, and
-    " then $VIM/menu.vim would load multiple en_gb menus... inside there are
-    " special cases for en_us and none.
-
-    set langmenu=NONE
+    language C
+    " langmenu - can't get it to work on windows; see gvimrc reloading menus.
 endif
 
 " standard plugins in $VIMRUNTIME/plugin - disable.

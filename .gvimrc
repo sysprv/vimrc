@@ -80,9 +80,13 @@ function! UserTrimMenus()
 endfunction " UserTrimMenus
 
 " reset menus - don't want shoddy/incomplete translations; vimrc
-" sets language but that seems too early. alternatively, just delete lang/
-"source $VIMRUNTIME/delmenu.vim
-"source $VIMRUNTIME/menu.vim
+" sets language but that seems too early. alternatively, just delete lang/ .
+"
+" 2025-05-28 still can't get langmenu=NONE / langmenu=en_us to work.
+if has('win32')
+    source $VIMRUNTIME/delmenu.vim
+    source $VIMRUNTIME/menu.vim
+endif
 call UserTrimMenus()
 
 " started with https://github.com/tlvince/vim-auto-commit, then
