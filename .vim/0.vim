@@ -506,6 +506,9 @@ let g:undotree_HelpLine = 0
 " by default ftplugin/racket maps K to raco docs -- <kw>
 let g:no_racket_maps = 1
 
+" overengineered syntax/tmux.vim
+let g:tmux_syntax_colors = 0
+
 " never used grepprg
 
 " journalled filesystems, SSD/NVMe/SD cards. fsync is complex these days, it's
