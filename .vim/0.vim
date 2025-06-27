@@ -4079,12 +4079,25 @@ function! UserUrlPasteMunge() abort
     normal! j0
 endfunction
 
-function! UserAddUrlPasteMapping()
-    nnoremap <buffer> <silent> q :call UserUrlPasteMunge()<CR>:silent update<CR>
+function! UserUrlPasteAndUpdate() abort
+    call UserUrlPasteMunge()
+    if bufname('%') !=# '' && &buftype ==# ''
+        silent update
+    endif
 endfunction
 
 " mapping to url-paste regardless of filetype
-nnoremap    <silent>    <Leader>q :call UserUrlPasteMunge()<CR>:silent update<CR>
+nnoremap    <silent>    <Leader>u :call UserUrlPasteAndUpdate()<CR>
+
+" 2025-06-16
+" 1 undo break
+" 2 insert-normal paste url
+" ! insert-normal silent update slow if no filename
+inoremap    <silent>    <Leader>u <C-g>u<C-o>:call UserUrlPasteAndUpdate()<CR>
+
+function! UserAddUrlPasteMapping() abort
+    nnoremap <buffer> <silent> q    :call UserUrlPasteAndUpdate()<CR>
+endfunction
 
 
 " -- end copy/paste adventures.
