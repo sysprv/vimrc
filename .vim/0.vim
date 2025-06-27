@@ -412,11 +412,9 @@ endif
 " preventing loading by setting variables works but all the files still show up
 " with :scriptnames
 set noloadplugins
-if globpath(&packpath, 'pack/mbbill') != ''
-    packadd undotree
-endif
-if globpath(&packpath, 'pack/python-mode') != ''
-    packadd python-mode
+" do load packages from ~/.vim/pack
+if exists('+packpath')
+    packloadall
 endif
 "}}}
 
@@ -4049,9 +4047,8 @@ function! UserUrlPasteMunge() abort
             let l:delete_count = l:url_last_char_col - l:url_qm_char_col + 1
             if l:delete_count > 0
                 execute 'normal!' l:delete_count . '"_x'
+                WRCB
             endif
-
-            WRCB
         endif
         let l:ln = getline('.')
         " check for chars: !"#$%&'()*;<>?@[\]`{|}
@@ -4305,6 +4302,8 @@ nnoremap    <Leader>/   :global ==:<Left><Left>
 nnoremap    <C-p>   "0p
 
 nnoremap    <silent> <C-s>  :silent wall<CR>
+" ctrl-s in insert mode - go to normal mode; it's a small break.
+inoremap    <silent> <C-s>  <Esc>:silent wall<CR>
 
 " make a new line in normal mode
 nnoremap    <silent> <C-n>  :put _<CR>
