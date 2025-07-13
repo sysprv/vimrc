@@ -3541,7 +3541,8 @@ inoremap    ;       ;<C-g>u
 "" insert timestamp
 "
 " :put =<expr> is elegant, but working on the line below is disconcerting.
-nnoremap        <silent> <Leader>dt "=UserDateTimeComment()<cr>p:put _<cr>
+"nnoremap        <silent> <Leader>dt "=UserDateTimeComment()<cr>p:put _<cr>
+nnoremap        <silent> <Leader>dt     :put =UserDateTimeComment()<CR>
 
 inoremap <expr> <silent> <Leader>dt "\<C-g>u" . UserDateTimeComment() . "\<C-g>u"
 
