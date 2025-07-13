@@ -313,6 +313,10 @@ endif
 " not put back into buffer).
 "
 " filtering ( :[range]!<filter-pipeline> ) - doc :range!
+"
+" writing a buffer modifies '[ and '] to the range. lockmarks preserves these
+" since patch-8.1.2302. lockmarks still doesn't with :wall. bufdo lockmarks
+" update?
 
 "
 " -- begin tips:
@@ -4021,38 +4025,47 @@ nnoremap    <Leader>M      `[v`]
 
 function! UserUrlPasteMunge() abort
     try
-        RDCB!
+        RDCB
     catch /^Vim\%((\a\+)\)\=:E353:/
         echom 'nothing in clipboard'
         return
     endtry
 
-    normal! $
-
-    " search backwards, from past eol
-    let l:urlpos = searchpos('\vhttps?://\S+', 'bn', line('.'))
-    lockvar l:urlpos
-    if l:urlpos[0] == line('.')
+    "echom getpos("'[") getpos("']")
+    let l:lineno = line('.')
+    let l:urlpos = searchpos('\vhttps?://\S+', 'cnW', l:lineno)
+    let l:selstart = l:urlpos[1]
+    if l:urlpos[0] == l:lineno
         " if the url's for a tweet or user profile, erase the query parameters.
-        if search('\v//%(x|twitter)\.com/.*\?', 'bn', line('.')) == line('.')
-            " to the black hole register, delete backwards until (including) ?
-            " but excluding what the cursor was on. F is exclusive, cursor must
-            " start from beyond the pasted text. or visual mode (breaks gv/<>
-            " marks).
-            "
+        if search('\v//%(x|twitter)\.com/.*\?', 'cnW', l:lineno) == l:lineno
+            " to last char of changed text
+            normal! `]
+            let l:pos_change_end = getpos(".")
+
             " move backwards, count, delete forward.
-            let l:url_last_char_col = col('.')
             normal! F?
             let l:url_qm_char_col = col('.')
-            let l:delete_count = l:url_last_char_col - l:url_qm_char_col + 1
-            if l:delete_count > 0
-                execute 'normal!' l:delete_count . '"_x'
-                WRCB
+            let l:ln = getline(l:lineno)
+            let l:text_before_qm = strpart(l:ln, 0, l:url_qm_char_col - 1)
+            let l:text_after_change_end = strpart(l:ln, l:pos_change_end[2])
+            let l:text_without_qp = l:text_before_qm . l:text_after_change_end
+            if len(l:text_without_qp) != len(l:ln)
+                call setline(l:lineno, l:text_without_qp)
+                " rewind change-end mark, exclude deleted text
+                let l:pos_change_end[2] = l:url_qm_char_col - 1
+                call setpos("']", l:pos_change_end)
+                " move to beginning of changed text
+                normal! '[
             endif
         endif
+        " url quoting:
+        "
+        " column offsets in line
+        let l:selend = getpos("']")[2]
         let l:ln = getline('.')
+        let l:sel = strpart(l:ln, l:selstart - 1, l:selend - l:selstart + 1)
         " check for chars: !"#$%&'()*;<>?@[\]`{|}
-        if l:ln =~# '\v[\x21-\x2a\x3b\x3c\x3e\x3f\x40\x5b-\x5d\x60\x7b-\x7d]'
+        if l:sel =~# '\v[\x21-\x2a\x3b\x3c\x3e\x3f\x40\x5b-\x5d\x60\x7b-\x7d]'
             let l:quote_start = '"'
             let l:quote_end = '"'
             " check for chars: "$
@@ -4068,21 +4081,24 @@ function! UserUrlPasteMunge() abort
                 let l:quote_start = '%q('
                 let l:quote_end = ')'
             endif
-            execute "normal!"
-                        \ "^i" . l:quote_start
-                        \ . "\<Esc>A" . l:quote_end
-                        \ . "\<Esc>"
+            " splice string without going into insert mode (that changes marks)
+            let l:prefix = strpart(l:ln, 0, l:selstart - 1)
+            let l:suffix = strpart(l:ln, l:selend - l:selstart + 1)
+            let l:quoted = l:prefix . l:quote_start . l:sel . l:quote_end . l:suffix
+            call setline(l:lineno, l:quoted)
         endif
     endif
-
-    " go to new line created by RDCB! put
-    normal! j0
 endfunction
 
 function! UserUrlPasteAndUpdate() abort
     call UserUrlPasteMunge()
     if bufname('%') !=# '' && &buftype ==# ''
+        " preserve '[ and '] marks through the buffer write. someday lockmarks?
+        let l:s = getpos("'[")
+        let l:e = getpos("']")
         silent update
+        call setpos("'[", l:s)
+        call setpos("']", l:e)
     endif
 endfunction
 
