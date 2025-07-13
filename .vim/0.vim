@@ -1,4 +1,4 @@
-" Last-Modified: 2025-05-22T20:52:13.52261356+00:00
+" Last-Modified: 2025-07-13T08:37:51.884431440+00:00
 
 " vim:set tw=80 noml:
 set secure nobomb
@@ -4910,6 +4910,9 @@ xnoremap    guc     :UnComment<CR>
 
 nnoremap    <C-Left>    g;
 nnoremap    <C-Right>   g,
+
+" freaky; if at end of line, create new line
+nnoremap    <expr>  <CR>    line('.') == line('$') ? "o\<Esc>" : "\<CR>"
 
 
 " wrapper for filtering through an external command safely, without clobbering
