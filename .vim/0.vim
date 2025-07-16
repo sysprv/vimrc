@@ -1380,6 +1380,7 @@ else
         if &readonly    | let l:m .= '.ro'      | endif
 
         " normal buffer without a swapfile and swapfile is globally on - warn
+        " except on iOS
         if &buftype == '' && (&g:swapfile && (!&l:swapfile || (&updatecount == 0)))
             let l:m .= '.!swf'
         endif
@@ -5185,7 +5186,9 @@ augroup UserVimRc
     " there will not be an attempt to create swap files on iCloud Drive.
     "
     " autocmd-pattern - * includes path separators.
-    autocmd BufReadPost /private/var/mobile/*       setlocal swapfile<
+    "
+    " 2025-07-16 back to noswapfile on iOS
+    "autocmd BufReadPost /private/var/mobile/*       setlocal swapfile<
 
     " if swapfile exists, open read-only without the lecturing. q (quit),
     " a (abort) are rather useless, fails silently when trying to open
