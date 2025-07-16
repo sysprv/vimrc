@@ -1,4 +1,4 @@
-" Last-Modified: 2025-07-13T08:37:51.884431440+00:00
+" Last-Modified: 2025-07-16T10:19:56.220530542+00:00
 
 " vim:set tw=80 noml:
 set secure nobomb
@@ -9,6 +9,9 @@ if &compatible
 endif
 
 " Change log:
+"
+" 2025-07-16 Bypass undodir/undofile and manage undo file location by ourselves
+" with autocmds + :rundo/:wundo.
 "
 " 2025-05-22 Better wildmenu for buffer switching.
 "
@@ -573,27 +576,11 @@ if !g:u.term_primitive
     let g:u.mark = nr2char(0x4F11)
 endif
 
-" would like to stick to the default behaviour of keeping undo files in the
-" same dir; but breaks badly on iOS when editing files on iCloud Drive -
-" the iOS Files API probably doesn't like dot-hidden files.
-"
-" with centralised undo files, vim will automaticall use the full filename
-" with % as separators as the undofile name - does not need trailing slashes
-" the way 'directory' does.
-" but no file extension's added for such files, unlike for swap files (.swp
-" is added even for centralised swap files.) inconsistent for no reason.
-"
-" 2024-11-10 undodir - double-slash isn't required at the end. inconsistent.
-"
 " 2025-03-10 'directory' is global, so we're stuck with %-separated
 " filenames and possibly filename length limits. there's no way to set it per
 " file in a directory hierarchy like how we can with 'backupdir'. similar for
 " 'undodir' but BufWritePre should do the right thing there - undo files are
 " written only when the buffer's written.
-"
-" Yet Another Twist - with 'undodir', the undo filename is the percent-path
-" thing whenever 'undodir' is not '.'. so hooking BufWritePre and creating
-" a directory hierarchy for undo files ends up in despondence.
 "
 " dirs should end with // even on windows.
 "
@@ -602,11 +589,6 @@ endif
 "
 "let g:u.swap_dir = expand('~') . '/.vim/var/swap//'
 let g:u.swap_dir = '.'
-let g:u.undo_dir = expand('~') . '/.vim/var/un//'
-if has('nvim')
-    " nvim changed undo format; don't let things mix.
-    let g:u.undo_dir = expand('~') . '/.vim/var-nvim/un//'
-endif
 if has('ivim')
     let g:u.swap_dir = expand('~') . '/.vim/var/swap//'
 endif
@@ -697,17 +679,6 @@ endif
 " leave swapfile at the default (on).
 set updatecount=10
 " to see current swap file path: ':sw[apname]' / swapname('%')
-
-" it's great that vim can do all this; never needed this since we always keep
-" copious amounts of backup files.
-
-if has('persistent_undo')
-    if g:u.undo_dir != '.'
-        call UserMkdirOnce(g:u.undo_dir)
-        execute 'set undodir^=' . g:u.undo_dir
-    endif
-    set undofile
-endif
 
 " no: s, T,
 "
@@ -1987,6 +1958,63 @@ function! UserShowHelp() abort
         echo l:info
     endif
     return "\<Ignore>"
+endfunction
+
+
+" 2025-07-14 unset undofile/undodir and use autocmds with :wundo/:rundo just to
+" keep the filenames the same as backup file names (nested directory hierarchy
+" without %), respect backupskip, avoid occasional E828 on windows.
+"
+" 'undofile' / 'undodir' behaviour likely won't ever get fixed.
+"
+" NB undotree plugin asumes too much and interferes, creates undodir and sets
+" undofile if undofile not set. remove autocmds added by plugin:
+if exists('#undotreeDetectPersistenceUndo')
+    autocmd! undotreeDetectPersistenceUndo
+    augroup! undotreeDetectPersistenceUndo
+endif
+
+function! UserUndoFile(fn) abort
+    let l:file_abs_path = fnamemodify(a:fn, ':p')
+    if has('win32')
+        " for microsoft windows - replace the ':' after drive letters with '$'
+        let l:file_abs_path = l:file_abs_path[0] . '$' . l:file_abs_path[2:]
+    endif
+    let l:undo_dir_base = '~/.vim/var/un'
+    if has('nvim')
+        " neovim changed undo format; don't let things mix.
+        let l:undo_dir_base = '~/.local/state/nvim/undo'
+    endif
+    let l:undo_file = simplify(expand(l:undo_dir_base
+                \ . '/' . l:file_abs_path . '.un'))
+    return l:undo_file
+endfunction
+
+
+function! UserWriteUndo(fn) abort
+    if UserTestBackupskip(a:fn) != 0
+        return
+    endif
+    let l:undo_file = UserUndoFile(a:fn)
+    let l:undo_dir = fnamemodify(l:undo_file, ':h')
+    call UserMkdirOnce(l:undo_dir)
+    execute 'silent' 'wundo' l:undo_file
+    let b:user_undo_file = l:undo_file
+endfunction
+
+
+function! UserReadUndo(fn) abort
+    if &filetype ==# 'help' && !&modifiable
+        " just browsing help
+        return
+    endif
+    let l:undo_file = UserUndoFile(a:fn)
+    " check just for existence
+    if glob(l:undo_file, 1, 1) != [ l:undo_file ]
+        return
+    endif
+    execute 'silent' 'rundo' l:undo_file
+    let b:user_undo_file = l:undo_file
 endfunction
 
 
@@ -4281,7 +4309,7 @@ nnoremap    q   :echo 'Temper temper / mon capitaine.'<CR>
 
 " never used the tagstack. sometimes due to window focus i end up hitting
 " new-tab C-t in vim. we could conditionally enable it for help buffers and
-" anything else with tags by checking taglist('.') BufReadPost. Maybe later.
+" anything else with tags by checking taglist('.') BufRead[Post]. Maybe later.
 
 if g:u.term_primitive
     nnoremap    <C-t>           <nop>
@@ -5027,6 +5055,13 @@ command RenameOldSwap   if exists('b:swapname_old')
 augroup UserVimRc
     autocmd!
 
+    " custom undofile read/write
+    if has('persistent_undo')
+        autocmd BufRead         *  if &undofile | setlocal noundofile | endif
+        autocmd BufRead         *  call UserReadUndo(expand('<afile>'))
+        autocmd BufWritePost    *  call UserWriteUndo(expand('<afile>'))
+    endif
+
     " for 'autoread'
     " 2023-10-30 seems CursorHold is triggered in the command line history
     " window, and checktime doesn't like that.
@@ -5128,11 +5163,6 @@ augroup UserVimRc
     autocmd BufWritePre *   call UserStripTrailingWhitespace()
     autocmd BufWritePre *   call UserUpdateBackupOptions(expand('<amatch>'))
 
-    " no persistent undo info for temporary files
-    autocmd BufWritePre *   if UserTestBackupskip(expand('<amatch>')) != 0
-                \ | setlocal noundofile
-                \ | endif
-
     " when editing the ex command line, enable listchars and numbers.
     " the idea is to not paste right into the command line, but do paste from
     " the clipboard into the command window - and inspect before running.
@@ -5230,7 +5260,7 @@ if 0
         autocmd BufEnter    *   call UserLog('ae BufEnter')
         autocmd BufWinEnter *   call UserLog('ae BufWinEnter')
         autocmd WinEnter    *   call UserLog('ae WinEnter')
-        autocmd BufReadPost *   call UserLog('ae BufReadPost')
+        autocmd BufRead     *   call UserLog('ae BufRead[Post]')
         autocmd BufCreate   *   call UserLog('ae BufCreate')
         autocmd BufNew      *   call UserLog('ae BufNew')
         autocmd OptionSet   *   call UserLog('ae OptionSet',
