@@ -4063,8 +4063,8 @@ function! UserUrlPasteMunge() abort
     let l:urlpos = searchpos('\vhttps?://\S+', 'cnW', l:lineno)
     let l:selstart = l:urlpos[1]
     if l:urlpos[0] == l:lineno
-        " if the url's for a tweet or user profile, erase the query parameters.
-        if search('\v//%(x|twitter)\.com/.*\?', 'cnW', l:lineno) == l:lineno
+        " twitter: s=, meta/facebook threads: xmt=
+        if search('\v//%(x|twitter|www\.%(threads|instagram))\.com/.*\?', 'cnW', l:lineno) == l:lineno
             " to last char of changed text
             normal! `]
             let l:pos_change_end = getpos(".")
