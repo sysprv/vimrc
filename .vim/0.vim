@@ -4091,8 +4091,8 @@ function! UserUrlPasteMunge() abort
         let l:selend = getpos("']")[2]
         let l:ln = getline('.')
         let l:sel = strpart(l:ln, l:selstart - 1, l:selend - l:selstart + 1)
-        " check for chars: !"#$%&'()*;<>?@[\]`{|}
-        if l:sel =~# '\v[\x21-\x2a\x3b\x3c\x3e\x3f\x40\x5b-\x5d\x60\x7b-\x7d]'
+        " check for chars: !"#$%&'()*;<>?[\]`{|}
+        if l:sel =~# '\v[\x21-\x2a\x3b\x3c\x3e\x3f\x5b-\x5d\x60\x7b-\x7d]'
             let l:quote_start = '"'
             let l:quote_end = '"'
             " check for chars: "$
@@ -4101,7 +4101,7 @@ function! UserUrlPasteMunge() abort
                 " quotes, but we shouldn't manipulate the line. giving up.
                 " save me ruby delimited strings...
                 " %q() - no interpolation, parens in string don't need escaping.
-                " %q( !#$%&'()*;<>?@[\]`{|}"$) -> " !\#$%&'()*;<>?@[\\]`{|}\"$"
+                " %q( !#$%&'()*;<>?[\]`{|}"$) -> " !\#$%&'()*;<>?[\\]`{|}\"$"
                 "
                 " alt - raku ｢｣/Q[]
                 " alt - zsh quote-line/quote-region
