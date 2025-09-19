@@ -4375,9 +4375,6 @@ nnoremap    <silent> <C-s>  :silent wall<CR>
 " ctrl-s in insert mode - go to normal mode; it's a small break.
 inoremap    <silent> <C-s>  <Esc>:silent wall<CR>
 
-" make a new line in normal mode
-nnoremap    <silent> <C-n>  :put _<CR>
-
 " mapping to wrap current word in ksh88 array expansion syntax.
 " https://unix.stackexchange.com/a/382964
 "
@@ -4952,7 +4949,15 @@ nnoremap    <C-Left>    g;
 nnoremap    <C-Right>   g,
 
 " freaky; if at end of line, create new line
-nnoremap    <expr>  <CR>    line('.') == line('$') ? "o\<Esc>" : "\<CR>"
+"nnoremap    <expr>  <CR>    line('.') == line('$') ? "o\<Esc>" : "\<CR>"
+" the hard way without mode switching
+nnoremap    <silent> <expr> <CR>    ":\<C-u>"
+            \ . (
+            \ line('.') == line('$')
+            \ ?
+            \ 'put =repeat(\"\n\", v:count1)'
+            \ : 'execute "normal!" v:count1 . "\n"'
+            \ ) . "\<CR>"
 
 
 " wrapper for filtering through an external command safely, without clobbering
