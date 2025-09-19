@@ -1978,6 +1978,13 @@ function! UserUndoFile(fn) abort
         " for microsoft windows - replace the ':' after drive letters with '$'
         let l:file_abs_path = l:file_abs_path[0] . '$' . l:file_abs_path[2:]
     endif
+    if has('ios')
+        " iVim - for files in app Documents, shorten
+        let l:docs = '/private' . $HOME
+        if stridx(l:file_abs_path, l:docs) == 0
+            let l:file_abs_path = strpart(l:file_abs_path, len(l:docs) + 1)
+        endif
+    endif
     let l:undo_dir_base = '~/.vim/var/un'
     if has('nvim')
         " neovim changed undo format; don't let things mix.
@@ -2026,6 +2033,13 @@ function! UserBufferBackupLoc(fn) abort
     if has('win32')
         " for microsoft windows - replace the ':' after drive letters with '$'
         let l:filepath = l:filepath[0] . '$' . l:filepath[2:]
+    endif
+    if has('ios')
+        " iVim - for files in app Documents, shorten
+        let l:docs = '/private' . $HOME
+        if stridx(l:filepath, l:docs) == 0
+            let l:filepath = strpart(l:filepath, len(l:docs) + 1)
+        endif
     endif
 
     " could start with g:backupdir
