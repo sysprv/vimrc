@@ -831,7 +831,7 @@ set virtualedit=block
 " this isn't the emacs mark-point-region model...
 
 set history=200
-set timeout timeoutlen=800 ttimeout ttimeoutlen=100
+set timeout timeoutlen=1500 ttimeout ttimeoutlen=200
 
 " helps with navigating to a line of interest with <n>j/+ and <n>k/-,
 " but also takes up a lot of space.
