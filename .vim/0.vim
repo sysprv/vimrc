@@ -5135,7 +5135,7 @@ augroup UserVimRc
     " goes haywire.
 
     " for plugins that like to touch tabstop - always reset tabstop to global
-    autocmd BufNewFile,BufReadPost *    if &tabstop != &g:tabstop
+    autocmd FileType *          if &tabstop != &g:tabstop
                 \ | setlocal tabstop<
                 \ | endif
 
