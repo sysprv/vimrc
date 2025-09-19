@@ -5012,8 +5012,9 @@ endfunction
 "
 " enough to work on current iVim.
 function! UserSwapChoice(swapname) abort
+    let swapchoice = ''     " ask
     if !has('patch-8.1.0313')
-        return ''
+        return swapchoice
     endif
 
     let msgbuf = bufadd('!swap-messages')
@@ -5024,47 +5025,61 @@ function! UserSwapChoice(swapname) abort
     let swapname = a:swapname
     let sw = swapinfo(swapname)
     let b:swapname_old = swapname
-    let swapchoice = ''     " ask
+    " mtime of file being edited
     let filetime = getftime(expand('<afile>'))
+    let dirty = get(sw, 'dirty', 0)
+    let mtime = get(sw, 'mtime', 0)
+    let host = get(sw, 'host', '')
+    let dirty_msg = dirty ? 'yes' : 'no'
     " log/inspect
     call UserAppendBuf(msgbuf, 'filename = ' . expand('<afile>'))
     call UserAppendBuf(msgbuf, 'old swapname = ' . swapname)
-    let dirty = 0
-    if exists('sw.dirty')
-        let dirty = sw['dirty']
-    endif
-    let dirty_msg = dirty ? 'yes' : 'no'
-    call UserAppendBuf(msgbuf, 'dirty: ' . dirty_msg)
-    call UserAppendBuf(msgbuf, 'filetime: ' . strftime('%F', filetime))
-    call UserAppendBuf(msgbuf, 'swap mtime: ' . strftime('%F', sw['mtime']))
+    call UserAppendBuf(msgbuf, 'dirty = ' . dirty_msg)
+    call UserAppendBuf(msgbuf, 'host = ' . host)
+    call UserAppendBuf(msgbuf, 'filetime = ' . strftime('%F', filetime))
+    call UserAppendBuf(msgbuf, 'swap mtime = ' . strftime('%F', mtime))
+    call UserAppendBuf(msgbuf, 'error = ' . get(sw, 'error', ''))
     " the new swap file name (f.ex. .swo) that'll be created for the new buffer
     " isn't available until later, i.e. swapname('%') returns nothing.
-    if exists('sw.pid')
-        " having a pid in the swapfile doesn't mean that process is still
-        " running.
-        call UserAppendBuf(msgbuf, 'file opened by pid ' . sw['pid'])
-        " read-only modifiable allows edits, a pain to back out from.
-        set nomodifiable
-        let swapchoice = 'o'  " open read-only
-    else
-        let afile = sw['fname']
-        " time isn't reliable
-        if dirty && ((filetime - sw['mtime']) >= 3600)
-            call UserAppendBuf(msgbuf, swapname . ': deleting')
-            let swapchoice = 'd'
-        elseif dirty && (sw['mtime'] > filetime)
-            call UserAppendBuf(msgbuf, swapname . ': recovering + queuing for rename')
-            autocmd UserVimRc BufUnload RenameOldSwap
-            let swapchoice = 'r'
+    if host ==# hostname()
+        if exists('sw.pid')
+            " having a pid in the swapfile doesn't mean that process is still
+            " running.
+            call UserAppendBuf(msgbuf, 'file opened by pid ' . sw['pid'])
+            let swapchoice = 'o'    " read-only
+        else
+            " time isn't reliable
+            if !dirty
+                if (filetime - mtime) >= 3600
+                    call UserAppendBuf(msgbuf, swapname . ': deleting')
+                    let swapchoice = 'd'    " delete
+                elseif mtime > filetime
+                    call UserAppendBuf(msgbuf, swapname . ': recovering + queuing for rename')
+                    autocmd UserVimRc BufUnload RenameOldSwap
+                    let swapchoice = 'r'    " recover
+                else
+                    let swapchoice = 'o'    " read-only
+                endif
+            else
+                let swapchoice = 'o'    " read-only
+            endif
         endif
+    else
+        " hosts differ
+        let swapchoice = 'o'    " read-only
     endif
     call UserAppendBuf(msgbuf, 'swapchoice = ''' . swapchoice . '''')
     call UserAppendBuf(msgbuf, string(sw))
     call UserAppendBuf(msgbuf, '--')
+    if swapchoice ==# 'o'
+        " read-only but modifiable allows edits, a pain to back out from.
+        set nomodifiable
+    endif
     return swapchoice
 endfunction
 
-command RenameOldSwap   if exists('b:swapname_old')
+command RenameOldSwap   if exists('b:swapname_old') &&
+            \ (glob(b:swapname_old, 1, 1) == [ b:swapname_old ])
             \ | call rename(b:swapname_old, b:swapname_old . '-recovered')
             \ | endif
 
