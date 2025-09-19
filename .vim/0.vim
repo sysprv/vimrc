@@ -2318,7 +2318,7 @@ if has('gui_running')
             endif
         elseif has('ios')
             function! UserGetFonts() abort
-                return 'Menlo:h11.0'
+                return 'Menlo:h10.0'
             endfunction
         endif
         command! -bar FnDef  let &guifont = UserGetFonts()
