@@ -852,6 +852,11 @@ set eadirection=hor
 
 set mouse=
 
+set titlestring=Vim:\ %f\ %m
+if has('win32')
+    set title
+endif
+
 " I use 'view' a lot. In Red Hat Linux, view is provided by vim-minimal,
 " which evidently does not include folding. This if statement avoids
 " errors that view will otherwise print while starting.
