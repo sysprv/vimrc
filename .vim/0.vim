@@ -2841,7 +2841,9 @@ function! UserColoursPrelude()
             "
             " with the right windows terminal settings about contrast/colours,
             " no need to force the background.
-            set termguicolors t_ut=     " don't use BCE - must be set after tgc
+            if exists('$WT_SESSION')
+                set background=light termguicolors
+            endif
             let l:done = 1
         endif
     endif
