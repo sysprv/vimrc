@@ -5181,6 +5181,9 @@ augroup UserVimRc
     autocmd FileType json               SoftIndent 2
     autocmd FileType xdefaults          setlocal commentstring=!\ %s
     autocmd FileType text               setlocal commentstring=#\ %s
+    " 2025-10-02 ft resolv keeps default commentstring of /* %s */.
+    " set to semicolon instead of hash/pound just to differentiate better.
+    autocmd FileType resolv             setlocal commentstring=;\ %s
     "autocmd FileType text               setlocal commentstring=/*\ %s\ */
 
     " whimsical file formats with trailing whitespace sometimes
