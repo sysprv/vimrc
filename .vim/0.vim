@@ -792,6 +792,9 @@ set autoread autowrite autowriteall
 set hidden
 set matchpairs+=<:>,«:»,｢:｣
 
+" default commentstring's /* %s */, mostly wrong
+set commentstring=\#\ %s
+
 " ttyfast - seems to be about terminal capabilities and less about line speed.
 " can disable if exists('$SSH_CONNECTION') && !g:u.has_x11
 
