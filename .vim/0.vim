@@ -3591,9 +3591,14 @@ inoremap    ;       ;<C-g>u
 
 "" insert timestamp
 "
-" :put =<expr> is elegant, but working on the line below is disconcerting.
-"nnoremap        <silent> <Leader>dt "=UserDateTimeComment()<cr>p:put _<cr>
-nnoremap        <silent> <Leader>dt     :put =UserDateTimeComment()<CR>
+" :put =<expr> is elegant, but working on the line below is disconcerting,
+" because i usually care to ,dt on a new line.
+"
+" 0 - put comment text in expression register
+" 1 - paste
+" 2 - paste blackhole register below, creating new line
+"
+nnoremap        <silent> <Leader>dt "=UserDateTimeComment()<cr>p:put _<cr>
 
 inoremap <expr> <silent> <Leader>dt "\<C-g>u" . UserDateTimeComment() . "\<C-g>u"
 
