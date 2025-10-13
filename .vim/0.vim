@@ -750,7 +750,14 @@ set shiftwidth=4 softtabstop=4 expandtab list
 set fileformats=unix,dos
 set smarttab
 set shiftround
-set backspace=indent,eol,start
+set backspace=indent,eol
+if has('patch-8.2.0590')
+    " C-W/C-U is documented as stopping at start-of-insert.
+    " this fixes that. wow bram 2020.
+    set backspace+=nostop
+else
+    set backspace+=start
+endif
 
 " <Left>, <Right> in visual mode (vw at the last word of a line moves to the new
 " line...)
