@@ -587,9 +587,9 @@ endif
 " going back to swap file near file. they're transient, unlike backups and
 " undofiles.
 "
-"let g:u.swap_dir = expand('~') . '/.vim/var/swap//'
 let g:u.swap_dir = '.'
-if has('ivim')
+if has('win32') || has('ivim')
+    " it's just me, the swapfile won't help as a lock file.
     let g:u.swap_dir = expand('~') . '/.vim/var/swap//'
 endif
 
@@ -1393,7 +1393,7 @@ else
         if &readonly    | let l:m .= '.ro'      | endif
 
         " normal buffer without a swapfile and swapfile is globally on - warn
-        " except on iOS
+        " except on iOS (iVim) where swap is disabled by default.
         if &buftype == '' && (&g:swapfile && (!&l:swapfile || (&updatecount == 0)))
             let l:m .= '.!swf'
         endif
