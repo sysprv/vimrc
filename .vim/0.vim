@@ -2747,8 +2747,14 @@ function! UserApplySyntaxRules() abort
     " extremely helpful (we attenuate the colour anyway). synmaxcol applies
     " to the rules below but doesn't apply for spell checking (SpellBad
     " highlighting happens beyond synmaxcol).
+    "
+    " 2025-10-18 @ for mastodon
+    " prev: [-\.[:alnum:]_~@%:/]*
+    " now: [:@\-\._~!\$&'()\*\+,:=[:alnum:]/]*
+    " https://stackoverflow.com/a/5914123
+    " https://illegalargumentexception.blogspot.com/2009/12/java-safe-character-handling-and-url.html#URI2009_RESOURCES
 
-    let l:uri_re = '\v<https?://\w[-\.[:alnum:]]*\w%(:\d+)?%(/[-\.[:alnum:]_~%:/]*)?%(\?[[:alnum:]!#$%&*+,\-\./:;<=>?@^_~]*)?%(#[[:alnum:]!#$%&*+,\-\./:;<=>?@^_~]*)?>'
+    let l:uri_re = '\v<https?://\w[-\.[:alnum:]]*\w%(:\d+)?%(/[:@\-\._~!\$&''()\*\+,:=[:alnum:]/]*)?%(\?[[:alnum:]!#$%&*+,\-\./:;<=>?@^_~]*)?%(#[[:alnum:]!#$%&*+,\-\./:;<=>?@^_~]*)?>'
     " with delimiters for syntax match:
     let l:s = '=' . l:uri_re . '='
 
