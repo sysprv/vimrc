@@ -5206,6 +5206,12 @@ augroup UserVimRc
     autocmd FileType json               SoftIndent 2
     autocmd FileType xdefaults          setlocal commentstring=!\ %s
     autocmd FileType text               setlocal commentstring=#\ %s
+
+    " smalltalk - upstream st.vim doesn't set commentstring
+    autocmd FileType st                 setlocal commentstring=\"%s\"
+    " plantuml - no upstream plugin
+    autocmd BufRead,BufNewFile *.pu,*.puml setlocal commentstring='\ %s
+
     " 2025-10-02 ft resolv keeps default commentstring of /* %s */.
     " set to semicolon instead of hash/pound just to differentiate better.
     autocmd FileType resolv             setlocal commentstring=;\ %s
