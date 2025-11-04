@@ -1,4 +1,4 @@
-" Last-Modified: 2025-07-16T10:19:56.220530542+00:00
+" Last-Modified: 2025-11-04T21:17:18.203729117+00:00
 
 " vim:set tw=80 noml:
 set secure nobomb
@@ -9,6 +9,12 @@ if &compatible
 endif
 
 " Change log:
+"
+" 2025-11-04 centralise indent config a little more; but revert to keeping
+" syntax highlighting. it can help a bit specially with *sh. make it easier to
+" turn indentation and syntax highlighting off with one command (Sigh/Nope).
+"
+" bad (inconsistent, imperfect) cases like python and sh.
 "
 " 2025-07-16 Bypass undodir/undofile and manage undo file location by ourselves
 " with autocmds + :rundo/:wundo.
@@ -3467,7 +3473,7 @@ function! UserResetIndent()
     " get the default value (not just the global value) of an option without
     " setting the option to default.
 
-    setlocal indentexpr& indentkeys&
+    setlocal indentexpr& indentkeys& lisp& autoindent&
 
     if l:indentexpr != '' && l:indentkeys != &indentkeys
         let b:indentkeys_orig = l:indentkeys
@@ -3482,6 +3488,9 @@ function! UserResetIndent()
 endfunction
 
 command! -bar InDisable     call UserResetIndent()
+command! -bar Sigh          InDisable | set syntax=OFF
+command! -bar Nope          InDisable | set syntax=OFF
+" this'll be a noop when $MYVIMDIR/indent/<filetype>.vim has b:did_indent = 1
 command! -bar InEnable
             \ call ExecuteNomodifiable('runtime indent/' . &filetype . '.vim')
 
@@ -5148,40 +5157,10 @@ augroup UserVimRc
     " beware of fedora badly duplicating this functionality in /etc/vimrc.
     autocmd BufReadPost *   call UserLastPositionJump()
 
-    " set indentation settings
-
-    " default: hard tabs; C, Go, plain old Unix.
-
-    " keeping 'filetype indent off', load indent rules just for a few we like.
-    " no: xml, sql, yaml, markdown.
-    "
-    " see $VIM/indent.vim
-    "
-    " descent: rust; keep: ada, c, go, java, javascript, json, perl, racket,
-    " raku, ruby, rust, scala, typescript, vim, terraform, *sh
-    "
-    " 2023-10-31 been here before; things that make syntax highlighting fragile,
-    " also make indenting fragile - namely, unclosed quotes.
-    "
-    " 2024-04-10 python.vim autoindent's very weird. disabled.
-    " 2025-04-07 fixed with g:python_indent? not always, sometimes indentation
-    " goes haywire.
-
-    " for plugins that like to touch tabstop - always reset tabstop to global
-    autocmd FileType *          if &tabstop != &g:tabstop
-                \ | setlocal tabstop<
-                \ | endif
-
-    " python indent - no; only allow python-mode
-    " (pymode#indent#get_indent(v:lnum))
-    autocmd FileType python     if &indentexpr !~# '^pymode#'
-                \ | InDisable
-                \ | endif
-
     " *sh - only indentation, no syntax highlighting.
-    autocmd FileType *sh            set syntax=OFF
+    "autocmd FileType *sh            set syntax=OFF
     " 2025-04-25 json - trailing comma error's ugly
-    autocmd FileType json           set syntax=OFF
+    "autocmd FileType json           set syntax=OFF
 
     autocmd FileType text               FoText
 
@@ -5292,6 +5271,44 @@ augroup UserVimRc
 
 augroup end
 " /UserVimRc
+
+
+" set indentation settings
+
+" default: hard tabs; C, Go, plain old Unix.
+
+" keeping 'filetype indent off', load indent rules just for a few we like. no:
+" xml, sql, yaml, markdown.
+"
+" see $VIM/indent.vim
+"
+" descent: rust; keep: ada, c, go, java, javascript, json, perl, racket, raku,
+" ruby, rust, scala, typescript, vim, terraform, *sh
+"
+" 2023-10-31 been here before; things that make syntax highlighting fragile,
+" also make indenting fragile - namely, unclosed quotes.
+"
+" 2024-04-10 python.vim autoindent's very weird. disabled. 2025-04-07 fixed with
+" g:python_indent? not always, sometimes indentation goes haywire.
+"
+" 2025-10-27 defang upstream indent scripts by populating
+" ~/.vim/indent/<filetype>.vim having let b:did_indent = 1; if any get through,
+" reset indentexpr and indentkeys here.
+augroup UserVimRcIndent
+    autocmd!
+
+    " for plugins that like to touch tabstop - always reset tabstop to global
+    autocmd FileType *  if &tabstop != &g:tabstop | setlocal tabstop< | endif
+
+    autocmd FileType python
+                \ if &indentexpr != '' && &indentexpr !~# '^User'
+                \ |     InDisable
+                \ | endif
+
+    " 2025-10-27 have i tried the same thing before?
+    autocmd FileType sh,bash,zsh    InDisable
+    autocmd FileType perl           InDisable
+augroup end
 
 
 " autogroup for my weird syntax dealings
