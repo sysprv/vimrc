@@ -2754,7 +2754,11 @@ function! UserApplySyntaxRules() abort
     " https://stackoverflow.com/a/5914123
     " https://illegalargumentexception.blogspot.com/2009/12/java-safe-character-handling-and-url.html#URI2009_RESOURCES
 
-    let l:uri_re = '\v<https?://\w[-\.[:alnum:]]*\w%(:\d+)?%(/[:@\-\._~!\$&''()\*\+,:=[:alnum:]/]*)?%(\?[[:alnum:]!#$%&*+,\-\./:;<=>?@^_~]*)?%(#[[:alnum:]!#$%&*+,\-\./:;<=>?@^_~]*)?>'
+    let l:uri_re = '\v<https?://'
+    let l:uri_re .= '\w[-\.[:alnum:]]*\w%(:\d+)?'
+    let l:uri_re .= '%(/[:@\-\._~!\$&''()\*\+,:=[:alnum:]/]*)?'
+    let l:uri_re .= '%(\?[[:alnum:]!#$%&*+,\-\./:;<=>?@^_~]*)?'
+    let l:uri_re .= '%(#[[:alnum:]!#$%&*+,\-\./:;<=>?@^_~]*)?>'
     " with delimiters for syntax match:
     let l:s = '=' . l:uri_re . '='
 
