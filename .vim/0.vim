@@ -5191,9 +5191,9 @@ augroup UserVimRc
     autocmd BufNewFile,BufReadPost      *.xresources
                 \ setfiletype xdefaults
 
-    " limited indentation detection - search for \t in the first page.
+    " limited indentation detection - search for \t in the first hundred lines.
     " if hard tab found, switch to hard tab mode.
-    autocmd FileType conf if match(getline(2, 23), "\t")!=-1 | HardIndent | endif
+    autocmd FileType conf if match(getline(2, 100), "\t") != -1 | HardIndent | endif
 
     autocmd FileType lisp               Lisp
     autocmd FileType scheme             Lisp
