@@ -1,4 +1,4 @@
-" Last-Modified: 2025-11-04T21:17:18.203729117+00:00
+" Last-Modified: 2025-11-16T10:53:54.108158339+00:00
 
 " vim:set tw=80 noml:
 set secure nobomb
@@ -367,7 +367,14 @@ endif
 " vim user command definitions have extra arguments for bracketed attributes
 " like <bang> so than an extra viml string concatenation is unnecessary.
 
-" -- end tips
+" beware loading files (through for example restoring a session in VimEnter) via
+" autocmds: by default nested autocmds are suppressed/autocmds are not triggered
+" recursively - so BufNew/BufRead etc. won't run for the loaded files. doc:
+" autocmd-nested .
+"
+" one workaround: execute 'bufdo doautocmd BufRead' after; (or \|, bufdo
+" consumes |)
+
 " -- end notes
 
 " colour
@@ -5321,6 +5328,19 @@ augroup UserVimRcIndent
 augroup end
 
 
+" other: v:this_session
+function! UserMakeDefaultSession() abort
+    if getcwd() ==# expand('~') && filereadable('Session.vim')
+        silent mksession!
+    endif
+endfunction
+
+" other: SessionLoadPost
+augroup UseriOS
+    autocmd!
+augroup end
+
+
 " autogroup for my weird syntax dealings
 augroup UserVimRcSyntax
     autocmd!
@@ -5399,3 +5419,13 @@ if !g:u.term_primitive
 endif
 
 " ~ fini ~
+
+if has('ios')
+    " latro mode - iOS 26 kills apps more often than iOS 18, having to :e often is a pain.
+    if argc() == 0 && filereadable('Session.vim')
+        " autocmds to update Session.vim
+        autocmd UseriOS BufWritePost,VimLeavePre * call UserMakeDefaultSession()
+        " silent to suppress Press ENTER or type command to continue
+        silent source Session.vim
+    endif
+endif
