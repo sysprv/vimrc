@@ -3476,7 +3476,7 @@ function! UserResetIndent()
     " get the default value (not just the global value) of an option without
     " setting the option to default.
 
-    setlocal indentexpr& indentkeys& lisp& autoindent&
+    setlocal indentexpr& indentkeys& lisp< autoindent<
 
     if l:indentexpr != '' && l:indentkeys != &indentkeys
         let b:indentkeys_orig = l:indentkeys
