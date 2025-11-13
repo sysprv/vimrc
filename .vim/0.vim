@@ -2305,27 +2305,26 @@ endfunction
 if has('gui_running')
     function! UserSetGuifont()
         " init default font size
-        " 2024-06-09 back on a lodpi laptop
         let g:u.gfn_size = 11
 
         if has('linux') && has('gui_gtk')
+            " make iosevka-fixed boxed-drawings-light-vertical-s touch:
+            "if !has('win32') set linespace=-2 endif
+            " but bitstream vera sans mono / dejavu sans mono book
+            " lose underscores with linespace < 0.
+
             function! UserGetFonts() abort
-                let l:fonts = [
-                            \ 'Iosevka Fixed SS01 ' . g:u.gfn_size
-                            \ , 'Source Code Pro ' . g:u.gfn_size
-                            \ , 'Monospace ' . g:u.gfn_size
-                            \ ]
-                return join(l:fonts, ',')
+                let F = { name -> name . ' ' . g:u.gfn_size }
+                let fonts = [F('Iosevka Fixed SS01'), F('Source Code Pro'),
+                            \  F('Adwaita Mono'), F('Monospace')]
+                return join(fonts, ',')
             endfunction
             "command! -bar FnMononoki let &guifont = 'mononoki ' . g:u.gfn_size
         elseif has('win32')
             function! UserGetFonts() abort
-                let l:fonts = [
-                            \ 'Iosevka_Fixed_SS01:h' . g:u.gfn_size
-                            \ , 'Cascadia_Mono:h' . g:u.gfn_size
-                            \ , 'Consolas:h' . g:u.gfn_size
-                            \ ]
-                return join(l:fonts, ',')
+                let F = { name -> substitute(name, ' ', '_', 'g') . ':h' . g:u.gfn_size }
+                let fonts = [F('Iosevka Fixed SS01'), F('Cascadia Mono Light')]
+                return join(fonts, ',')
             endfunction
             "
             " windows doesn't seem to like mononoki.
@@ -2340,6 +2339,10 @@ if has('gui_running')
         elseif has('ios')
             function! UserGetFonts() abort
                 return 'Menlo:h10.0'
+            endfunction
+        else
+            function! UserGetFonts() abort
+                return 'Monospace'
             endfunction
         endif
         command! -bar FnDef  let &guifont = UserGetFonts()
@@ -5383,10 +5386,6 @@ endif
 if has('gui_running')
     call UserSetGuifont()
     FnDef
-    " make iosevka-fixed boxed-drawings-light-vertical-s touch
-    if !has('win32')
-        set linespace=-2
-    endif
 endif
 if !g:u.term_primitive
     let &fillchars = UserFillchars({ 'vert': nr2char(0x2502) })
