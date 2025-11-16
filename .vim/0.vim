@@ -2882,6 +2882,11 @@ function! UserColoursPrelude()
         let l:done = 1
     endif
 
+    if has('ios')
+        set background=dark
+        let l:done = 1
+    endif
+
     " could also enable tgc for PuTTY; PuTTY has support turned on by default.
     " but terminfo/termcap might not have caught up yet.
     "
