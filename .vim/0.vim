@@ -3506,9 +3506,11 @@ set sessionoptions-=winpos
 " sesdir - only way to get vim to not save absolute paths to buffers;
 " does save/do a "cd"; yucky.
 set sessionoptions+=sesdir
+set sessionoptions+=unix
 
 set viewoptions-=curdir
 set viewoptions-=options
+set viewoptions+=unix
 
 
 " ---- mappings
