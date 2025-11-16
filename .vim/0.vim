@@ -582,11 +582,11 @@ if !g:u.term_primitive
     let g:u.mark = nr2char(0x4F11)
 endif
 
-" 2025-03-10 'directory' is global, so we're stuck with %-separated
-" filenames and possibly filename length limits. there's no way to set it per
-" file in a directory hierarchy like how we can with 'backupdir'. similar for
-" 'undodir' but BufWritePre should do the right thing there - undo files are
-" written only when the buffer's written.
+" 2025-03-10 'directory' is global, so we're stuck with %-separated filenames
+" and possibly filename length limits. there's no way to set it per file in
+" a directory hierarchy like how we can with 'backupdir'. similar for 'undodir'
+" but BufWrite should do the right thing there - undo files are written only
+" when the buffer's written.
 "
 " dirs should end with // even on windows.
 "
@@ -4208,6 +4208,8 @@ function! UserAddUrlPasteMapping() abort
     nnoremap <buffer> <silent> q    :call UserUrlPasteAndUpdate()<CR>
 endfunction
 
+command! -bar MapQ      call UserAddUrlPasteMapping()
+
 
 " -- end copy/paste adventures.
 
@@ -5154,31 +5156,29 @@ augroup UserVimRc
     " enable auto reformatting when writing journal entries,
     " not for all text files.
     " format manually: gqip or vip, gq
-    autocmd BufNewFile,BufReadPost writing*.txt,NOTES*.txt      Wr
-    autocmd BufReadPost *music-comments.txt     setl nospell
+    autocmd BufNewFile,BufRead  writing*.txt,NOTES*.txt     Wr
+    autocmd BufRead             *music-comments.txt         setl nospell
 
     " for file names without an extension -
     " if file(1) thinks it's a text file, treat it as such.
     " not directly related to syntax highlighting - therefore this directive
     " is in this autogroup, and not in the UserVimRcSyntax autogroup.
-    autocmd BufReadPost *   call UserAutoSetFtText(expand('<afile>'))
+    autocmd BufRead             *   call UserAutoSetFtText(expand('<afile>'))
 
     " last-position-jump
     " beware of fedora badly duplicating this functionality in /etc/vimrc.
-    autocmd BufReadPost *   call UserLastPositionJump()
+    autocmd BufRead             *   call UserLastPositionJump()
 
     " *sh - only indentation, no syntax highlighting.
     "autocmd FileType *sh            set syntax=OFF
     " 2025-04-25 json - trailing comma error's ugly
     "autocmd FileType json           set syntax=OFF
 
-    autocmd FileType text               FoText
+    autocmd FileType            text    FoText
 
-    autocmd BufNewFile,BufReadPost      *.list.txt,linkdump*.txt
-                \ call UserAddUrlPasteMapping()
+    autocmd BufNewFile,BufRead  *.list.txt,linkdump*.txt    MapQ
 
-    autocmd BufNewFile,BufReadPost      *.xresources
-                \ setfiletype xdefaults
+    autocmd BufNewFile,BufRead  *.xresources            setfiletype xdefaults
 
     " limited indentation detection - search for \t in the first hundred lines.
     " if hard tab found, switch to hard tab mode.
@@ -5199,7 +5199,7 @@ augroup UserVimRc
     " smalltalk - upstream st.vim doesn't set commentstring
     autocmd FileType st                 setlocal commentstring=\"%s\"
     " plantuml - no upstream plugin
-    autocmd BufRead,BufNewFile *.pu,*.puml setlocal commentstring='\ %s
+    autocmd BufNewFile,BufRead  *.pu,*.puml setlocal commentstring='\ %s
 
     " 2025-10-02 ft resolv keeps default commentstring of /* %s */.
     " set to semicolon instead of hash/pound just to differentiate better.
@@ -5223,8 +5223,8 @@ augroup UserVimRc
     " to allow for git log --oneline
     autocmd FileType *commit    setlocal spell colorcolumn=50,72
 
-    autocmd BufWritePre *   call UserStripTrailingWhitespace()
-    autocmd BufWritePre *   call UserUpdateBackupOptions(expand('<amatch>'))
+    autocmd BufWrite    *   call UserStripTrailingWhitespace()
+    autocmd BufWrite    *   call UserUpdateBackupOptions(expand('<amatch>'))
 
     " when editing the ex command line, enable listchars and numbers.
     " the idea is to not paste right into the command line, but do paste from
@@ -5250,7 +5250,7 @@ augroup UserVimRc
     " autocmd-pattern - * includes path separators.
     "
     " 2025-07-16 back to noswapfile on iOS
-    "autocmd BufReadPost /private/var/mobile/*       setlocal swapfile<
+    "autocmd BufRead    /private/var/mobile/*       setlocal swapfile<
 
     " if swapfile exists, open read-only without the lecturing. q (quit),
     " a (abort) are rather useless, fails silently when trying to open
@@ -5274,10 +5274,10 @@ augroup UserVimRc
     " dark VTE terminal (sakura) with both COLORFGBG and COLORTERM
 
     " would be nice to have a way to reject option settings
-    if 0 && exists('##OptionSet')
-        autocmd OptionSet background
-                    \ echom UserDateTime() 'background set to' v:option_new
-    endif
+    "if exists('##OptionSet')
+        "autocmd OptionSet background
+                    "\ echom UserDateTime() 'background set to' v:option_new
+    "endif
 
 augroup end
 " /UserVimRc
