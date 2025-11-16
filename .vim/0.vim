@@ -4916,7 +4916,7 @@ endfunction
 command -bar ClearUndo  call UserClearUndo()
 
 " decent alternative to autochdir
-command CdBuffer   chdir %:h
+command CdBuffer   lcd %:h
 
 
 " -- comment/uncomment by line range
