@@ -5330,16 +5330,18 @@ augroup end
 
 
 " other: v:this_session
-function! UserMakeDefaultSession() abort
-    if getcwd() ==# expand('~') && filereadable('Session.vim')
+function! UserMakeDefaultSession(force) abort
+    if a:force
+        let l:mk = 1
+    else
+        " if the file doesn't exist (-1) or hasn't been written to in N s
+        let l:mk = (localtime() - getftime('Session.vim')) > 20
+    endif
+    if l:mk
         silent mksession!
     endif
+    return l:mk
 endfunction
-
-" other: SessionLoadPost
-augroup UseriOS
-    autocmd!
-augroup end
 
 
 " autogroup for my weird syntax dealings
@@ -5421,12 +5423,12 @@ endif
 
 " ~ fini ~
 
-if has('ios')
-    " latro mode - iOS 26 kills apps more often than iOS 18, having to :e often is a pain.
-    if argc() == 0 && filereadable('Session.vim')
-        " autocmds to update Session.vim
-        autocmd UseriOS BufWritePost,VimLeavePre * call UserMakeDefaultSession()
-        " silent to suppress Press ENTER or type command to continue
-        silent source Session.vim
-    endif
+" mostly for iVim latro mode - iOS 26 kills apps more often than iOS 18, having
+" to :e often is a pain.
+if argc() == 0 && filereadable('Session.vim')
+    " autocmds to update Session.vim
+    autocmd UserVimRc BufWritePost    * call UserMakeDefaultSession(0)
+    autocmd UserVimRc VimLeavePre     * call UserMakeDefaultSession(1)
+    " silent to suppress Press ENTER or type command to continue
+    silent source Session.vim
 endif
