@@ -976,7 +976,7 @@ if v:version >= 900
         elseif UserUiIsBlocky()
             call UserFillcharsBlocky()
             call UserUiStatusLine(g:u.ui, &background)
-            if exists('*hlset*') && exists('g:user_last_vertsplit')
+            if exists('*hlset') && exists('g:user_last_vertsplit')
                 call hlset(g:user_last_vertsplit)
             endif
             highlight StatusLine cterm=NONE gui=NONE
@@ -5104,7 +5104,7 @@ function! UserSwapChoice(swapname) abort
     " the new swap file name (f.ex. .swo) that'll be created for the new buffer
     " isn't available until later, i.e. swapname('%') returns nothing.
     if host ==# hostname()
-        if exists('sw.pid')
+        if has_key(sw, 'pid')
             " having a pid in the swapfile doesn't mean that process is still
             " running.
             call UserAppendBuf(msgbuf, 'file opened by pid ' . sw['pid'])
