@@ -691,7 +691,8 @@ endif
 
 "
 " leave swapfile at the default (on).
-set updatecount=10
+" damian conway
+set updatetime=500 updatecount=10
 " to see current swap file path: ':sw[apname]' / swapname('%')
 
 " no: s, T,
