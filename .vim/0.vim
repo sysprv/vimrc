@@ -3516,6 +3516,10 @@ set sessionoptions-=options
 set sessionoptions-=resize
 set sessionoptions-=terminal
 set sessionoptions-=winpos
+if v:version < 900
+    " don't need complicated features with old vims.
+    set sessionoptions-=folds
+endif
 " sesdir - only way to get vim to not save absolute paths to buffers;
 " does save/do a "cd"; yucky.
 set sessionoptions+=sesdir
@@ -5330,13 +5334,14 @@ augroup end
 
 
 " other: v:this_session
-function! UserMakeDefaultSession(force) abort
-    if a:force
-        let l:mk = 1
-    else
-        " if the file doesn't exist (-1) or hasn't been written to in N s
-        let l:mk = (localtime() - getftime('Session.vim')) > 20
+function! UserMakeDefaultSession() abort
+    " don't do the initial creation, that's up to the user.
+    if !filereadable('Session.vim')
+        return 0
     endif
+
+    " if hasn't been written to in N s
+    let l:mk = (localtime() - getftime('Session.vim')) > 20
     if l:mk
         silent mksession!
     endif
@@ -5392,6 +5397,7 @@ if 0
         autocmd OptionSet   *   call UserLog('ae OptionSet',
             \ 'opt', expand('<amatch>'),
             \ 'newval', v:option_new)
+        autocmd SessionLoadPost * call UserLog('ae SessionLoadPost', v:this_session)
     augroup end
 endif
 
@@ -5423,12 +5429,23 @@ endif
 
 " ~ fini ~
 
-" mostly for iVim latro mode - iOS 26 kills apps more often than iOS 18, having
-" to :e often is a pain.
-if argc() == 0 && filereadable('Session.vim')
+" latro mode - iOS 26 kills apps more often than iOS 18, having to :e often is
+" a pain.
+if has('ivim') && filereadable('Session.vim')
     " autocmds to update Session.vim
-    autocmd UserVimRc BufWritePost    * call UserMakeDefaultSession(0)
-    autocmd UserVimRc VimLeavePre     * call UserMakeDefaultSession(1)
+    autocmd UserVimRc BufWritePost    * call UserMakeDefaultSession()
+    " VimLeavePre - too intrusive
+
+    " 2025-11-19 workaround for vim < 8.2; only the last &scrolloff lines of the
+    " buffer are displayed, at the top of the window. switching buffers, z- or
+    " zb fixes it. not bisecting all that, maybe someday.
+    "
+    " too troublesome to workaround for all cases/all versions (feedkeys)/all
+    " file sizes.
+    if has('ivim') && v:version < 802
+        call timer_start(0, {-> execute('normal! z-')})
+    endif
+
     " silent to suppress Press ENTER or type command to continue
     silent source Session.vim
 endif
