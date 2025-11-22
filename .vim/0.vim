@@ -5291,8 +5291,18 @@ augroup UserVimRc
                     "\ echom UserDateTime() 'background set to' v:option_new
     "endif
 
+    autocmd VimEnter *  call UserClearVColorNames()
 augroup end
 " /UserVimRc
+
+
+function! UserClearVColorNames() abort
+    if exists('v:colornames')
+        " no cathedrals no bazaars; let's see what if anything breaks
+        call map(keys(v:colornames), {_, k -> remove(v:colornames, k)})
+        call garbagecollect()
+    endif
+endfunction
 
 
 " set indentation settings
@@ -5449,3 +5459,4 @@ if has('ivim') && filereadable('Session.vim')
     " silent to suppress Press ENTER or type command to continue
     silent source Session.vim
 endif
+
