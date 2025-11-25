@@ -1483,6 +1483,11 @@ else
     " should usually go inside a matching pair of separators like []. other
     " statusline flags like %W should go after this.
 
+    function! UserFmtPos() abort
+        let l:pos = getpos('.')
+        return printf('<%3d:%-2d>', l:pos[1], l:pos[2])
+    endfunction
+
     function! UserStLnBufFlags() abort
         let l:l = []
         if &buftype ==# 'terminal'
@@ -1490,8 +1495,7 @@ else
             " something like this (line:col only in terminal normal mode) should
             " be done more efficiently by the statusline.
             if mode() ==# 'n'
-                let l:pos = getpos('.')
-                call add(l:l, '<%3d:%-2d>', l:pos[1], l:pos[2]))
+                call add(l:l, UserFmtPos())
             endif
         else
             call add(l:l, UserStLnBufModStatus())
@@ -1499,7 +1503,7 @@ else
                 call add(l:l, 'PRV')    " %W
             endif
             let l:pos = getpos('.')
-            call add(l:l, printf('<%3d:%-2d>', l:pos[1], l:pos[2]))
+            call add(l:l, UserFmtPos())
             call add(l:l, UserStLnIndentation())
             call add(l:l, UserStLnTextWidth())
             call add(l:l, UserStLnFenc())
