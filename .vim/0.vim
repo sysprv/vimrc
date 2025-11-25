@@ -8,6 +8,14 @@ if &compatible
     set nocompatible
 endif
 
+if has('nvim')
+    if has('win32')
+        set runtimepath+=~/vimfiles
+    else
+        set runtimepath+=~/.vim
+    endif
+endif
+
 " Change log:
 "
 " 2025-11-04 centralise indent config a little more; but revert to keeping
@@ -1392,9 +1400,14 @@ function! ExecuteNomodifiable(cmd) abort
 endfunction
 
 
-if v:version >= 900     " vim9script
+if v:version >= 900 && has('vim9script') && filereadable(expand('~/.vim/statusline_defs.vim'))
     " in a separate file so that vim7/8 won't try to parse the defs.
     call ExecuteNomodifiable('runtime statusline_defs.vim')
+    set statusline=%2n'%<<%f>%=\ %{UserStLnBufFlags()}\ %P\ %{g:u.mark}\ "
+elseif has('nvim') && filereadable(expand('~/.vim/statusline_defs.lua'))
+    " it's nice that neovim cleans up those thousands of filetype autocmds
+    runtime statusline_defs.lua
+    set statusline=%2n'%<<%f>%=\ %{v:lua.UserStLnBufFlags()}\ %P\ %{g:u.mark}\ "
 else
     function! UserStLnBufModStatus()
         let l:m = ''
@@ -1520,6 +1533,8 @@ else
         "return '[' . join(l:l, '][') . ']'
         return '[' . join(l:l, '/') . ']'
     endfunction
+
+    set statusline=%2n'%<<%f>%=\ %{UserStLnBufFlags()}\ %P\ %{g:u.mark}\ "
 endif
 
 " NB: last double quote starts a comment and preserves the trailing space. vim
@@ -1528,7 +1543,7 @@ endif
 " current register: %{v:register}
 
 " don't forget to kee a space/separator after the filename
-set statusline=%2n'%<<%f>%=\ %{UserStLnBufFlags()}\ %P\ %{g:u.mark}\ "
+"set statusline=%2n'%<<%f>%=\ %{UserStLnBufFlags()}\ %P\ %{g:u.mark}\ "
 " there ought to be a 'tstatusline' for terminal windows?
 
 " in case we close all normal windows and end up with something like the preview

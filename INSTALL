@@ -12,4 +12,5 @@ fi
 cp .vimrc                       ~/.vimrc
 cp .vim/0.vim                   ~/.vim/
 cp .vim/statusline_defs.vim     ~/.vim/
+cp .vim/statusline_defs.lua     ~/.vim/
 cp .vim/colors/*.vim ~/.vim/colors/
