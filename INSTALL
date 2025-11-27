@@ -7,10 +7,14 @@ umask 027
 if ! [ -d ~/.vim/colors ]; then
     mkdir -p ~/.vim/colors
 fi
+if ! [ -d ~/.vim/indent ]; then
+    mkdir -p ~/.vim/indent
+fi
 
 
 cp .vimrc                       ~/.vimrc
 cp .vim/0.vim                   ~/.vim/
 cp .vim/statusline_defs.vim     ~/.vim/
 cp .vim/statusline_defs.lua     ~/.vim/
+cp .vim/indent/python.vim       ~/.vim/indent/
 cp .vim/colors/*.vim ~/.vim/colors/
