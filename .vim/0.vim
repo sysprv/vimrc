@@ -5351,10 +5351,8 @@ augroup UserVimRcIndent
     " for plugins that like to touch tabstop - always reset tabstop to global
     autocmd FileType *  if &tabstop != &g:tabstop | setlocal tabstop< | endif
 
-    autocmd FileType python
-                \ if &indentexpr != '' && &indentexpr !~# '^User'
-                \ |     InDisable
-                \ | endif
+    " reset python indentexpr
+    autocmd FileType python if &indentexpr !~# '^U' | InDisable | endif
 
     " 2025-10-27 have i tried the same thing before?
     autocmd FileType sh,bash,zsh    InDisable
