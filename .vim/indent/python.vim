@@ -205,20 +205,20 @@ function! UserGetPythonIndent() abort
     " ---------------------------------------------------------------
     " BRACKET IMBALANCE DETECTION
     " ---------------------------------------------------------------
-    " IF WE ARE INSIDE UNCLOSED BRACKETS, INCREASE INDENT
+    " IF PREVIOUS LINE OPENED MORE BRACKETS THAN IT CLOSED, INDENT
     "
-    " REVISION 2.0: USE PYTHON TOKENIZE FOR ACCURATE BRACKET DEPTH
-    " TOKENIZE HANDLES ALL EDGE CASES - BRACKETS IN STRINGS, COMMENTS
-    " FALL BACK TO CHARACTER COUNTING IF PYTHON UNAVAILABLE
+    " REVISION 3.0: CHECK DELTA, NOT CUMULATIVE DEPTH
+    " THIS ENSURES WE ONLY INDENT AFTER THE LINE THAT OPENS BRACKETS,
+    " NOT ON EVERY LINE INSIDE THE BRACKETS
     "
     " PYTHON EXAMPLE:
-    "     data = [           <- depth becomes 1, indent next line
-    "         "has ] in it", <- tokenize knows this ] is in string
-    "         (a, b),       <- depth 2 then back to 1
-    "     ]                  <- depth 0
+    "     s = {             <- DELTA = 1, INDENT NEXT LINE
+    "         "key": val,   <- DELTA = 0, MAINTAIN INDENT
+    "         "k2": v2,     <- DELTA = 0, MAINTAIN INDENT
+    "     }                 <- CLOSING BRACKET HANDLED ELSEWHERE
     " ---------------------------------------------------------------
-    let bracket_depth = s:GetBracketDepth(pnum)
-    if bracket_depth > 0
+    let bracket_delta = s:GetBracketDelta(pnum)
+    if bracket_delta > 0
         return pindent + shiftwidth()
     endif
 
@@ -570,6 +570,20 @@ def get_bracket_depth(lnum):
     """
     return _token_cache.get_bracket_depth(lnum)
 
+def get_bracket_delta(lnum):
+    """
+    Get the net bracket change on line lnum.
+    Returns: positive if line opens more than it closes,
+             0 or negative otherwise.
+    """
+    depth_after = _token_cache.get_bracket_depth(lnum)
+    if lnum <= 1:
+        depth_before = 0
+    else:
+        depth_before = _token_cache.get_bracket_depth(lnum - 1)
+    delta = depth_after - depth_before
+    return delta if delta > 0 else 0
+
 def is_continuation(lnum):
     """
     Check if line lnum is a continuation line (inside brackets or backslash).
@@ -651,6 +665,28 @@ function! s:GetBracketDepth(lnum)
 
     " FALL BACK TO VIML: COUNT ON CURRENT LINE ONLY
     " (LESS ACCURATE - DOESN'T TRACK CUMULATIVE DEPTH)
+    return s:GetBracketDepthVimL(a:lnum)
+endfunction
+
+" -------------------------------------------------------------------
+" BRACKET DELTA DETECTOR - NET CHANGE ON A SINGLE LINE
+" -------------------------------------------------------------------
+" RETURNS THE NET BRACKET CHANGE ON LINE LNUM
+" POSITIVE MEANS LINE OPENED MORE BRACKETS THAN IT CLOSED
+"
+" USED TO DETERMINE IF WE SHOULD INDENT AFTER A LINE:
+"   - s = {           <- DELTA = 1, INDENT NEXT LINE
+"   - "key": value,   <- DELTA = 0, MAINTAIN INDENT
+"
+" PYTHON VERSION: COMPARES CUMULATIVE DEPTHS
+" VIML VERSION: ALREADY COUNTS SINGLE LINE, SO REUSE IT
+" -------------------------------------------------------------------
+function! s:GetBracketDelta(lnum)
+    if has('python3')
+        return py3eval('get_bracket_delta(' . a:lnum . ')')
+    endif
+
+    " VIML FALLBACK ALREADY COUNTS SINGLE LINE IMBALANCE
     return s:GetBracketDepthVimL(a:lnum)
 endfunction
 
