@@ -2329,58 +2329,91 @@ endfunction
 " mononoki's good for code. no greek crosses though.
 "
 " 2024-04-09 working in hi res, iosevka light's too light.
-if has('gui_running')
-    function! UserSetGuifont()
-        " init default font size
-        let g:u.gfn_size = 11
 
-        if has('linux') && has('gui_gtk')
-            " make iosevka-fixed boxed-drawings-light-vertical-s touch:
-            "if !has('win32') set linespace=-2 endif
-            " but bitstream vera sans mono / dejavu sans mono book
-            " lose underscores with linespace < 0.
+" set guifontname to something, to take effect before the window's drawn
+function! UserSetGuiFont()
+    " init default font size
+    let g:u.gfn_size = 11
 
-            function! UserGetFonts() abort
-                let F = { name -> name . ' ' . g:u.gfn_size }
-                let fonts = [F('Iosevka Fixed SS01'), F('Source Code Pro'),
-                            \  F('Adwaita Mono'), F('Monospace')]
-                return join(fonts, ',')
-            endfunction
-            "command! -bar FnMononoki let &guifont = 'mononoki ' . g:u.gfn_size
-        elseif has('win32')
-            function! UserGetFonts() abort
-                let F = { name -> substitute(name, ' ', '_', 'g') . ':h' . g:u.gfn_size }
-                let fonts = [F('Iosevka Fixed SS01'), F('Cascadia Mono Light')]
-                return join(fonts, ',')
-            endfunction
-            "
-            " windows doesn't seem to like mononoki.
-            "
-            " more cleartype; no hidpi here
-            " 2023-03-02 have hidpi now
-            " 2023-07-09 not everywhere (ultrawide at work)
-            " 2023-08-20 very slow on vmware vdi
-            if !exists('$ViewClient_Type')
-                set renderoptions=type:directx,taamode:1
+    if has('linux') && has('gui_gtk')
+        " fontconfig doesn't need a gui
+        function! UserFontExists(name) abort
+            let l:res = system("fc-match -f '%{family}\n' '" . a:name . "'")
+            if v:shell_error
+                return 0
             endif
-        elseif has('ios')
-            function! UserGetFonts() abort
-                return 'Menlo:h10.0'
-            endfunction
-        else
-            function! UserGetFonts() abort
-                return 'Monospace'
-            endfunction
-        endif
-        command! -bar FnDef  let &guifont = UserGetFonts()
-        nnoremap <silent> <F7>  :let g:u.gfn_size += 1 <bar> FnDef<CR>
-        " don't go down too much
-        nnoremap <silent> <F6>  :let g:u.gfn_size = max([g:u.gfn_size - 1, 8])
-                    \ <bar>
-                    \ FnDef<CR>
-        nnoremap <silent> <F5>  :let g:u.gfn_size = 12 <bar> FnDef<CR>
+            return l:res =~? a:name
+        endfunction
+
+        " make iosevka-fixed boxed-drawings-light-vertical-s touch:
+        "if !has('win32') set linespace=-2 endif
+        " but bitstream vera sans mono / dejavu sans mono book
+        " lose underscores with linespace < 0.
+
+        function! UserGetFonts() abort
+            let possible_fonts = ['Iosevka Fixed SS01', 'Source Code Pro', 'Adwaita Mono', 'DejaVu Sans Mono']
+            let avail_fonts = possible_fonts->filter({ idx, val -> UserFontExists(val) })
+            let F = { name -> name . ' ' . g:u.gfn_size }
+            if !empty(avail_fonts)
+                return F(avail_fonts[0])
+            endif
+            " weird if DejaVu Sans Mono doesn't exist
+            return F('Monospace')
+        endfunction
+        "command! -bar FnMononoki let &guifont = 'mononoki ' . g:u.gfn_size
+    elseif has('win32')
+        " getfontname() doesn't work this early
+        function! UserGetFonts() abort
+            return 'Iosevka_Fixed_SS01:h11:qCLEARTYPE'
+        endfunction
+    elseif has('ios')
+        function! UserGetFonts() abort
+            return 'Menlo:h10.0'
+        endfunction
+    else
+        function! UserGetFonts() abort
+            return 'Monospace'
+        endfunction
+    endif
+
+    command! -bar FnDef  let &guifont = UserGetFonts()
+    nnoremap <silent> <F7>  :let g:u.gfn_size += 1 <bar> FnDef<CR>
+    " don't go down too much
+    nnoremap <silent> <F6>  :let g:u.gfn_size = max([g:u.gfn_size - 1, 8])
+                \ <bar>
+                \ FnDef<CR>
+    nnoremap <silent> <F5>  :let g:u.gfn_size = 12 <bar> FnDef<CR>
+endfunction
+
+" called after window is drawn
+function! UserLoadGuifont()
+    if !has('win32')
+        return
+    endif
+
+    function! UserFontExists(name) abort
+        let n = substitute(a:name, ' ', '_', 'g')
+        return getfontname(n) ==# n
     endfunction
-endif
+
+    function! UserGetFonts() abort
+        let possible_fonts = ['Iosevka Fixed SS01', 'Cascadia Mono Light']
+        let avail_fonts = possible_fonts->filter({ idx, val -> UserFontExists(val) })
+        let F = { name -> substitute(name, ' ', '_', 'g') . ':h' . g:u.gfn_size . ':qCLEARTYPE' }
+        " depend on Cascadia Mono existing
+        return F(avail_fonts[0])
+    endfunction
+    "
+    " windows doesn't seem to like mononoki.
+    "
+    " more cleartype; no hidpi here
+    " 2023-03-02 have hidpi now
+    " 2023-07-09 not everywhere (ultrawide at work)
+    " 2023-08-20 very slow on vmware vdi
+    if !exists('$ViewClient_Type')
+        set renderoptions=type:directx,taamode:1
+    endif
+endfunction
 
 function! UserSetGuicursor() abort
     " someone's really gone on a wild ride with the guicursor possibilities.
@@ -5447,8 +5480,12 @@ endif
 " disable application keypad mode; default enabled in PuTTY, default off in
 " xterm - set t_ks= t_ke= , vim7 seems to need it for arrow keys.
 if has('gui_running')
-    call UserSetGuifont()
+    call UserSetGuiFont()
     FnDef
+
+    if has('win32')
+        autocmd UserVimRc GUIEnter * call UserLoadGuifont() | FnDef
+    endif
 endif
 if !g:u.term_primitive
     let &fillchars = UserFillchars({ 'vert': nr2char(0x2502) })
