@@ -5495,7 +5495,7 @@ endif
 
 " latro mode - iOS 26 kills apps more often than iOS 18, having to :e often is
 " a pain.
-if has('ivim') && filereadable('Session.vim')
+if has('ivim') && argc() == 0 && filereadable('Session.vim')
     " autocmds to update Session.vim
     autocmd UserVimRc BufWritePost    * call UserMakeDefaultSession()
     " VimLeavePre - too intrusive
