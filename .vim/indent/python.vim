@@ -166,11 +166,30 @@ function! UserGetPythonIndent() abort
     " ---------------------------------------------------------------
     " RETROGRADE BURN: CLOSING BRACKET DETECTED
     " ---------------------------------------------------------------
-    " IF CURRENT LINE BEGINS WITH ) OR ] OR }, WE MUST DECREASE
-    " ALTITUDE BY ONE SHIFTWIDTH. THIS IS BASIC ORBITAL MECHANICS.
+    " IF CURRENT LINE BEGINS WITH ) OR ] OR }, WE MUST ADJUST ALTITUDE.
+    "
+    " REVISION 2.0: CHECK IF PREVIOUS LINE OPENED THE BRACKET
+    " IF SO, ALIGN WITH IT (EMPTY BRACKETS ACROSS LINES)
+    " OTHERWISE, DEDENT BY ONE SHIFTWIDTH (NORMAL CLOSING)
+    "
+    " PYTHON EXAMPLE - EMPTY BRACKETS:
+    "     s = f(         <- OPENS BRACKET
+    "     )              <- ALIGN WITH OPENER (INDENT 4)
+    "
+    " PYTHON EXAMPLE - CONTENT THEN CLOSE:
+    "     s = {          <- OPENS BRACKET
+    "         "key": 1,  <- INSIDE BRACKET (INDENT 8)
+    "     }              <- DEDENT FROM 8 TO 4
     " ---------------------------------------------------------------
     if cline_clean =~ '^\s*[}\])]'
-        return pindent - shiftwidth()
+        let bracket_delta = s:GetBracketDelta(pnum)
+        if bracket_delta > 0
+            " PREVIOUS LINE OPENED BRACKETS - ALIGN WITH IT
+            return pindent
+        else
+            " NORMAL CASE - DEDENT ONE LEVEL
+            return pindent - shiftwidth()
+        endif
     endif
 
     " ---------------------------------------------------------------
@@ -192,13 +211,26 @@ function! UserGetPythonIndent() abort
     "
     " THIS IS LIKE THE DESCENT ENGINE CUTTING OFF - TIME TO
     " DROP TO A LOWER ALTITUDE
+    "
+    " REVISION 2.0: CHECK BRACKET STATE BEFORE DEDENTING
+    " IF THE LINE HAS UNCLOSED BRACKETS (E.G. "return (" OR
+    " "raise ValueError("), DO NOT DEDENT - LET BRACKET LOGIC HANDLE IT
+    "
+    " PYTHON EXAMPLE - MULTILINE RETURN:
+    "     return (       <- TERMINAL + OPEN BRACKET, DO NOT DEDENT
+    "         value      <- BRACKET LOGIC INDENTS TO 8
+    "     )
     " ---------------------------------------------------------------
     if s:IsTerminalStatement(pline_clean)
         " ONLY DEDENT IF NOT FOLLOWED BY BLOCK CONTINUATION KEYWORD
+        " AND NOT INSIDE UNCLOSED BRACKETS
         if cline_clean !~ '^\s*\(else\|elif\|except\|finally\|case\)\>'
-            let new_indent = pindent - shiftwidth()
-            " DO NOT GO BELOW GROUND LEVEL
-            return new_indent >= 0 ? new_indent : 0
+            let bracket_delta = s:GetBracketDelta(pnum)
+            if bracket_delta == 0
+                let new_indent = pindent - shiftwidth()
+                " DO NOT GO BELOW GROUND LEVEL
+                return new_indent >= 0 ? new_indent : 0
+            endif
         endif
     endif
 
