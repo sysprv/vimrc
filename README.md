@@ -1,8 +1,8 @@
-My vimrc.
+My vim config
 
 Meant for writing plain text with timestamps and annotations.
 
-I don't really do vi/vim, mostly use it as a visual ed.
+I don't really do vim, mostly use it as a visual ed.
 
 
 Bill Joy's Aug-1984 interview for Unix Review: http://web.cecs.pdx.edu/~kirkenda/joy84.html
@@ -24,4 +24,11 @@ its descendants also stems from the ADM-3A; it had the cursor-movement arrows
 printed on those four keys.
     -- http://en.wikipedia.org/wiki/ADM-3A
 
+
+NB: `indent/python.vim` is maintained using [Claude Code](https://claude.com/product/claude-code),
+as the upstream python indentation plugin annoys me.
+
+
+Emacs' point model (never on a character) and [lossless file editing](https://kyo.iroiro.party/en/posts/why-rewriting-emacs-is-hard/#lossless-file-editing)
+are awesome.
 
