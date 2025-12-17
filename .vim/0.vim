@@ -633,7 +633,8 @@ set noshowmatch
 " for example, checking filenames against the 'backupskip' patterns uses
 " 'ignorecase'.
 " 2025-08-26 another go
-set ignorecase smartcase
+" 2025-12-17 ignorecase is too wrong.
+set noignorecase
 
 " curse god and walk backwards to 1976; speechless at the number of bells
 " they've stuck in here. a side effect of audio not working on linux?
@@ -5076,6 +5077,9 @@ nnoremap    <silent> <expr> <CR>    ":\<C-u>"
             \ 'put =repeat(\"\n\", v:count1)'
             \ : 'execute "normal!" v:count1 . "\n"'
             \ ) . "\<CR>"
+
+" search - start out case-insensitive; have i tried this before?
+nnoremap    /   /\c
 
 
 " wrapper for filtering through an external command safely, without clobbering
