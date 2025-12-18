@@ -46,22 +46,37 @@ def g:UserStLnFf(): string
 enddef
 
 def g:UserStLnIndentation(): string
-    var s = ''
-    if &tabstop != 8
-        s = '!' .. string(&tabstop) .. '!,'
-    endif
-    # moniker: soft/hard
-    s ..= &expandtab ? 's' : 'h'
-    s ..= string(&softtabstop)
-    if &shiftwidth != &softtabstop
-        s ..= ',' .. string(&shiftwidth)
-    endif
-
-    if s ==# 's4'
-        # the default. no need to show.
+    if &tabstop == 8 && &expandtab && &shiftwidth == 4 && &softtabstop == 4
+        # my default
         return ''
     endif
-    return 't:' .. s
+    if &tabstop == 8 && !&expandtab && &shiftwidth == 0 && &softtabstop == 0
+        # classic tab mode
+        return ''
+    endif
+    var s = '{'
+    var l: list<string> = []
+    if &tabstop != 8
+        l->add('ts:' .. string(&tabstop))
+    endif
+    # moniker: soft/hard
+    l->add(&expandtab ? 'so' : 'ha')
+    if &shiftwidth == &softtabstop
+        l->add('sf:' .. string(&shiftwidth))
+    else
+        l->add('sw:' .. string(&shiftwidth))
+        l->add('sts:' .. string(&softtabstop))
+    endif
+
+    if l == ['so', 'sf:2'] && &filetype ==# 'json'
+        # my defaults for json
+        return ''
+    endif
+    if empty(l)
+        return ''
+    endif
+
+    return '{' .. l->join(',') .. '}'
 enddef
 
 def g:UserStLnBufFlags(): string

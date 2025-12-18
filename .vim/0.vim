@@ -1268,6 +1268,16 @@ function! UserSetupListchars() abort
     let &listchars = UserListchars(g:u.lcs.cur)
 endfunction
 
+
+function! User70s() abort
+    " not turning 'list' off, but just spaces for tab listing.
+    setlocal listchars-=tab:\·\ \·      listchars+=tab:\ \ \ "
+
+    " clear the highlight
+    highlight! default link SpecialKey Normal
+endfunction
+
+
 set conceallevel=0
 " beware spooky action at a distance with cursorline and syntax matches.
 set concealcursor=nvi
@@ -1454,22 +1464,36 @@ else
 
     " terse format indentation options
     function! UserStLnIndentation()
-        let l:s = ''
-        if &tabstop != 8
-            let l:s = '!' . &tabstop . '!,'
-        endif
-        " moniker: soft/hard
-        let l:s .= &expandtab ? 's' : 'h'
-        let l:s .= &softtabstop
-        if &shiftwidth != &softtabstop
-            let l:s .= ',' . &shiftwidth
-        endif
-
-        if l:s ==# 's4'
-            " the default. no need to show.
+        if &tabstop == 8 && &expandtab && &shiftwidth == 4 && &softtabstop == 4
+            " my default
             return ''
         endif
-        return 't:' . l:s
+        if &tabstop == 8 && !&expandtab && &shiftwidth == 0 && &softtabstop == 0
+            " classic tab mode
+            return ''
+        endif
+        let l:l = []
+        if &tabstop != 8
+            call add(l:l, 'ts:' . &tabstop)
+        endif
+        " moniker: soft/hard
+        call add(l:l, &expandtab ? 'so' : 'ha')
+        if &shiftwidth == &softtabstop
+            call add(l:l, 'sf:' . &shiftwidth)
+        else
+            call add(l:l, 'sw:' . &shiftwidth)
+            call add(l:l, 'sts:' . &softtabstop)
+        endif
+
+        if l:l == ['so', 'sf:2'] && &filetype == 'json'
+            " my defaults for json
+            return ''
+        endif
+        if empty(l:l)
+            return ''
+        endif
+
+        return '{' . join(l:l, ',') . '}'
     endfunction
 
     " tried prev: if fillchars has 'stl', use hl Normal between the buffer
@@ -5290,6 +5314,10 @@ augroup UserVimRc
     " the first line of the commit message should be < 50 chars
     " to allow for git log --oneline
     autocmd FileType *commit    setlocal spell colorcolumn=50,72
+
+    " decriminalize hard tabs; the SpecialKey highlighting still applies
+    autocmd FileType    make    call User70s()
+    autocmd FileType    go      call User70s()
 
     autocmd BufWrite    *   call UserStripTrailingWhitespace()
     autocmd BufWrite    *   call UserUpdateBackupOptions(expand('<amatch>'))

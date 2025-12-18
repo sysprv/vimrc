@@ -32,18 +32,36 @@ function M.stln_ff()
 end
 
 function M.stln_indentation()
-  local s = ''
-  if vim.bo.tabstop ~= 8 then
-    s = '!' .. vim.bo.tabstop .. '!,'
-  end
-  s = s .. (vim.bo.expandtab and 's' or 'h') .. vim.bo.softtabstop
-  if vim.bo.shiftwidth ~= vim.bo.softtabstop then
-    s = s .. ',' .. vim.bo.shiftwidth
-  end
-  if s == 's4' then
+  if vim.bo.tabstop == 8 and vim.bo.expandtab and vim.bo.shiftwidth == 4 and vim.bo.softtabstop == 4 then
+    -- my default
     return ''
   end
-  return 't:' .. s
+  if vim.bo.tabstop == 8 and not vim.bo.expandtab and vim.bo.shiftwidth == 0 and vim.bo.softtabstop == 0 then
+    -- classic tab mode
+    return ''
+  end
+  local l = {}
+  if vim.bo.tabstop ~= 8 then
+    table.insert(l, 'ts:' .. vim.bo.tabstop)
+  end
+  -- moniker: soft/hard
+  table.insert(l, vim.bo.expandtab and 'so' or 'ha')
+  if vim.bo.shiftwidth == vim.bo.softtabstop then
+    table.insert(l, 'sf:' .. vim.bo.shiftwidth)
+  else
+    table.insert(l, 'sw:' .. vim.bo.shiftwidth)
+    table.insert(l, 'sts:' .. vim.bo.softtabstop)
+  end
+
+  if #l == 2 and l[1] == 'so' and l[2] == 'sf:2' and vim.bo.filetype == 'json' then
+    -- my defaults for json
+    return ''
+  end
+  if #l == 0 then
+    return ''
+  end
+
+  return '{' .. table.concat(l, ',') .. '}'
 end
 
 function fmtpos()
