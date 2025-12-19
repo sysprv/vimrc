@@ -1464,11 +1464,11 @@ else
 
     " terse format indentation options
     function! UserStLnIndentation()
-        if &tabstop == 8 && &expandtab && &shiftwidth == 4 && &softtabstop == 4
-            " my default
+        if &ts == 8 && &et && &sw == &sts && (&sw == 4 || &sw == 2)
+            " zeitgeist
             return ''
         endif
-        if &tabstop == 8 && !&expandtab && &shiftwidth == 0 && &softtabstop == 0
+        if &ts == 8 && !&et && &sw == 0 && &sts == 0
             " classic tab mode
             return ''
         endif

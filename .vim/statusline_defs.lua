@@ -32,11 +32,13 @@ function M.stln_ff()
 end
 
 function M.stln_indentation()
-  if vim.bo.tabstop == 8 and vim.bo.expandtab and vim.bo.shiftwidth == 4 and vim.bo.softtabstop == 4 then
-    -- my default
+  if vim.bo.tabstop == 8 and vim.bo.expandtab and vim.bo.shiftwidth == vim.bo.softtabstop and
+      (vim.bo.shiftwidth == 4 or vim.bo.shiftwidth == 2) then
+    -- zeitgeist
     return ''
   end
-  if vim.bo.tabstop == 8 and not vim.bo.expandtab and vim.bo.shiftwidth == 0 and vim.bo.softtabstop == 0 then
+  if vim.bo.tabstop == 8 and not vim.bo.expandtab and vim.bo.shiftwidth == 0 and
+      vim.bo.softtabstop == 0 then
     -- classic tab mode
     return ''
   end
