@@ -25,10 +25,14 @@ printed on those four keys.
     -- http://en.wikipedia.org/wiki/ADM-3A
 
 
-NB: `indent/python.vim` is maintained using [Claude Code](https://claude.com/product/claude-code),
-as the upstream python indentation plugin annoys me.
+NB: `indent/python.vim` is maintained using [Claude Code](
+https://claude.com/product/claude-code), as the upstream python indentation
+plugin annoys me. Using Python libraries to lex the buffer text was my idea.
 
 
-Emacs' point model (never on a character) and [lossless file editing](https://kyo.iroiro.party/en/posts/why-rewriting-emacs-is-hard/#lossless-file-editing)
-are awesome.
+Emacs' point model (never on a character) and [lossless file editing](
+https://kyo.iroiro.party/en/posts/why-rewriting-emacs-is-hard/#lossless-file-editing
+) are awesome.
+
+-- vim:set tw=80:
 
