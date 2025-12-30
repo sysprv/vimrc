@@ -5103,7 +5103,8 @@ nnoremap    <silent> <expr> <CR>    ":\<C-u>"
             \ ) . "\<CR>"
 
 " search - start out case-insensitive; have i tried this before?
-nnoremap    /   /\c
+" 2025-12-30 don't want
+"nnoremap    /   /\c
 
 
 " wrapper for filtering through an external command safely, without clobbering
