@@ -839,8 +839,10 @@ if exists('&modelineexpr')
     set nomodelineexpr
 endif
 
-" viminfo: don't save registers. why wasn't i saving search pattern history?
-set viminfo='100,<0,s0,h,r/tmp
+" viminfo: don't save registers (<0). why wasn't i saving search pattern history?
+" neovim: 's' has wider blast radius, s0 prevents saving history to shada.
+" <0 should exclude registers in both vim and neovim.
+set viminfo='100,<0,h,s100,r/tmp
 if exists('$TMPDIR') && ($TMPDIR !=# '/tmp')
     execute 'set viminfo+=r' . $TMPDIR
 endif
@@ -863,7 +865,7 @@ set virtualedit=block
 "
 " this isn't the emacs mark-point-region model...
 
-set history=200
+set history=1000
 set timeout timeoutlen=1500 ttimeout ttimeoutlen=200
 
 " helps with navigating to a line of interest with <n>j/+ and <n>k/-,
