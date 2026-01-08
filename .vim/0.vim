@@ -563,6 +563,9 @@ let g:mapleader = ','
 " my stuff
 let g:u = {}
 
+" my old and slow raspberry pis
+let g:u.is_rpi = filereadable('/sys/firmware/devicetree/base/model')
+
 " U+21B3 - DOWNWARDS ARROW WITH TIP RIGHTWARDS
 let g:u.showbreak_char = '↳'
 
@@ -717,6 +720,9 @@ if has('persistent_undo')
     endif
     unlet undo_dir
     set undofile
+endif
+if g:u.is_rpi
+    set noswapfile noundofile
 endif
 
 "
@@ -5259,7 +5265,7 @@ augroup UserVimRc
     autocmd!
 
     " custom undofile read/write
-    if has('persistent_undo')
+    if has('persistent_undo') && !g:u.is_rpi
         "autocmd BufRead         *  if &undofile | setlocal noundofile | endif
         "autocmd BufRead         *  call UserReadUndo(expand('<afile>'))
         autocmd BufWritePost    *  call UserWriteUndo(expand('<afile>'))
