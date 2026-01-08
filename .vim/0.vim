@@ -2663,17 +2663,18 @@ function! UserColours256()
         highlight UserTrailingWhitespace ctermbg=254 guibg=grey91
     else    " background is dark
         if UserCO(g:u.coflags.spell)
+            " 235 -> 238, for lighter dark bg #212121
             highlight SpellBad
                         \ term=NONE
-                        \ ctermfg=NONE ctermbg=235 cterm=NONE
+                        \ ctermfg=NONE ctermbg=238 cterm=NONE
                         \ guifg=fg guibg=grey25 gui=NONE guisp=NONE
         endif
         if UserCO(g:u.coflags.ui)
             " similar to LineNr
-            highlight NonText ctermfg=NONE ctermbg=235 guifg=#444b71 guibg=grey25
-            highlight SpecialKey ctermfg=214 ctermbg=235 guifg=orange guibg=grey25
+            highlight NonText ctermfg=NONE ctermbg=238 guifg=#444b71 guibg=grey25
+            highlight SpecialKey ctermfg=214 ctermbg=238 guifg=orange guibg=grey25
             " TODO Visual?
-            highlight Normal guifg=#f3f3f3 guibg=#000000
+            highlight Normal guifg=#f3f3f3 guibg=#212121
         endif
         " amber
         highlight UserDateComment ctermfg=130 guifg=#ffb000 gui=italic
