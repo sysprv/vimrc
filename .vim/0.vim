@@ -682,8 +682,9 @@ function! UserMkdirOnce(dir)
     if a:dir == '.'
         return
     endif
-    if !isdirectory(a:dir)
-        call mkdir(a:dir, 'p', 0700)
+    let l:dir = expand(a:dir)
+    if !isdirectory(l:dir)
+        call mkdir(l:dir, 'p', 0700)
     endif
 endfunction
 
@@ -700,6 +701,22 @@ endfunction
 if g:u.swap_dir != '.'
     call UserMkdirOnce(g:u.swap_dir)
     execute 'set directory^=' . g:u.swap_dir
+endif
+
+" undodir
+let g:u.undo_dir = '~/.vim/var/un//'
+if has('nvim')
+    " default
+    let g:u.undo_dir = '~/.local/state/nvim/undo//'
+endif
+if has('persistent_undo')
+    let undo_dir = get(g:u, 'undo_dir', '.')
+    if undo_dir !=# '.'
+        call UserMkdirOnce(undo_dir)
+        execute 'set undodir^=' . undo_dir
+    endif
+    unlet undo_dir
+    set undofile
 endif
 
 "
@@ -5243,8 +5260,8 @@ augroup UserVimRc
 
     " custom undofile read/write
     if has('persistent_undo')
-        autocmd BufRead         *  if &undofile | setlocal noundofile | endif
-        autocmd BufRead         *  call UserReadUndo(expand('<afile>'))
+        "autocmd BufRead         *  if &undofile | setlocal noundofile | endif
+        "autocmd BufRead         *  call UserReadUndo(expand('<afile>'))
         autocmd BufWritePost    *  call UserWriteUndo(expand('<afile>'))
     endif
 
