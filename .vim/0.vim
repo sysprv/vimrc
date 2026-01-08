@@ -609,6 +609,10 @@ endif
 " undofiles.
 "
 let g:u.swap_dir = '.'
+if has('nvim')
+    " default
+    let g:u.swap_dir = '~/.local/state/nvim/swap//'
+endif
 if has('win32') || has('ivim')
     " it's just me, the swapfile won't help as a lock file.
     let g:u.swap_dir = expand('~') . '/.vim/var/swap//'
