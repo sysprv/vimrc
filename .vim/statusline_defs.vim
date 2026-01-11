@@ -94,6 +94,9 @@ def g:UserStLnBufFlags(): string
         if &previewwindow
             l->add('PRV')    # %W
         endif
+        if &diff
+            l->add('DIF')
+        endif
         var pos = getpos('.')
         l->add(printf('<%3d:%-2d>', pos[1], pos[2]))
         l->add(g:UserStLnIndentation())

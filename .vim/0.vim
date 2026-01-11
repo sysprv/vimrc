@@ -1569,6 +1569,9 @@ else
             if &previewwindow
                 call add(l:l, 'PRV')    " %W
             endif
+            if &diff
+                call add(l:l, 'DIF')
+            endif
             let l:pos = getpos('.')
             call add(l:l, UserFmtPos())
             call add(l:l, UserStLnIndentation())
@@ -5259,6 +5262,10 @@ command RenameOldSwap   if exists('b:swapname_old') &&
             \ (glob(b:swapname_old, 1, 1) == [ b:swapname_old ])
             \ | call rename(b:swapname_old, b:swapname_old . '-recovered')
             \ | endif
+
+" useful sometimes
+command!    DiffOrig    vert new | set bt=nofile | r ++edit # | 0d_
+            \ | diffthis | wincmd p | diffthis
 
 " mine own #-autogroup
 augroup UserVimRc

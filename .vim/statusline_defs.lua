@@ -84,6 +84,9 @@ function M.stln_buf_flags()
     if vim.wo.previewwindow then
       table.insert(l, 'PRV')
     end
+    if vim.wo.diff then
+      table.insert(l, 'DIF')
+    end
     table.insert(l, fmtpos())
 
     local ind = M.stln_indentation()
