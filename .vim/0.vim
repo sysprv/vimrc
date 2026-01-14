@@ -914,8 +914,8 @@ set eadirection=hor
 
 set mouse=
 
-set titlestring=Vim:\ %f\ %m
-if has('win32')
+set titlestring=Vim:\ %n'%f\ %m
+if !g:u.term_primitive
     set title
 endif
 
