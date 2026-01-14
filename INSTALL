@@ -13,8 +13,9 @@ fi
 
 
 cp .vimrc                       ~/.vimrc
+cp .gvimrc                      ~/.gvimrc
 cp .vim/0.vim                   ~/.vim/
 cp .vim/statusline_defs.vim     ~/.vim/
 cp .vim/statusline_defs.lua     ~/.vim/
 cp .vim/indent/python.vim       ~/.vim/indent/
-cp .vim/colors/*.vim ~/.vim/colors/
+cp .vim/colors/*.vim            ~/.vim/colors/
