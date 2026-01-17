@@ -915,6 +915,7 @@ set eadirection=hor
 set mouse=
 
 set titlestring=Vim:\ %n'%f\ %m
+" 2026-01-14 why was title off? with tabbed ttys it's nice
 if !g:u.term_primitive
     set title
 endif
