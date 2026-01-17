@@ -5128,13 +5128,23 @@ nnoremap    <C-Right>   g,
 " freaky; if at end of line, create new line
 "nnoremap    <expr>  <CR>    line('.') == line('$') ? "o\<Esc>" : "\<CR>"
 " the hard way without mode switching
-nnoremap    <silent> <expr> <CR>    ":\<C-u>"
-            \ . (
-            \ line('.') == line('$')
-            \ ?
-            \ 'put =repeat(\"\n\", v:count1)'
-            \ : 'execute "normal!" v:count1 . "\n"'
-            \ ) . "\<CR>"
+"nnoremap    <silent> <expr> <CR>    ":\<C-u>"
+            "\ . (
+            "\ line('.') == line('$')
+            "\ ?
+            "\ 'put =repeat(\"\n\", v:count1)'
+            "\ : 'execute "normal!" v:count1 . "\n"'
+            "\ ) . "\<CR>"
+" 2026-01-17 3rd way
+if has('patch-8.2.1978')
+    nnoremap    <expr>  <CR> line('.') == line('$')
+                \ ? "<Cmd>call append('.', repeat([''], v:count1))<CR>G"
+                \ : 'j'
+else
+    nnoremap    <expr>  <CR>    line('.') == line('$')
+                \ ? ":\<C-u>call append('.', repeat([''], v:count1))\<CR>G"
+                \ : 'j'
+endif
 
 " search - start out case-insensitive; have i tried this before?
 " 2025-12-30 don't want
