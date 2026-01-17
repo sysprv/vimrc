@@ -5278,6 +5278,39 @@ command RenameOldSwap   if exists('b:swapname_old') &&
 command!    DiffOrig    vert new | set bt=nofile | r ++edit # | 0d_
             \ | diffthis | wincmd p | diffthis
 
+" try to detect 2 vs 4 indentation; javascript/typescript: i like fourdenting
+" but prettier.io / gts defaults to twodenting.
+
+function! UserDetectSoftIndent() abort
+    let min_indent = 0
+    for line in getline(1, 100)
+        " skip empty or non-indented lines
+        if line =~# '^\s*$' || line !~# '^ '
+            continue
+        endif
+        let spaces = len(matchstr(line, '^ *'))
+        if spaces > 0 && (min_indent == 0 || spaces < min_indent)
+            let min_indent = spaces
+        endif
+    endfor
+    if min_indent == 2
+        return 2
+    elseif min_indent == 4
+        return 4
+    endif
+    return 0
+endfunction
+
+function! UserSetSoftIndent() abort
+    let min_indent = UserDetectSoftIndent()
+    if min_indent == 4
+        SoftIndent 4
+    else
+        SoftIndent 2
+    endif
+endfunction
+
+
 " mine own #-autogroup
 augroup UserVimRc
     autocmd!
@@ -5331,9 +5364,11 @@ augroup UserVimRc
     autocmd FileType clojure            Lisp
 
     autocmd FileType *sql               SoftIndent 2
-    " 2024-09-30 json - jq uses 2 spaces by default, google style guide uses
-    " 2 spaces
-    autocmd FileType json               SoftIndent 2
+
+    autocmd FileType json               call UserSetSoftIndent()
+    autocmd FileType typescript*        call UserSetSoftIndent()
+    autocmd FileType javascript*        call UserSetSoftIndent()
+
     autocmd FileType xdefaults          setlocal commentstring=!\ %s
     autocmd FileType text               setlocal commentstring=#\ %s
 
