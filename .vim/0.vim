@@ -1,4 +1,4 @@
-" Last-Modified: 2025-11-16T10:53:54.108158339+00:00
+" Last-Modified: 2026-01-22T20:01:05.749889629+00:00
 
 " vim:set tw=80 noml:
 set secure nobomb
@@ -17,6 +17,11 @@ if has('nvim')
 endif
 
 " Change log:
+"
+" 2026-01-22 cool revamp of swap handling. hasta la vista.
+"
+" make Capture run in the current buffer before putting the output in a scratch
+" buffer.
 "
 " 2025-11-04 centralise indent config a little more; but revert to keeping
 " syntax highlighting. it can help a bit specially with *sh. make it easier to
@@ -5229,8 +5234,9 @@ function! UserSwapChoice(swapname) abort
     let b:swapname_old = swapname
     " mtime of file being edited
     let filetime = getftime(expand('<afile>'))
+    let swapfile_mtime = get(sw, 'mtime', 0)
+    let timediff = filetime - swapfile_mtime
     let dirty = get(sw, 'dirty', 0)
-    let mtime = get(sw, 'mtime', 0)
     let host = get(sw, 'host', '')
     let dirty_msg = dirty ? 'yes' : 'no'
     " log/inspect
@@ -5238,8 +5244,9 @@ function! UserSwapChoice(swapname) abort
     call UserAppendBuf(msgbuf, 'old swapname = ' . swapname)
     call UserAppendBuf(msgbuf, 'dirty = ' . dirty_msg)
     call UserAppendBuf(msgbuf, 'host = ' . host)
-    call UserAppendBuf(msgbuf, 'filetime = ' . strftime('%F', filetime))
-    call UserAppendBuf(msgbuf, 'swap mtime = ' . strftime('%F', mtime))
+    call UserAppendBuf(msgbuf, 'filetime = ' . strftime('%F %T', filetime))
+    call UserAppendBuf(msgbuf, 'swap mtime = ' . strftime('%F %T', swapfile_mtime))
+    call UserAppendBuf(msgbuf, 'timediff = ' . timediff)
     call UserAppendBuf(msgbuf, 'error = ' . get(sw, 'error', ''))
     " the new swap file name (f.ex. .swo) that'll be created for the new buffer
     " isn't available until later, i.e. swapname('%') returns nothing.
@@ -5248,22 +5255,26 @@ function! UserSwapChoice(swapname) abort
             " having a pid in the swapfile doesn't mean that process is still
             " running.
             call UserAppendBuf(msgbuf, 'file opened by pid ' . sw['pid'])
-            let swapchoice = 'o'    " read-only
+            if !has('ios')
+                let swapchoice = 'o'    " read-only
+            else
+                " iOS - it's just me, pid doesn't matter
+                let swapchoice = 'r'
+            endif
         else
             " time isn't reliable
             if !dirty
-                if (filetime - mtime) >= 3600
+                if abs(timediff) >= 3600
                     call UserAppendBuf(msgbuf, swapname . ': deleting')
                     let swapchoice = 'd'    " delete
-                elseif mtime > filetime
-                    call UserAppendBuf(msgbuf, swapname . ': recovering + queuing for rename')
-                    autocmd UserVimRc BufUnload RenameOldSwap
+                elseif swapfile_mtime >= filetime
                     let swapchoice = 'r'    " recover
                 else
                     let swapchoice = 'o'    " read-only
                 endif
             else
-                let swapchoice = 'o'    " read-only
+                " ? ? ? dirty; only seen on iOS
+                let swapchoice = 'r'
             endif
         endif
     else
@@ -5271,6 +5282,13 @@ function! UserSwapChoice(swapname) abort
         let swapchoice = 'o'    " read-only
     endif
     call UserAppendBuf(msgbuf, 'swapchoice = ''' . swapchoice . '''')
+    if swapchoice ==# 'r'
+        call UserAppendBuf(msgbuf, '')
+        call UserAppendBuf(msgbuf, '!' . swapname . ': recovering + queuing for rename')
+        call UserAppendBuf(msgbuf, '! DiffOrig?')
+        call UserAppendBuf(msgbuf, '')
+        autocmd UserVimRc BufUnload RenameOldSwap
+    endif
     call UserAppendBuf(msgbuf, string(sw))
     call UserAppendBuf(msgbuf, '--')
     if swapchoice ==# 'o'
