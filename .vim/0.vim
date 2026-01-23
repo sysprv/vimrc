@@ -3272,10 +3272,14 @@ command XB                  call UserBufCloseKeepWin()
 " https://github.com/AmaiSaeta/capture.vim/blob/master/plugin/capture.vim
 
 function! UserSpoolEx(cmd)
-    if 0 && (&l:readonly || !&l:modifiable)
-        echom 'unmodifiable'
-        return
-    endif
+    let l:origin_buf_readonly = &readonly
+    let l:origin_buf_modifiable = &modifiable
+    setlocal readonly nomodifiable
+
+    let l:v = UserRun(a:cmd)
+
+    let &readonly = l:origin_buf_readonly
+    let &modifiable = l:origin_buf_modifiable
 
     Scratch
     if exists('*win_getid')
@@ -3286,7 +3290,6 @@ function! UserSpoolEx(cmd)
     endif
     let l:close = 1
     try
-        let l:v = UserRun(a:cmd)
         if empty(l:v)
             "echom 'nothing to put'
         else
