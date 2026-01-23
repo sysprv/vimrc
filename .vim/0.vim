@@ -2990,9 +2990,16 @@ function! UserColoursPrelude()
             "
             " with the right windows terminal settings about contrast/colours,
             " no need to force the background.
+            "
+            " 2026-01-22 windows terminal/settings/palettes aren't ready for
+            " light bg. vim default's dark, not setting again.
             if exists('$WT_SESSION')
-                set background=light termguicolors
+                set termguicolors
             endif
+            let l:done = 1
+        elseif &term =~# '.*kitty.*'
+            " ain't gonna go editing config for the occasional run
+            set background=dark termguicolors
             let l:done = 1
         endif
     endif
