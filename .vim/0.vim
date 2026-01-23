@@ -1,4 +1,4 @@
-" Last-Modified: 2026-01-22T20:01:05.749889629+00:00
+" Last-Modified: 2026-01-23T21:34:42.553634264+00:00
 
 " vim:set tw=80 noml:
 set secure nobomb
@@ -17,6 +17,9 @@ if has('nvim')
 endif
 
 " Change log:
+"
+" 2026-01-23 Spiff up statusline for terminals. showmode hasn't kept up.
+" no neovim config, terminal's weird there.
 "
 " 2026-01-22 cool revamp of swap handling. hasta la vista.
 "
@@ -1449,7 +1452,8 @@ endfunction
 if v:version >= 900 && has('vim9script') && filereadable(expand('~/.vim/statusline_defs.vim'))
     " in a separate file so that vim7/8 won't try to parse the defs.
     call ExecuteNomodifiable('runtime statusline_defs.vim')
-    set statusline=%2n'%<<%f>%=\ %{UserStLnBufFlags()}\ %P\ %{g:u.mark}\ "
+    "set statusline=%2n'%<<%f>%=\ %{UserStLnBufFlags()}\ %P\ %{g:u.mark}\ "
+    set statusline=%2n'%<<%f>\ %{UserModeMsg()}%=\ %{UserStLnBufFlags()}\ %P\ %{g:u.mark}\ "
 elseif has('nvim') && filereadable(expand('~/.vim/statusline_defs.lua'))
     " it's nice that neovim cleans up those thousands of filetype autocmds
     runtime statusline_defs.lua
@@ -1561,14 +1565,42 @@ else
         return printf('<%3d:%-2d>', l:pos[1], l:pos[2])
     endfunction
 
+    let g:mode_map = {
+                \ 't': 'TERMINAL',
+                \ 'n': 'NORMAL',
+                \ 'i': 'INSERT',
+                \ 'v': 'VISUAL',
+                \ 'V': 'V-LINE',
+                \ "\<C-v>": 'V-BLOCK',
+                \ 'c': 'COMMAND',
+                \ 'R': 'REPLACE'
+                \ }
+
+
+    function! UserModeMsg() abort
+        if !has('terminal') || &buftype !=# 'terminal'
+            return ''
+        endif
+
+        let l:m = mode()
+        if l:m ==# 'n'
+            return ''
+        endif
+        return '-- ' . get(g:mode_map, l:m) . ' -- '
+    endfunction
+
     function! UserStLnBufFlags() abort
         let l:l = []
         if &buftype ==# 'terminal'
             call add(l:l, 'TERM')    " should get its own format flag for statusline
             " something like this (line:col only in terminal normal mode) should
             " be done more efficiently by the statusline.
-            if mode() ==# 'n'
+            let l:term_win_mode = mode()
+            if l:term_win_mode != 't'
                 call add(l:l, UserFmtPos())
+            else
+                " reduce visual jitter
+                call add(l:l, '<  *:* >')
             endif
         else
             call add(l:l, UserStLnBufModStatus())
@@ -1597,7 +1629,7 @@ else
         return '[' . join(l:l, '/') . ']'
     endfunction
 
-    set statusline=%2n'%<<%f>%=\ %{UserStLnBufFlags()}\ %P\ %{g:u.mark}\ "
+    set statusline=%2n'%<<%f>\ %{UserModeMsg()}%=\ %{UserStLnBufFlags()}\ %P\ %{g:u.mark}\ "
 endif
 
 " NB: last double quote starts a comment and preserves the trailing space. vim
@@ -2647,6 +2679,19 @@ function! UserUiStatusLine(mode, bg) abort
 endfunction
 
 
+function! UserTerminalModeHighlight() abort
+    if &background ==# 'dark'
+        " Bright orange/amber - very visible for dark backgrounds
+        highlight UserTerminalMode ctermfg=0 ctermbg=214 cterm=bold
+                    \ guifg=#000000 guibg=#ffaf00 gui=bold
+    else
+        " Deep orange - very visible for light backgrounds
+        highlight UserTerminalMode ctermfg=231 ctermbg=202 cterm=bold
+                    \ guifg=#ffffff guibg=#ff5f00 gui=bold
+    endif
+endfunction
+
+
 function! UserColours256()
     let g:colors_overridden = 0
     let l:bg = &background
@@ -2727,6 +2772,8 @@ function! UserColours256()
     " 2024-11-30 high-vis orange #ff7900 to firebrick3 #cd2626
     if UserCO(g:u.coflags.ui)
         highlight Cursor guifg=bg guibg=goldenrod gui=NONE
+        " ?
+        "call UserTerminalModeHighlight()
     endif
 
     let g:colors_overridden = 1

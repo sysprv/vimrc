@@ -79,15 +79,40 @@ def g:UserStLnIndentation(): string
     return '{' .. l->join(',') .. '}'
 enddef
 
+const mode_map = {
+    't': 'TERMINAL',
+    'n': 'NORMAL',
+    'i': 'INSERT',
+    'v': 'VISUAL',
+    'V': 'V-LINE',
+    "\<C-v>": 'V-BLOCK',
+    'c': 'COMMAND',
+    'R': 'REPLACE'
+}
+
+def g:UserModeMsg(): string
+        if &buftype !=# 'terminal'
+        return ''
+    endif
+
+    var m = mode()
+    if m ==# 'n'
+        return ''
+    endif
+    return '-- ' .. get(mode_map, m) .. ' -- '
+enddef
+
 def g:UserStLnBufFlags(): string
     var l: list<string> = []
     if &buftype ==# 'terminal'
         l->add('TERM')    # should get its own format flag for statusline
         # something like this (line:col only in terminal normal mode) should
         # be done more efficiently by the statusline.
-        if mode() ==# 'n'
+        if mode() !=# 't'
             var pos = getpos('.')
             l->add(printf('<%3d:%-2d>', pos[1], pos[2]))
+        else
+            l->add('<  *:* >')
         endif
     else
         l->add(g:UserStLnBufModStatus())
