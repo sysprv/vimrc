@@ -5145,11 +5145,11 @@ nnoremap    <C-Right>   g,
             "\ ) . "\<CR>"
 " 2026-01-17 3rd way
 if has('patch-8.2.1978')
-    nnoremap    <expr>  <CR> line('.') == line('$')
+    nnoremap    <silent> <expr>     <CR>    line('.') == line('$')
                 \ ? "<Cmd>call append('.', repeat([''], v:count1))<CR>G"
                 \ : 'j'
 else
-    nnoremap    <expr>  <CR>    line('.') == line('$')
+    nnoremap    <silent> <expr>     <CR>    line('.') == line('$')
                 \ ? ":\<C-u>call append('.', repeat([''], v:count1))\<CR>G"
                 \ : 'j'
 endif
