@@ -2697,6 +2697,7 @@ function! UserColours256()
     else    " background is dark
         if UserCO(g:u.coflags.spell)
             " 235 -> 238, for lighter dark bg #212121
+            " blue black    #0a0a0f
             highlight SpellBad
                         \ term=NONE
                         \ ctermfg=NONE ctermbg=238 cterm=NONE
@@ -2707,7 +2708,7 @@ function! UserColours256()
             highlight NonText ctermfg=NONE ctermbg=238 guifg=#444b71 guibg=grey25
             highlight SpecialKey ctermfg=214 ctermbg=238 guifg=orange guibg=grey25
             " TODO Visual?
-            highlight Normal guifg=#f3f3f3 guibg=#212121
+            highlight Normal guifg=#f3f3f3 guibg=#0a0a0f
         endif
         " amber
         highlight UserDateComment ctermfg=130 guifg=#ffb000 gui=italic
