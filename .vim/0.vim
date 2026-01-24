@@ -1630,6 +1630,9 @@ else
         return '[' . join(l:l, '/') . ']'
     endfunction
 
+    " mode display - changing the colour is bothersome. besides
+    " we have the -- prefix and suffix.
+
     set statusline=%{&buftype==#'terminal'?UserModeMsg():''}%2n'%<<%f>%=\ %{UserStLnBufFlags()}\ %P\ %{g:u.mark}\ "
 endif
 
@@ -2680,19 +2683,6 @@ function! UserUiStatusLine(mode, bg) abort
 endfunction
 
 
-function! UserTerminalModeHighlight() abort
-    if &background ==# 'dark'
-        " Bright orange/amber - very visible for dark backgrounds
-        highlight UserTerminalMode ctermfg=0 ctermbg=214 cterm=bold
-                    \ guifg=#000000 guibg=#ffaf00 gui=bold
-    else
-        " Deep orange - very visible for light backgrounds
-        highlight UserTerminalMode ctermfg=231 ctermbg=202 cterm=bold
-                    \ guifg=#ffffff guibg=#ff5f00 gui=bold
-    endif
-endfunction
-
-
 function! UserColours256()
     let g:colors_overridden = 0
     let l:bg = &background
@@ -2773,8 +2763,6 @@ function! UserColours256()
     " 2024-11-30 high-vis orange #ff7900 to firebrick3 #cd2626
     if UserCO(g:u.coflags.ui)
         highlight Cursor guifg=bg guibg=goldenrod gui=NONE
-        " ?
-        "call UserTerminalModeHighlight()
     endif
 
     let g:colors_overridden = 1
