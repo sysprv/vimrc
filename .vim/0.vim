@@ -1453,7 +1453,8 @@ if v:version >= 900 && has('vim9script') && filereadable(expand('~/.vim/statusli
     " in a separate file so that vim7/8 won't try to parse the defs.
     call ExecuteNomodifiable('runtime statusline_defs.vim')
     "set statusline=%2n'%<<%f>%=\ %{UserStLnBufFlags()}\ %P\ %{g:u.mark}\ "
-    set statusline=%2n'%<<%f>\ %{UserModeMsg()}%=\ %{UserStLnBufFlags()}\ %P\ %{g:u.mark}\ "
+    "set statusline=%2n'%<<%f>\ %{UserModeMsg()}%=\ %{UserStLnBufFlags()}\ %P\ %{g:u.mark}\ "
+    set statusline=%{&buftype==#'terminal'?UserModeMsg():''}%2n'%<<%f>%=\ %{UserStLnBufFlags()}\ %P\ %{g:u.mark}\ "
 elseif has('nvim') && filereadable(expand('~/.vim/statusline_defs.lua'))
     " it's nice that neovim cleans up those thousands of filetype autocmds
     runtime statusline_defs.lua
@@ -1629,7 +1630,7 @@ else
         return '[' . join(l:l, '/') . ']'
     endfunction
 
-    set statusline=%2n'%<<%f>\ %{UserModeMsg()}%=\ %{UserStLnBufFlags()}\ %P\ %{g:u.mark}\ "
+    set statusline=%{&buftype==#'terminal'?UserModeMsg():''}%2n'%<<%f>%=\ %{UserStLnBufFlags()}\ %P\ %{g:u.mark}\ "
 endif
 
 " NB: last double quote starts a comment and preserves the trailing space. vim
