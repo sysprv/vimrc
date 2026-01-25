@@ -91,15 +91,23 @@ const mode_map = {
 }
 
 def g:UserModeMsg(): string
-        if &buftype !=# 'terminal'
-        return ''
-    endif
-
     var m = mode()
     if m ==# 'n'
         return ''
     endif
-    return '-- ' .. get(mode_map, m) .. ' -- '
+    return '-- ' .. get(mode_map, m) .. ' --'
+enddef
+
+def g:UserStLnModeMsg(): string
+    if &buftype !=# 'terminal'
+        return ''
+    endif
+    var msg = g:UserModeMsg()
+    if msg ==# ''
+        return ''
+    endif
+    # extra padding
+    return msg .. ' '
 enddef
 
 def g:UserStLnBufFlags(): string

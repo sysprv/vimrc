@@ -1454,7 +1454,7 @@ if v:version >= 900 && has('vim9script') && filereadable(expand('~/.vim/statusli
     call ExecuteNomodifiable('runtime statusline_defs.vim')
     "set statusline=%2n'%<<%f>%=\ %{UserStLnBufFlags()}\ %P\ %{g:u.mark}\ "
     "set statusline=%2n'%<<%f>\ %{UserModeMsg()}%=\ %{UserStLnBufFlags()}\ %P\ %{g:u.mark}\ "
-    set statusline=%{&buftype==#'terminal'?UserModeMsg():''}%2n'%<<%f>%=\ %{UserStLnBufFlags()}\ %P\ %{g:u.mark}\ "
+    set statusline=%{UserStLnModeMsg()}%2n'%<<%f>%=\ %{UserStLnBufFlags()}\ %P\ %{g:u.mark}\ "
 elseif has('nvim') && filereadable(expand('~/.vim/statusline_defs.lua'))
     " it's nice that neovim cleans up those thousands of filetype autocmds
     runtime statusline_defs.lua
@@ -1579,15 +1579,24 @@ else
 
 
     function! UserModeMsg() abort
-        if !has('terminal') || &buftype !=# 'terminal'
-            return ''
-        endif
-
         let l:m = mode()
         if l:m ==# 'n'
             return ''
         endif
-        return '-- ' . get(g:mode_map, l:m) . ' -- '
+        return '-- ' . get(g:mode_map, l:m) . ' --'
+    endfunction
+
+    function! UserStLnModeMsg() abort
+        if !has('terminal') || &buftype !=# 'terminal'
+            return ''
+        endif
+
+        let l:msg = UserModeMsg()
+        if l:msg ==# ''
+            return ''
+        endif
+        " extra padding
+        return l:msg . ' '
     endfunction
 
     function! UserStLnBufFlags() abort
@@ -1633,7 +1642,7 @@ else
     " mode display - changing the colour is bothersome. besides
     " we have the -- prefix and suffix.
 
-    set statusline=%{&buftype==#'terminal'?UserModeMsg():''}%2n'%<<%f>%=\ %{UserStLnBufFlags()}\ %P\ %{g:u.mark}\ "
+    set statusline=%{UserStLnModeMsg()}%2n'%<<%f>%=\ %{UserStLnBufFlags()}\ %P\ %{g:u.mark}\ "
 endif
 
 " NB: last double quote starts a comment and preserves the trailing space. vim
