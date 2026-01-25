@@ -1455,10 +1455,6 @@ if v:version >= 900 && has('vim9script') && filereadable(expand('~/.vim/statusli
     "set statusline=%2n'%<<%f>%=\ %{UserStLnBufFlags()}\ %P\ %{g:u.mark}\ "
     "set statusline=%2n'%<<%f>\ %{UserModeMsg()}%=\ %{UserStLnBufFlags()}\ %P\ %{g:u.mark}\ "
     set statusline=%{UserStLnModeMsg()}%2n'%<<%f>%=\ %{UserStLnBufFlags()}\ %P\ %{g:u.mark}\ "
-elseif has('nvim') && filereadable(expand('~/.vim/statusline_defs.lua'))
-    " it's nice that neovim cleans up those thousands of filetype autocmds
-    runtime statusline_defs.lua
-    set statusline=%2n'%<<%f>%=\ %{v:lua.UserStLnBufFlags()}\ %P\ %{g:u.mark}\ "
 else
     function! UserStLnBufModStatus()
         let l:m = ''
