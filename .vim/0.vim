@@ -5273,56 +5273,70 @@ function! UserSwapChoice(swapname) abort
     let swapname = a:swapname
     let sw = swapinfo(swapname)
     let b:swapname_old = swapname
+
     " mtime of file being edited
     let filetime = getftime(expand('<afile>'))
-    let swapfile_mtime = get(sw, 'mtime', 0)
-    let timediff = filetime - swapfile_mtime
+    let swap_recorded_mtime = get(sw, 'mtime', 0)
+    let swap_actual_mtime = getftime(swapname)
+    let timediff = filetime - swap_recorded_mtime
+
     let dirty = get(sw, 'dirty', 0)
     let host = get(sw, 'host', '')
-    let dirty_msg = dirty ? 'yes' : 'no'
+    let pid = get(sw, 'pid', '')
+
+    let file_newer = filetime > swap_recorded_mtime
+    let file_much_newer = timediff >= 3600
+
     " log/inspect
     call UserAppendBuf(msgbuf, 'filename = ' . expand('<afile>'))
     call UserAppendBuf(msgbuf, 'old swapname = ' . swapname)
-    call UserAppendBuf(msgbuf, 'dirty = ' . dirty_msg)
+    call UserAppendBuf(msgbuf, 'dirty = ' . (dirty ? 'yes' : 'no'))
     call UserAppendBuf(msgbuf, 'host = ' . host)
-    call UserAppendBuf(msgbuf, 'filetime = ' . strftime('%F %T', filetime))
-    call UserAppendBuf(msgbuf, 'swap mtime = ' . strftime('%F %T', swapfile_mtime))
-    call UserAppendBuf(msgbuf, 'timediff = ' . timediff)
+    call UserAppendBuf(msgbuf, 'pid = ' . pid)
+    call UserAppendBuf(msgbuf, 'file mtime (current)      = ' . strftime('%F %T', filetime))
+    call UserAppendBuf(msgbuf, 'file mtime (in swap)      = ' . strftime('%F %T', swap_recorded_mtime))
+    call UserAppendBuf(msgbuf, 'swap file mtime (actual)  = ' . strftime('%F %T', swap_actual_mtime))
+    let time_diff_msg = file_newer ? 'file newer' : 'swap newer'
+    call UserAppendBuf(msgbuf, 'timediff = ' . timediff . ' (' . time_diff_msg . ')')
     call UserAppendBuf(msgbuf, 'error = ' . get(sw, 'error', ''))
+
     " the new swap file name (f.ex. .swo) that'll be created for the new buffer
     " isn't available until later, i.e. swapname('%') returns nothing.
-    if host ==# hostname()
-        if has_key(sw, 'pid')
-            " having a pid in the swapfile doesn't mean that process is still
-            " running.
-            call UserAppendBuf(msgbuf, 'file opened by pid ' . sw['pid'])
-            if !has('ios')
-                let swapchoice = 'o'    " read-only
+
+    if host !=# hostname()
+        let swapchoice = 'o'
+        let decision = 'read-only (different host)'
+    elseif pid && !has('ios')
+        let swapchoice = 'o'
+        let decision = 'read-only (pid exists, might be running)'
+    elseif dirty
+        if file_newer
+            if has('ios')
+                let swapchoice = 'd'
+                let decision = 'delete (file newer)'
             else
-                " iOS - it's just me, pid doesn't matter
-                let swapchoice = 'r'
+                let swapchoice = ''
+                let decision = 'PROMPT (dirty swap + file newer - conflict)'
             endif
         else
-            " time isn't reliable
-            if !dirty
-                if abs(timediff) >= 3600
-                    call UserAppendBuf(msgbuf, swapname . ': deleting')
-                    let swapchoice = 'd'    " delete
-                elseif swapfile_mtime >= filetime
-                    let swapchoice = 'r'    " recover
-                else
-                    let swapchoice = 'o'    " read-only
-                endif
-            else
-                " ? ? ? dirty; only seen on iOS
-                let swapchoice = 'r'
-            endif
+            let swapchoice = 'r'
+            let decision = 'recover (dirty, swap not older than file)'
         endif
     else
-        " hosts differ
-        let swapchoice = 'o'    " read-only
+        if file_much_newer
+            let swapchoice = 'd'
+            let decision = 'delete (clean swap, file much newer)'
+        elseif swap_recorded_mtime >= filetime
+            let swapchoice = 'r'
+            let decision = 'recover (clean, swap mtime >= file mtime)'
+        else
+            let swapchoice = 'o'
+            let decision = 'read-only (clean, file newer)'
+        endif
     endif
+
     call UserAppendBuf(msgbuf, 'swapchoice = ''' . swapchoice . '''')
+    call UserAppendBuf(msgbuf, 'decision: ' . decision)
     if swapchoice ==# 'r'
         call UserAppendBuf(msgbuf, '')
         call UserAppendBuf(msgbuf, '!' . swapname . ': recovering + queuing for rename')
