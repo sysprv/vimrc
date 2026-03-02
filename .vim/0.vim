@@ -1,4 +1,4 @@
-" Last-Modified: 2026-01-23T21:34:42.553634264+00:00
+" Last-Modified: 2026-03-02T21:24:14.734936572+00:00
 
 " vim:set tw=80 noml:
 set secure nobomb
@@ -5563,7 +5563,7 @@ endfunction
 "
 " see $VIM/indent.vim
 "
-" descent: rust; keep: ada, c, go, java, javascript, json, perl, racket, raku,
+" decent: rust; keep: ada, c, go, java, javascript, json, perl, racket, raku,
 " ruby, rust, scala, typescript, vim, terraform, *sh
 "
 " 2023-10-31 been here before; things that make syntax highlighting fragile,
@@ -5587,6 +5587,9 @@ augroup UserVimRcIndent
     " 2025-10-27 have i tried the same thing before?
     autocmd FileType sh,bash,zsh    InDisable
     autocmd FileType perl           InDisable
+
+    " my loss.
+    autocmd BufNewFile,BufRead *.tf setfiletype terraform | echow 'TinyFugue'
 augroup end
 
 
