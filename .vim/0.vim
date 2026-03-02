@@ -18,6 +18,8 @@ endif
 
 " Change log:
 "
+" 2026-03-02 get rid of noautomod, never helped, only got in the way.
+"
 " 2026-01-23 Spiff up statusline for terminals. showmode hasn't kept up.
 " no neovim config, terminal's weird there.
 "
@@ -2288,11 +2290,8 @@ function! UserUpdateBackupOptions(fn) abort
 endfunction
 
 
-function! UserStripTrailingWhitespace()
+function! UserStripTrailingWhitespace() range
     if !&l:modifiable || &l:readonly || &l:binary
-        return
-    endif
-    if exists('b:user_noautomod') && b:user_noautomod
         return
     endif
 
@@ -2301,14 +2300,12 @@ function! UserStripTrailingWhitespace()
     if search(l:regexp, 'cnw')
         let l:win = winsaveview()
         try
-            execute '%substitute/' . l:regexp . '//e'
+            execute a:firstline . ',' . a:lastline . 'sub/' . l:regexp . '//e'
         finally
             call winrestview(l:win)
         endtry
     endif
 endfunction
-
-command -bar NoAutomod  let b:user_noautomod = 1
 
 " if a file named 'index' exists, load it; don't create it.
 " living without command-t, CtrlP etc.
@@ -4871,7 +4868,7 @@ command Info        call UserShowHelp()
 command TermBad     call UserTermBad()
 command TermSlow    call UserTermSlow()
 
-command -bar Stws        call UserStripTrailingWhitespace()
+command -bar -range=% Stws <line1>,<line2>call UserStripTrailingWhitespace()
 
 " new window for scribbling
 " possible alternative - preview windows (:pedit); seems more limited.
@@ -5466,9 +5463,9 @@ augroup UserVimRc
     autocmd FileType resolv             setlocal commentstring=;\ %s
     "autocmd FileType text               setlocal commentstring=/*\ %s\ */
 
-    " whimsical file formats with trailing whitespace sometimes
-    autocmd FileType yaml               let b:user_noautomod = 1
-    autocmd FileType markdown           let b:user_noautomod = 1
+    " yaml - why? don't until i need it.
+    " gruber's markdown - trailing spaces for line breaks - i don't need line
+    " breaks.
 
     autocmd FileType jproperties        Lousy | setlocal fileencoding=latin1
 
@@ -5487,7 +5484,7 @@ augroup UserVimRc
     autocmd FileType    make    call User70s()
     autocmd FileType    go      call User70s()
 
-    autocmd BufWrite    *   call UserStripTrailingWhitespace()
+    autocmd BufWrite    *   %call UserStripTrailingWhitespace()
     autocmd BufWrite    *   call UserUpdateBackupOptions(expand('<amatch>'))
 
     " when editing the ex command line, enable listchars and numbers.
