@@ -5190,14 +5190,28 @@ nnoremap    <C-Right>   g,
             "\ : 'execute "normal!" v:count1 . "\n"'
             "\ ) . "\<CR>"
 " 2026-01-17 3rd way
+
+function! AppendNL(down) abort
+    let l:n = v:count1
+    call append('.', l:n == 1 ? '' : repeat([''], l:n))
+    if a:down
+        "execute 'normal!' l:n . 'j'
+        execute '+' . l:n
+    endif
+endfunction
+
 if has('patch-8.2.1978')
-    nnoremap    <silent> <expr>     <CR>    line('.') == line('$')
-                \ ? "<Cmd>call append('.', repeat([''], v:count1))<CR>G"
+    nnoremap    <silent> <expr>
+                \ <CR> line('.') == line('$') ? "<Cmd>call AppendNL(0)<CR>G"
                 \ : 'j'
+
+    nnoremap    <silent>    <C-n>   <Cmd>call AppendNL(1)<CR>
 else
-    nnoremap    <silent> <expr>     <CR>    line('.') == line('$')
-                \ ? ":\<C-u>call append('.', repeat([''], v:count1))\<CR>G"
+    nnoremap    <silent> <expr>
+                \ <CR> line('.') == line('$') ? ":\<C-u>call AppendNL(0)\<CR>G"
                 \ : 'j'
+
+    nnoremap    <silent>    <C-n>   :<C-u>call AppendNL(1)<CR>
 endif
 
 " search - start out case-insensitive; have i tried this before?
