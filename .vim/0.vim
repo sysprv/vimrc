@@ -2289,8 +2289,8 @@ function! UserUpdateBackupOptions(fn) abort
     " echom 'b' pathshorten(b:user_last_backup)
 endfunction
 
-
-function! UserStripTrailingWhitespace() range
+" NB calling with a line range defeats winsaveview/winrestview :)
+function! UserStripTrailingWhitespace()
     if !&l:modifiable || &l:readonly || &l:binary
         return
     endif
@@ -2300,7 +2300,7 @@ function! UserStripTrailingWhitespace() range
     if search(l:regexp, 'cnw')
         let l:win = winsaveview()
         try
-            execute a:firstline . ',' . a:lastline . 'sub/' . l:regexp . '//e'
+            execute '%sub/' . l:regexp . '//e'
         finally
             call winrestview(l:win)
         endtry
@@ -4868,7 +4868,7 @@ command Info        call UserShowHelp()
 command TermBad     call UserTermBad()
 command TermSlow    call UserTermSlow()
 
-command -bar -range=% Stws <line1>,<line2>call UserStripTrailingWhitespace()
+command -bar -range=% Stws <line1>,<line2>sub/\s\+$//e
 
 " new window for scribbling
 " possible alternative - preview windows (:pedit); seems more limited.
@@ -5484,7 +5484,7 @@ augroup UserVimRc
     autocmd FileType    make    call User70s()
     autocmd FileType    go      call User70s()
 
-    autocmd BufWrite    *   %call UserStripTrailingWhitespace()
+    autocmd BufWrite    *   call UserStripTrailingWhitespace()
     autocmd BufWrite    *   call UserUpdateBackupOptions(expand('<amatch>'))
 
     " when editing the ex command line, enable listchars and numbers.
