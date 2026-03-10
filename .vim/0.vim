@@ -5601,6 +5601,8 @@ augroup UserVimRcIndent
     " 2025-10-27 have i tried the same thing before?
     autocmd FileType sh,bash,zsh    InDisable
     autocmd FileType perl           InDisable
+    " 2026-03-10 anything goes in yaml, better treat as binary
+    autocmd FileType yaml           InDisable
 
     " my loss.
     autocmd BufNewFile,BufRead *.tf setfiletype terraform | echow 'TinyFugue'
