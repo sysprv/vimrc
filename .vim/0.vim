@@ -1700,6 +1700,11 @@ function! UserTimeShort()
     return strftime('%H:%M')
 endfunction
 
+" 2026-03-15 i kept missing sublime text's first line being the title.
+function! UserTxtFileTitle()
+    return bufname('%') . '    ' . UserDateTime()
+endfunction
+
 " like 2022-07-05T12:57:18.568367478+00:00
 "
 " https://github.com/python/cpython/issues/59648 - datetime doesn't support
@@ -5510,6 +5515,9 @@ augroup UserVimRc
 
     autocmd BufWrite    *   call UserStripTrailingWhitespace()
     autocmd BufWrite    *   call UserUpdateBackupOptions(expand('<amatch>'))
+
+    " NB: the append() doesn't mark the buffer as modified.
+    autocmd BufNewFile  *.txt   call append(0, [UserTxtFileTitle()])
 
     " when editing the ex command line, enable listchars and numbers.
     " the idea is to not paste right into the command line, but do paste from
