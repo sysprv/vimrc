@@ -3819,7 +3819,8 @@ inoremap    ;       ;<C-g>u
 nnoremap        <silent> <Leader>dt "=UserDateTimeComment()<cr>p:put _<cr>
 inoremap <expr> <silent> <Leader>dt "\<C-g>u" . UserDateTimeComment() . "\<C-g>u"
 
-command -bar    Datetime            put =UserDateTimeComment()
+command -bar    Datetime            put =UserDateTime()
+command -bar    Datetimecomment     put =UserDateTimeComment()
 
 "" ,dt is too complicated when tired/sleepy.
 nmap        <Leader>.      <Leader>dt
