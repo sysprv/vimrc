@@ -2300,8 +2300,8 @@ function! UserStripTrailingWhitespace()
         return
     endif
 
-    " ah well, only handles ascii whitespace
-    let l:regexp = '\s\+$'
+    " a few common/obvious unicode spaces
+    let l:regexp = '[[:space:]\u2009\u200A\u200B]\+$'
     if search(l:regexp, 'cnw')
         let l:win = winsaveview()
         try
