@@ -5442,6 +5442,8 @@ augroup UserVimRc
     " not for all text files.
     " format manually: gqip or vip, gq
     autocmd BufNewFile,BufRead  writing*.txt,NOTES*.txt     Wr
+    " spell by default
+    autocmd BufNewFile,BufRead  *.txt                       setl spell
     autocmd BufRead             *music-comments.txt         setl nospell
 
     " for file names without an extension -
@@ -5453,6 +5455,7 @@ augroup UserVimRc
     " last-position-jump
     " beware of fedora badly duplicating this functionality in /etc/vimrc.
     autocmd BufRead             *   call UserLastPositionJump()
+
 
     " *sh - only indentation, no syntax highlighting.
     "autocmd FileType *sh            set syntax=OFF
