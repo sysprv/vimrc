@@ -3699,6 +3699,8 @@ set viewoptions-=curdir
 set viewoptions-=options
 set viewoptions+=unix
 
+" hyphens aren't rare
+set iskeyword+=-
 
 " ---- mappings
 
