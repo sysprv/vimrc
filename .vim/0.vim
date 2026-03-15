@@ -3812,8 +3812,9 @@ inoremap    ;       ;<C-g>u
 " 2 - paste blackhole register below, creating new line
 "
 nnoremap        <silent> <Leader>dt "=UserDateTimeComment()<cr>p:put _<cr>
-
 inoremap <expr> <silent> <Leader>dt "\<C-g>u" . UserDateTimeComment() . "\<C-g>u"
+
+command -bar    Datetime            put =UserDateTimeComment()
 
 "" ,dt is too complicated when tired/sleepy.
 nmap        <Leader>.      <Leader>dt
@@ -3823,6 +3824,13 @@ imap        <Leader>.      <Leader>dt
 "" nnoremap        <silent> <Leader>dd :put=UserDate()<cr>
 nnoremap        <silent> <Leader>dd "=UserDate()<cr>p:put _<cr>
 inoremap <expr> <silent> <Leader>dd "\<C-g>u" . UserDate() . "\<C-g>u"
+
+" 2026-03-15 dd is too hard some mornings
+nnoremap        <silent> <Leader>e  "=UserDate()<cr>p:put _<cr>
+inoremap <expr> <silent> <Leader>e  "\<C-g>u" . UserDate() . "\<C-g>u"
+
+command -bar    Date                put =UserDate()
+
 " so i can do :e f-<,dd> in the vim command window
 cnoremap <expr> <Leader>dd              UserDate()
 if has('terminal')
@@ -3831,6 +3839,8 @@ endif
 
 nnoremap        <silent> <Leader>t      "=UserTimeShort()<cr>p:put _<cr>
 inoremap <expr> <silent> <Leader>t      "\<C-g>u" . UserTimeShort() . "\<C-g>u"
+
+command -bar    Time                put =UserTimeShort()
 
 nnoremap        <silent> <Leader>dT     "=UserDateTime()<cr>p:put _<cr>
 inoremap <expr> <silent> <Leader>dT     "\<C-g>u" . UserDateTime() . "\<C-g>u"
