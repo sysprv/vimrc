@@ -4676,6 +4676,12 @@ if !has('gui_running')
     inoremap    <C-h>   <C-w>
 endif
 
+" turn word to xml tag - mnemonic - g xml open
+nnoremap    gxo     "_yiwi<<Esc>ea><Esc>
+" mnemonic - g xml close
+nnoremap    gxc     "_yiwi</<Esc>ea><Esc>
+
+
 " for testing colours
 cnoreabbrev histl   highlight StatusLine
 cnoreabbrev hisnc   highlight StatusLineNC
