@@ -33,10 +33,10 @@ vnoremap <silent> <C-z> <Esc>
 
 function! UserTrimMenus()
     " doc:windows.txt.html#%3Asball
-    amenu &Misc.&Buffers\ to\ tabs  :tab sball<cr>g
-    " amenu &Misc.&Make\ session    :mksession!<cr>g
-    amenu &Misc.&Tab\ page          :tabnew<cr>g
-    amenu &Misc.Copy\ &all          :%WRCB<cr>g
+    amenu &Misc.&Buffers\ to\ tabs  :tab sball<cr>
+    " amenu &Misc.&Make\ session    :mksession!<cr>
+    amenu &Misc.&Tab\ page          :tabnew<cr>
+    amenu &Misc.Copy\ &all          :%WRCB<cr>
 
     " delete the autocmd that does the lazy loading -
     " otherwise the autocmd will cause Edit and Tools menus to reappear.
@@ -76,7 +76,7 @@ function! UserTrimMenus()
     " doc:gui.txt.html#menu-priority
     " default File menu has prio 10;
     " add a new File menu before everything we've defined above.
-    1amenu &File.&Exit              :confirm qa<cr>g
+    1amenu &File.&Exit              :confirm qa<cr>
 endfunction " UserTrimMenus
 
 " reset menus - don't want shoddy/incomplete translations; vimrc
