@@ -635,7 +635,7 @@ endif
 " doesn't handle chained :g/:v.
 " doc 'is'
 " to put the last match into the command line: <C-r>/
-set noincsearch
+set incsearch
 command -bar Inc    set incsearch! | set incsearch?
 " 2024-04-21 hlsearch's distracting in multiple windows with different search
 " patterns.
