@@ -1,4 +1,4 @@
-" Last-Modified: 2026-03-02T21:24:14.734936572+00:00
+" Last-Modified: 2026-03-29T12:33:52.552974875+00:00
 
 " vim:set tw=80 noml:
 set secure nobomb
@@ -17,6 +17,8 @@ if has('nvim')
 endif
 
 " Change log:
+"
+" 2026-03-29 きまぐれオレンジ☆ロード
 "
 " 2026-03-02 get rid of noautomod, never helped, only got in the way.
 "
@@ -1112,7 +1114,9 @@ function UserSetCellWidths()
     endif
     let l:yijing_hexagrams = [0x4DC0, 0x4DFF, 2]
     let l:egyptian_hieroglyphs = [0x13000, 0x1342F, 2]
-    let l:u_ranges = [l:yijing_hexagrams, l:egyptian_hieroglyphs]
+    let l:misc_sym = [0x2600, 0x26FF, 2]
+    let l:misc_tech = [0x2300, 0x23FF, 2]
+    let l:u_ranges = [l:yijing_hexagrams, l:egyptian_hieroglyphs, l:misc_sym, l:misc_tech]
     call setcellwidths(l:u_ranges)
 endfunction
 
@@ -4437,32 +4441,37 @@ command! -bar MapQ      call UserAddUrlPasteMapping()
 " U+238D - Monostable symbol from Miscellaneous Technical
 "
 " 0x1F7A3 MEDIUM GREEK CROSS - too many bytes, not widely available in fonts
+"
+"
+" https://ionathan.ch/2026/02/16/angzarr.html
 
-let Symbols = {
-    \ 'silcrow':        nr2char(0xA7)
-    \ ,'not':           nr2char(0xAC)
-    \ ,'interpunct':    nr2char(0xB7)
-    \ ,'en dash':       nr2char(0x2013)
-    \ ,'em dash':       nr2char(0x2014)
-    \ ,'dagger':        nr2char(0x2020)
-    \ ,'circle stile':  nr2char(0x233D)
-    \ ,'angzarr':       nr2char(0x237C)
-    \ ,'lozenge':       nr2char(0x25CA)
-    \ ,'bourbaki bend':         nr2char(0x2621)
-    \ ,'greek cross, heavy':    nr2char(0x271A)
-    \ ,'brkt left corner':      nr2char(0xFF62)
-    \ ,'brkt right corner':     nr2char(0xFF63)
-    \ }
+function! UserMakeSymbols()
+    let sym = {}
+    let sym['silcrow']          = nr2char(0xA7)         " C-k SE
+    "let sym['not']              = nr2char(0xAC)         " C-K NO
+    let sym['interpunct']       = nr2char(0xB7)         " C-k .M
+    let sym['en dash']          = nr2char(0x2013)       " C-k -M
+    let sym['em dash']          = nr2char(0x2014)       " C-k -N
+    let sym['up arrow']         = nr2char(0x2191)       " C-k -!
+    let sym['dagger']           = nr2char(0x2020)       " C-k /-
+    let sym['circle stile']     = nr2char(0x233D)
+    let sym['azimuth']          = nr2char(0x237C)
+    let sym['lozenge']          = nr2char(0x25CA)       " C-k LZ
+    let sym['white star']       = nr2char(0x2606)       " C-k *1
+    let sym['bourbaki bend']    = nr2char(0x2621)
+    let sym['greek cross, heavy']   = nr2char(0x271A)
+    let sym['brkt left corner']     = nr2char(0xFF62)
+    let sym['brkt right corner']    = nr2char(0xFF63)
+    return sym
+endfunction
+
+let Symbols = UserMakeSymbols()
 lockvar Symbols
 
 inoremap <expr> <Leader>ip      Symbols['interpunct']
 inoremap <expr> <Leader>lz      Symbols['lozenge']
 inoremap <expr> <Leader>dg      Symbols['dagger']
 inoremap <expr> <Leader>sc      Symbols['silcrow']
-
-" 2022-08-26
-inoremap <expr> <Leader>mm      Symbols['em dash']
-inoremap <expr> <Leader>nn      Symbols['en dash']
 
 " pound signs used everywhere, lozenge taken by Pollen...
 " U+25B8 Black right-pointing small triangle
@@ -4708,7 +4717,7 @@ function! UserSymComplFn(findstart, base) abort
     elseif a:findstart == 0
         let l:compl = []
         " sort by unicode value (not hash key) of symbol, ascending
-        let l:sorted_pairs = sort(items(g:Symbols), 'UserSymComparator')
+        let l:sorted_pairs = sort(items(UserMakeSymbols()), 'UserSymComparator')
         for [l:name, l:sym] in l:sorted_pairs
             " 'word': Symbol value, 'menu', Symbol key (description)
             let l:entry = { 'menu': l:name, 'word': l:sym }
