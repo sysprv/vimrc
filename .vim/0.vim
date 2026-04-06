@@ -5309,17 +5309,32 @@ function! UserSwapChoice(swapname) abort
         return swapchoice
     endif
 
+    let afile = expand('<afile>')
+
     let msgbuf = bufadd('!swap-messages')
     call setbufvar(msgbuf, '&buftype', 'nofile')
     call bufload(msgbuf)
     call setbufvar(msgbuf, '&buflisted', 1)
+
+    " conservative - backup the file before any decision; even if the decision
+    " ends up being delete-swap.
+    if UserTestBackupskip(afile) != -1
+        let [backupdir, ext] = UserBufferBackupLoc(afile)
+        let backupf = backupdir . ext . '.swapchoice'
+        let copystat = filecopy(expand('<afile>'), backupf)
+        if copystat
+            call UserAppendBuf(msgbuf, 'backup = ' . backupf)
+        else
+            call UserAppendBuf(msgbuf, '! backup failed')
+        endif
+    endif
 
     let swapname = a:swapname
     let sw = swapinfo(swapname)
     let b:swapname_old = swapname
 
     " mtime of file being edited
-    let filetime = getftime(expand('<afile>'))
+    let filetime = getftime(afile)
     let swap_recorded_mtime = get(sw, 'mtime', 0)
     let swap_actual_mtime = getftime(swapname)
     let timediff = filetime - swap_recorded_mtime
@@ -5332,7 +5347,7 @@ function! UserSwapChoice(swapname) abort
     let file_much_newer = timediff >= 3600
 
     " log/inspect
-    call UserAppendBuf(msgbuf, 'filename = ' . expand('<afile>'))
+    call UserAppendBuf(msgbuf, 'filename = ' . afile)
     call UserAppendBuf(msgbuf, 'old swapname = ' . swapname)
     call UserAppendBuf(msgbuf, 'dirty = ' . (dirty ? 'yes' : 'no'))
     call UserAppendBuf(msgbuf, 'host = ' . host)
