@@ -1,4 +1,4 @@
-" Last-Modified: 2026-03-29T12:33:52.552974875+00:00
+" Last-Modified: 2026-04-15T21:46:41.102869499+00:00
 
 " vim:set tw=80 noml:
 set secure nobomb
@@ -620,17 +620,11 @@ endif
 "
 " dirs should end with // even on windows.
 "
-" going back to swap file near file. they're transient, unlike backups and
-" undofiles.
-"
-let g:u.swap_dir = '.'
+" 2026-04-15 directory=. is painful with repos that don't already gitignore.
+let g:u.swap_dir = '~/.vim/var/swap//'
 if has('nvim')
     " default
     let g:u.swap_dir = '~/.local/state/nvim/swap//'
-endif
-if has('win32') || has('ivim')
-    " it's just me, the swapfile won't help as a lock file.
-    let g:u.swap_dir = expand('~') . '/.vim/var/swap//'
 endif
 
 " it's fine usually. incsearch can be an unwelcome surprise over ssh.
@@ -741,6 +735,7 @@ endif
 " leave swapfile at the default (on).
 " damian conway
 set updatetime=500 updatecount=10
+
 " to see current swap file path: ':sw[apname]' / swapname('%')
 
 " no: s, T,
