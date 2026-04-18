@@ -5416,6 +5416,9 @@ command RenameOldSwap   if exists('b:swapname_old') &&
 command!    DiffOrig    vert new | set bt=nofile | r ++edit # | 0d_
             \ | diffthis | wincmd p | diffthis
 
+" for markdown etc.
+command! -bar LongLinesLol  setlocal number | ShowBreak
+
 " try to detect 2 vs 4 indentation; javascript/typescript: i like fourdenting
 " but prettier.io / gts defaults to twodenting.
 
@@ -5526,6 +5529,10 @@ augroup UserVimRc
     " yaml - why? don't until i need it.
     " gruber's markdown - trailing spaces for line breaks - i don't need line
     " breaks.
+    "
+    " long lines often, need to see where it breaks
+    " old vims, *.md = modula2, not markdown
+    autocmd FileType markdown           LongLinesLol
 
     autocmd FileType jproperties        Lousy | setlocal fileencoding=latin1
 
@@ -5649,6 +5656,7 @@ augroup UserVimRcIndent
 
     " 2025-10-27 have i tried the same thing before?
     autocmd FileType sh,bash,zsh    InDisable
+    " *.pl -> prolog came first.
     autocmd FileType perl           InDisable
     " 2026-03-10 anything goes in yaml, better treat as binary
     autocmd FileType yaml           InDisable
