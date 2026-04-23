@@ -5247,6 +5247,35 @@ endif
 "nnoremap    /   /\c
 
 
+" for searching kanji; visual selection + */# , disable the default behaviour of
+" extending the selection.
+
+function! UserVisualStar(key) abort
+    let l:save_reg = getreg('"')
+    let l:save_type = getregtype('"')
+    normal! gvy
+    let l:word = @"
+    call setreg('"', l:save_reg, l:save_type)
+
+    if empty(l:word)
+        return
+    endif
+
+    let @/ = '\V' . escape(l:word, '\')
+    call histadd('/', @/)
+    " just search, don't bother with surgical cursor movement
+    " hlsearch only starts highlighting after the 'n' / 'N', not after the
+    " search().
+    let l:flags = 'sw' . (a:key ==# '#' ? 'b' : '')
+    if search(@/, l:flags) == 0
+        echohl ErrorMsg | echo 'not found: ' . l:word | echohl None
+    endif
+endfunction
+
+xnoremap <silent> * :<C-u>call UserVisualStar('*')<CR>
+xnoremap <silent> # :<C-u>call UserVisualStar('#')<CR>
+
+
 " wrapper for filtering through an external command safely, without clobbering
 " the current buffer on error.
 "
