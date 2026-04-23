@@ -5305,22 +5305,30 @@ function! UserSwapChoice(swapname) abort
     endif
 
     let afile = expand('<afile>')
+    let file = fnamemodify(afile, ':p')
 
     let msgbuf = bufadd('!swap-messages')
     call setbufvar(msgbuf, '&buftype', 'nofile')
     call bufload(msgbuf)
     call setbufvar(msgbuf, '&buflisted', 1)
+    call UserAppendBuf(msgbuf, 'file = ' . file)
 
     " conservative - backup the file before any decision; even if the decision
     " ends up being delete-swap.
-    if UserTestBackupskip(afile) != -1
-        let [backupdir, ext] = UserBufferBackupLoc(afile)
-        let backupf = backupdir . ext . '.swapchoice'
-        let copystat = filecopy(expand('<afile>'), backupf)
-        if copystat
+    if UserTestBackupskip(afile) != -1 && has('unix')
+        let [backupdir, ext] = UserBufferBackupLoc(file)
+        let backupf = backupdir . '/' . fnamemodify(afile, ':t') . ext . '.swapchoice'
+        let src = shellescape(file)
+        let dest = shellescape(backupf)
+        " filecopy is too new, doesn't exist in iVim
+        call system('cp ' . src . ' ' . dest)
+        let copystat = v:shell_error
+        if copystat == 0
+            call UserAppendBuf(msgbuf, 'backup succeeded, cp status = ' . copystat)
             call UserAppendBuf(msgbuf, 'backup = ' . backupf)
         else
-            call UserAppendBuf(msgbuf, '! backup failed')
+            call UserAppendBuf(msgbuf, '! backup failed, cp status = ' . copystat)
+            call UserAppendBuf(msgbuf, '')
         endif
     endif
 
@@ -5329,7 +5337,7 @@ function! UserSwapChoice(swapname) abort
     let b:swapname_old = swapname
 
     " mtime of file being edited
-    let filetime = getftime(afile)
+    let filetime = getftime(file)
     let swap_recorded_mtime = get(sw, 'mtime', 0)
     let swap_actual_mtime = getftime(swapname)
     let timediff = filetime - swap_recorded_mtime
@@ -5342,7 +5350,6 @@ function! UserSwapChoice(swapname) abort
     let file_much_newer = timediff >= 3600
 
     " log/inspect
-    call UserAppendBuf(msgbuf, 'filename = ' . afile)
     call UserAppendBuf(msgbuf, 'old swapname = ' . swapname)
     call UserAppendBuf(msgbuf, 'dirty = ' . (dirty ? 'yes' : 'no'))
     call UserAppendBuf(msgbuf, 'host = ' . host)
