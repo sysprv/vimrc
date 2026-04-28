@@ -5321,6 +5321,49 @@ function! UserAppendBuf(buf, text) abort
     return appendbufline(a:buf, '$', a:text)
 endfunction
 
+
+function! UserBackupFilename(file) abort
+    let file = a:file
+    let [backupdir, ext] = UserBufferBackupLoc(file)
+    return backupdir . '/'
+                \ . fnamemodify(file, ':t')
+                \ . ext
+endfunction
+
+
+function! UserCopyFile(src, dest) abort
+    let src = a:src
+    let dest = a:dest
+    let copystat = -1
+    if exists('*filecopy')
+        let success = filecopy(src, dest)
+        if success
+            let copystat = 0
+        endif
+        return [copystat, dest]
+    elseif has('unix')
+        let src = shellescape(src)
+        let dest = shellescape(dest)
+        call system('cp ' . src . ' ' . dest)
+        let copystat = v:shell_error
+        return [copystat, a:dest]
+    endif
+    return [copystat]
+endfunction
+
+
+function! UserBackupCopyFile(file) abort
+    let copystat = -1
+    let file = a:file
+    if UserTestBackupskip(file) == -1
+        return [copystat]
+    endif
+    let [backupdir, ext] = UserBufferBackupLoc(file)
+    let backupf = UserBackupFilename(file) . '.swapchoice'
+    return UserCopyFile(file, backupf)
+endfunction
+
+
 " requires swapinfo() and appendbufline()/setbufline()
 " swapinfo()        8.1.0313
 " appendbufline()   8.1.0037
@@ -5344,19 +5387,13 @@ function! UserSwapChoice(swapname) abort
 
     " conservative - backup the file before any decision; even if the decision
     " ends up being delete-swap.
-    if UserTestBackupskip(afile) != -1 && has('unix')
-        let [backupdir, ext] = UserBufferBackupLoc(file)
-        let backupf = backupdir . '/' . fnamemodify(afile, ':t') . ext . '.swapchoice'
-        let src = shellescape(file)
-        let dest = shellescape(backupf)
-        " filecopy is too new, doesn't exist in iVim
-        call system('cp ' . src . ' ' . dest)
-        let copystat = v:shell_error
-        if copystat == 0
-            call UserAppendBuf(msgbuf, 'backup succeeded, cp status = ' . copystat)
-            call UserAppendBuf(msgbuf, 'backup = ' . backupf)
+    if filereadable(file)
+        let result = UserBackupCopyFile(file)
+        if result[0] == 0
+            call UserAppendBuf(msgbuf, 'backup succeeded, status = ' . result[0])
+            call UserAppendBuf(msgbuf, 'backup = ' . result[1])
         else
-            call UserAppendBuf(msgbuf, '! backup failed, cp status = ' . copystat)
+            call UserAppendBuf(msgbuf, '! backup failed, status = ' . result[0])
             call UserAppendBuf(msgbuf, '')
         endif
     endif
