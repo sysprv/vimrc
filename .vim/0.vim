@@ -2859,13 +2859,13 @@ function! UserApplySyntaxRules() abort
 
     syntax clear UserTrailingWhitespace
     syntax match UserTrailingWhitespace /\s\+$/
-        \ display oneline containedin=ALLBUT,UserTrailingWhitespace
+        \ display containedin=ALLBUT,UserTrailingWhitespace
     "
     " to make them visible only on the current line, after the cursor:
     " https://github.com/thoughtstream/Damian-Conway-s-Vim-Setup/blob/master/.vimrc
     "   /InvisibleSpaces
     "syntax match UserTrailingWhitespace /\S\@<=\s\+\%#\ze\s*$/
-    "    \ display oneline containedin=ALLBUT,UserTrailingWhitespace
+    "    \ display containedin=ALLBUT,UserTrailingWhitespace
 
     " reveal unicode whitespace; __UNIWS__
     "
@@ -2878,7 +2878,7 @@ function! UserApplySyntaxRules() abort
     let l:expr_synmatch_uniws = 'syntax match'
                 \ . ' UserUnicodeWhitespace'
                 \ . ' /' . UserGetUnicodeWhitespaceRegexp() . '/'
-                \ . ' display oneline containedin=ALLBUT,UserUnicodeWhitespace'
+                \ . ' display containedin=ALLBUT,UserUnicodeWhitespace'
     syntax clear UserUnicodeWhitespace
     execute l:expr_synmatch_uniws
 
@@ -2887,11 +2887,11 @@ function! UserApplySyntaxRules() abort
     syntax clear UserDateComment
     syntax match UserDateComment
                 \ /\v-- date 20\d\d+-\d\d-\d\d \d\d:\d\d:\d\d.{,16}/
-                \ display oneline containedin=ALLBUT,UserDateComment
+                \ display containedin=ALLBUT,UserDateComment
     " -- date 2026-05-04 19:33 (May, Mon) 1777916032dnl
     syntax match UserDateComment
                 \ /\v-- date 20\d\d+-\d\d-\d\d \d\d:\d\d \(.{,8}\)%( \d{10})?/
-                \ display oneline containedin=ALLBUT,UserDateComment
+                \ display containedin=ALLBUT,UserDateComment
 
     " canary: [✚x] [✚'x'] [✚'x ✚'x](pathological, overlap)
     "              [✚"x"] [✚"x ✚"x] [✚"xs-xp-xq'-xz"]
@@ -2900,13 +2900,13 @@ function! UserApplySyntaxRules() abort
 
     syntax clear UserHashTag
     syntax match UserHashTag /\v[⌽✚][_[:lower:][:upper:][:digit:]]{1,30}/
-        \ display oneline containedin=ALLBUT,UserHashTag contains=@NoSpell
+        \ display containedin=ALLBUT,UserHashTag contains=@NoSpell
 
     " in single quotes, allow escaping anything - including single quotes
     " and tag-starting cross.
     " %() - non-capturing group.
     syntax match UserHashTag /\v[⌽✚]'%([^✚'\\]|\\.){-1,30}'/
-        \ display oneline containedin=ALLBUT,UserHashTag contains=@NoSpell
+        \ display containedin=ALLBUT,UserHashTag contains=@NoSpell
 
     " ^ maybe - add contained matches to use @NoSpell when hashtags are
     " contained in other syntax items. but i usually don't use hashtags within
