@@ -1,4 +1,4 @@
-" Last-Modified: 2026-04-15T21:46:41.102869499+00:00
+" Last-Modified: 2026-05-04T17:37:23.292786826+00:00
 
 " vim:set tw=80 noml:
 set secure nobomb
@@ -17,6 +17,9 @@ if has('nvim')
 endif
 
 " Change log:
+"
+" 2026-05-04 date comments - no more seconds and time zone, but add unix time.
+" keep highlighting previous format.
 "
 " 2026-03-29 きまぐれオレンジ☆ロード
 "
@@ -1683,7 +1686,8 @@ set rulerformat=%8(%=%M%)
 
 function! UserDateTimeComment()
     " month (%b) and day (%a) should be 3 chars each
-    return strftime('-- date %F %T%z (%b, %a)')
+    " %s for unix time doesn't work on windows
+    return strftime('-- date %F %H:%M (%b, %a) ' . localtime())
 endfunction
 
 
@@ -2872,8 +2876,12 @@ function! UserApplySyntaxRules() abort
     " -- date 2022-07-25 14:42:43+0200 (Jul, Mon)dnl
     syntax clear UserDateComment
     syntax match UserDateComment
-        \ /\v-- date 20\d\d+-\d\d-\d\d \d\d:\d\d:\d\d.{,16}/
-        \ display oneline containedin=ALLBUT,UserDateComment
+                \ /\v-- date 20\d\d+-\d\d-\d\d \d\d:\d\d:\d\d.{,16}/
+                \ display oneline containedin=ALLBUT,UserDateComment
+    " -- date 2026-05-04 19:33 (May, Mon) 1777916032dnl
+    syntax match UserDateComment
+                \ /\v-- date 20\d\d+-\d\d-\d\d \d\d:\d\d \(.{,8}\)%( \d{10})?/
+                \ display oneline containedin=ALLBUT,UserDateComment
 
     " canary: [✚x] [✚'x'] [✚'x ✚'x](pathological, overlap)
     "              [✚"x"] [✚"x ✚"x] [✚"xs-xp-xq'-xz"]
