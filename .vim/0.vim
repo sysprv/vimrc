@@ -1110,11 +1110,21 @@ function UserSetCellWidths()
     if v:version < 900
         return
     endif
+
     let l:yijing_hexagrams = [0x4DC0, 0x4DFF, 2]
     let l:egyptian_hieroglyphs = [0x13000, 0x1342F, 2]
+    " azimuth, cirle stile
+    " misc. tech - don't want circle stile to be double-width
+    let l:azimuth = [0x237C, 0x237C, 2]
     let l:misc_sym = [0x2600, 0x26FF, 2]
-    let l:misc_tech = [0x2300, 0x23FF, 2]
-    let l:u_ranges = [l:yijing_hexagrams, l:egyptian_hieroglyphs, l:misc_sym, l:misc_tech]
+    let l:greek_cross_heavy = [0x271A, 0x271A, 2]
+
+    let l:u_ranges = []
+    call add(l:u_ranges, l:yijing_hexagrams)
+    call add(l:u_ranges, l:egyptian_hieroglyphs)
+    call add(l:u_ranges, l:azimuth)
+    call add(l:u_ranges, l:misc_sym)
+    call add(l:u_ranges, l:greek_cross_heavy)
     call setcellwidths(l:u_ranges)
 endfunction
 
@@ -4457,7 +4467,9 @@ function! UserMakeSymbols()
     let sym['em dash']          = nr2char(0x2014)       " C-k -N
     let sym['up arrow']         = nr2char(0x2191)       " C-k -!
     let sym['dagger']           = nr2char(0x2020)       " C-k /-
+    " APL Functional Symbol Circle Stile
     let sym['circle stile']     = nr2char(0x233D)
+    " Right Angle with Downwards Zigzag Arrow
     let sym['azimuth']          = nr2char(0x237C)
     let sym['lozenge']          = nr2char(0x25CA)       " C-k LZ
     let sym['white star']       = nr2char(0x2606)       " C-k *1
