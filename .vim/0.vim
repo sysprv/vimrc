@@ -5402,9 +5402,15 @@ function! UserSwapChoice(swapname) abort
     let file = fnamemodify(afile, ':p')
 
     let msgbuf = bufadd('!swap-messages')
+    " same as :Scratch
     call setbufvar(msgbuf, '&buftype', 'nofile')
+    call setbufvar(msgbuf, '&bufhidden', 'hide')
+    call setbufvar(msgbuf, '&swapfile', 0)
+    call setbufvar(msgbuf, '&filetype', 'text')
+
     call bufload(msgbuf)
     call setbufvar(msgbuf, '&buflisted', 1)
+
     call UserAppendBuf(msgbuf, 'file = ' . file)
 
     " conservative - backup the file before any decision; even if the decision
