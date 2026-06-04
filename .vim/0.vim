@@ -3922,11 +3922,13 @@ nnoremap    <Leader>j {j!}<BS>call Filter('par w' . (&tw == 0 ? 78 : &tw))<CR>}
 " J's work seems to be undone when auto formatting is enabled.
 " nnoremap <silent> <Leader>O     vipJ
 " the :join ex command isn't undone by autoformatting.
-"nnoremap        <Leader>1       vip:join<cr>
+" does not shift paragraph up.
+nnoremap        <Leader>1       vip:join<cr>
 " alternative, repurposing !{motion} to pass to :join ex command and not an
 " external (shell) command. visual mode unnecessary.
 " https://vi.stackexchange.com/a/37142
-nnoremap        <Leader>1       {!}<bs>join<cr>
+" shifts paragraph up to the line just below the previous paragraph.
+"nnoremap        <Leader>1       {!}<bs>join<cr>
 
 " format paragraph without formatprg/formatexpr. k's just close to , .
 nnoremap <silent> <Leader>k     gwip
