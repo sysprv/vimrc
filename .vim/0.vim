@@ -564,7 +564,7 @@ endif
 " natural with vim as $EDITOR.
 set backupcopy=yes
 
-set modeline
+set modeline modelineexpr
 
 " shellredir - pretty bad stuff that'll never get fixed now.
 " https://groups.google.com/g/vim_dev/c/SGcwy7GViNs
@@ -871,9 +871,6 @@ if exists('+fixendofline')
 endif
 if exists('&langremap')
     set nolangremap
-endif
-if exists('&modelineexpr')
-    set nomodelineexpr
 endif
 
 " viminfo: don't save registers (<0). why wasn't i saving search pattern history?
@@ -5497,7 +5494,7 @@ function! UserSwapChoice(swapname) abort
         call UserAppendBuf(msgbuf, '!' . swapname . ': recovering + queuing for rename')
         call UserAppendBuf(msgbuf, '! DiffOrig?')
         call UserAppendBuf(msgbuf, '')
-        autocmd UserVimRc BufUnload RenameOldSwap
+        "autocmd UserVimRc BufUnload RenameOldSwap
     endif
     call UserAppendBuf(msgbuf, string(sw))
     call UserAppendBuf(msgbuf, '--')
@@ -5511,6 +5508,13 @@ endfunction
 command RenameOldSwap   if exists('b:swapname_old') &&
             \ (glob(b:swapname_old, 1, 1) == [ b:swapname_old ])
             \ | call rename(b:swapname_old, b:swapname_old . '-recovered')
+            \ | unlet b:swapname_old
+            \ | endif
+
+command DeleteOldSwap   if exists('b:swapname_old') &&
+            \ (glob(b:swapname_old, 1, 1) == [ b:swapname_old ])
+            \ | call delete(b:swapname_old)
+            \ | unlet b:swapname_old
             \ | endif
 
 " useful sometimes
@@ -5587,6 +5591,7 @@ augroup UserVimRc
     " beware of fedora badly duplicating this functionality in /etc/vimrc.
     autocmd BufRead             *   call UserLastPositionJump()
 
+    autocmd BufWritePost        *   DeleteOldSwap
 
     " *sh - only indentation, no syntax highlighting.
     "autocmd FileType *sh            set syntax=OFF
