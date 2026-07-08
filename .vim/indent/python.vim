@@ -111,12 +111,25 @@ function! UserGetPythonIndent() abort
     " ---------------------------------------------------------------
     " STRING LITERAL DETECTION
     " ---------------------------------------------------------------
-    " IF WE ARE INSIDE A TRIPLE-QUOTED STRING, MAINTAIN CURRENT
-    " HEADING. DO NOT ATTEMPT COURSE CORRECTION INSIDE A STRING.
-    " THAT WAY LIES MADNESS.
+    " IF THE CURRENT LINE BEGINS INSIDE A TRIPLE-QUOTED STRING, IT IS
+    " STRING CARGO, NOT CODE. REINDENTING IT WOULD ALTER THE PAYLOAD,
+    " SO RETURN -1 (VIM FOR 'LEAVE THE INDENT ALONE').
+    " A FRESH BLANK LINE OPENED INSIDE THE STRING MAINTAINS HEADING.
     " ---------------------------------------------------------------
-    if s:InString(pnum)
-        return pindent
+    if s:InString(lnum)
+        return cline =~ '\S' ? -1 : pindent
+    endif
+
+    " ---------------------------------------------------------------
+    " IF THE PREVIOUS LINE ENDS A TRIPLE-QUOTED STRING, NAVIGATE FROM
+    " THE LINE WHERE THE STRING STARTED. THE CLOSING QUOTES' COLUMN
+    " IS STRING CARGO AND TELLS US NOTHING ABOUT CODE STRUCTURE.
+    " ---------------------------------------------------------------
+    let string_start = s:GetStringStart(pnum)
+    if string_start > 0
+        let pnum = string_start
+        let pline = getline(pnum)
+        let pindent = indent(pnum)
     endif
 
     " STRIP STRINGS AND COMMENTS FROM PREVIOUS LINE
@@ -153,16 +166,21 @@ function! UserGetPythonIndent() abort
     "
     " PYTHON EXAMPLE - MATCH/CASE (3.10+):
     "     match command:
-    "         case "quit":     <- ALIGNS WITH 'match'
+    "         case "quit":     <- ONE LEVEL INSIDE 'match'
     "             return
-    "         case "help":     <- ALIGNS WITH 'match'
+    "         case "help":     <- ONE LEVEL INSIDE 'match'
     "             show_help()
-    "         case _:          <- ALIGNS WITH 'match'
+    "         case _:          <- ONE LEVEL INSIDE 'match'
     "             unknown()
     " ---------------------------------------------------------------
     if cline_clean =~ '^\s*\(else\|elif\|except\|finally\|case\)\>'
         let match_indent = s:FindBlockOpener(lnum, cline)
         if match_indent >= 0
+            " CASE SITS ONE LEVEL INSIDE ITS MATCH - THE OTHER
+            " KEYWORDS ALIGN DIRECTLY WITH THEIR OPENER
+            if cline_clean =~ '^\s*case\>'
+                return match_indent + shiftwidth()
+            endif
             return match_indent
         endif
     endif
@@ -231,6 +249,13 @@ function! UserGetPythonIndent() abort
         if cline_clean !~ '^\s*\(else\|elif\|except\|finally\|case\)\>'
             let bracket_delta = s:GetBracketDelta(pnum)
             if bracket_delta == 0
+                " IF THE LINE ALREADY HAS CONTENT AT A LOWER ALTITUDE,
+                " THE CREW PUT IT THERE ON PURPOSE. HOW MANY LEVELS TO
+                " DROP AFTER A TERMINAL STATEMENT IS AMBIGUOUS, SO DO
+                " NOT OVERRIDE MANUAL GUIDANCE (KEEPS = REINDENT SAFE)
+                if cline =~ '\S' && indent(lnum) < pindent
+                    return indent(lnum)
+                endif
                 let new_indent = pindent - shiftwidth()
                 " DO NOT GO BELOW GROUND LEVEL
                 return new_indent >= 0 ? new_indent : 0
@@ -454,7 +479,6 @@ endfunction
 " CAPABILITIES:
 "   - STRING DETECTION: EXACT TOKEN POSITIONS, ALL STRING TYPES
 "   - BRACKET DEPTH: ACCURATE COUNT AT ANY LINE
-"   - CONTINUATION: DETECTS BACKSLASH AND BRACKET CONTINUATIONS
 "
 " PYTHON EXAMPLE - WHAT TOKENIZE HANDLES:
 "     x = "normal string"           <- STRING token
@@ -466,8 +490,6 @@ endfunction
 "     data = [                      <- LSQB, depth increases
 "         1,                        <- NL (not NEWLINE - continues)
 "     ]                             <- RSQB, depth decreases
-"     continued = foo \
-"         .bar()                    <- continuation via backslash
 " -------------------------------------------------------------------
 if has('python3')
 
@@ -492,7 +514,6 @@ class TokenCache:
         self.changedtick = None
         self.string_ranges = None
         self.bracket_depth_by_line = None
-        self.continuation_lines = None
 
     def _is_cache_valid(self):
         """Check if cache is still valid for current buffer state."""
@@ -515,7 +536,6 @@ class TokenCache:
         # Clear derived data
         self.string_ranges = []
         self.bracket_depth_by_line = {}
-        self.continuation_lines = set()
 
         # Tokenize without storing tokens
         source = '\n'.join(vim.current.buffer[:])
@@ -548,12 +568,11 @@ class TokenCache:
                     current_line = line_no
                 self.bracket_depth_by_line[line_no] = depth
 
-                # Track continuation lines (NL = line continues)
-                if tok.type == tokenize.NL:
-                    self.continuation_lines.add(tok.start[0])
-
-        except tokenize.TokenError:
-            # Incomplete code - use what we got
+        except (tokenize.TokenError, SyntaxError):
+            # Incomplete code (TokenError), inconsistent dedent
+            # (IndentationError) or otherwise untokenizable code
+            # (SyntaxError, raised by newer tokenize versions).
+            # Use the tokens we got before the error.
             pass
 
     def get_string_ranges(self):
@@ -572,39 +591,33 @@ class TokenCache:
                 return self.bracket_depth_by_line[ln]
         return 0
 
-    def is_continuation_line(self, lnum):
-        """Check if line lnum continues to next line."""
-        self._tokenize_buffer()
-        return lnum in self.continuation_lines
-
 # Global cache instance
 _token_cache = TokenCache()
 
 def check_in_string(lnum):
     """
-    Check if line lnum (1-indexed) is inside a multi-line string.
-    Returns: 1 if inside string, 0 if not.
-
-    Unlike AST version, this NEVER returns -1 - tokenize always works.
+    Check if line lnum (1-indexed) BEGINS inside a multi-line string,
+    i.e. it is string content (interior lines and the line holding the
+    closing quotes). The line that opens the string is code, not content.
+    Returns: 1 if string content, 0 if not.
     """
     ranges = _token_cache.get_string_ranges()
 
     for start, end in ranges:
-        # Line is inside if it's strictly between start and end
-        if start < lnum < end:
-            return 1
-        # Also inside if on start line but string continues
-        if start == lnum and end > lnum:
+        if start < lnum <= end:
             return 1
 
     return 0
 
-def get_bracket_depth(lnum):
+def get_string_start(lnum):
     """
-    Get bracket/paren/brace nesting depth at end of line lnum.
-    Returns integer >= 0.
+    If line lnum ends a multi-line string, return the line number
+    where that string started. Returns 0 otherwise.
     """
-    return _token_cache.get_bracket_depth(lnum)
+    for start, end in _token_cache.get_string_ranges():
+        if end == lnum:
+            return start
+    return 0
 
 def get_bracket_delta(lnum):
     """
@@ -620,16 +633,6 @@ def get_bracket_delta(lnum):
     delta = depth_after - depth_before
     return delta if delta > 0 else 0
 
-def is_continuation(lnum):
-    """
-    Check if line lnum is a continuation line (inside brackets or backslash).
-    Returns: 1 if continuation, 0 if not.
-    """
-    return 1 if _token_cache.is_continuation_line(lnum) else 0
-
-def invalidate_cache():
-    """Force re-tokenization on next call."""
-    _token_cache.buffer_contents = None
 ENDPYTHON
 
 endif
@@ -637,6 +640,10 @@ endif
 " -------------------------------------------------------------------
 " MAIN STRING DETECTOR - TRIES PYTHON FIRST, FALLS BACK TO VIML
 " -------------------------------------------------------------------
+" RETURNS 1 IF LINE LNUM BEGINS INSIDE A TRIPLE-QUOTED STRING,
+" I.E. THE LINE IS STRING CONTENT (INCLUDING THE LINE HOLDING THE
+" CLOSING QUOTES). THE OPENING LINE ITSELF IS CODE, NOT CONTENT.
+"
 " WITH TOKENIZE, PYTHON ALWAYS RETURNS A VALID RESULT (0 OR 1)
 " FALLBACK ONLY NEEDED WHEN PYTHON3 IS UNAVAILABLE
 " -------------------------------------------------------------------
@@ -646,9 +653,39 @@ function! s:InString(lnum)
         return py3eval('check_in_string(' . a:lnum . ')')
     endif
 
-    " FALL BACK TO ORIGINAL VIML APPROACH
-    " (ONLY WHEN PYTHON3 UNAVAILABLE)
-    return s:InStringVimL(a:lnum)
+    " FALL BACK TO ORIGINAL VIML APPROACH (PYTHON3 UNAVAILABLE)
+    " LINE LNUM BEGINS INSIDE A STRING IF THE QUOTES ARE STILL
+    " OPEN AT THE END OF THE PRECEDING LINE
+    return s:InStringVimL(a:lnum - 1)
+endfunction
+
+" -------------------------------------------------------------------
+" STRING START FINDER - TRIES PYTHON FIRST, FALLS BACK TO VIML
+" -------------------------------------------------------------------
+" IF LINE LNUM ENDS A TRIPLE-QUOTED STRING, RETURNS THE LINE WHERE
+" THAT STRING STARTED. RETURNS 0 OTHERWISE.
+"
+" USED TO NAVIGATE PAST A CLOSED STRING: THE OPENING LINE CARRIES
+" THE CODE STRUCTURE, THE CLOSING QUOTES ARE JUST CARGO
+" -------------------------------------------------------------------
+function! s:GetStringStart(lnum)
+    if has('python3')
+        return py3eval('get_string_start(' . a:lnum . ')')
+    endif
+
+    " VIML FALLBACK: LNUM ENDS A STRING IF IT BEGINS INSIDE ONE
+    " AND THE QUOTES ARE CLOSED AGAIN BY ITS END
+    if !s:InStringVimL(a:lnum - 1) || s:InStringVimL(a:lnum)
+        return 0
+    endif
+
+    " WALK UPWARD TO THE FIRST LINE OF THE OPEN-QUOTE RUN;
+    " THE STRING STARTED ON THAT LINE
+    let l = a:lnum - 1
+    while l > 1 && s:InStringVimL(l - 1)
+        let l = l - 1
+    endwhile
+    return l
 endfunction
 
 " -------------------------------------------------------------------
@@ -685,26 +722,6 @@ function! s:InStringVimL(lnum)
 endfunction
 
 " -------------------------------------------------------------------
-" BRACKET DEPTH DETECTOR - USES PYTHON TOKENIZE OR VIML FALLBACK
-" -------------------------------------------------------------------
-" RETURNS THE BRACKET NESTING DEPTH AT THE END OF LINE LNUM
-" DEPTH > 0 MEANS WE ARE INSIDE UNCLOSED BRACKETS
-"
-" PYTHON VERSION: EXACT, HANDLES BRACKETS IN STRINGS/COMMENTS
-" VIML VERSION: SCANS LINE WITH STRIPPED STRINGS, LESS ACCURATE
-" -------------------------------------------------------------------
-function! s:GetBracketDepth(lnum)
-    " TRY PYTHON TOKENIZE FIRST - MORE ACCURATE
-    if has('python3')
-        return py3eval('get_bracket_depth(' . a:lnum . ')')
-    endif
-
-    " FALL BACK TO VIML: COUNT ON CURRENT LINE ONLY
-    " (LESS ACCURATE - DOESN'T TRACK CUMULATIVE DEPTH)
-    return s:GetBracketDepthVimL(a:lnum)
-endfunction
-
-" -------------------------------------------------------------------
 " BRACKET DELTA DETECTOR - NET CHANGE ON A SINGLE LINE
 " -------------------------------------------------------------------
 " RETURNS THE NET BRACKET CHANGE ON LINE LNUM
@@ -715,15 +732,15 @@ endfunction
 "   - "key": value,   <- DELTA = 0, MAINTAIN INDENT
 "
 " PYTHON VERSION: COMPARES CUMULATIVE DEPTHS
-" VIML VERSION: ALREADY COUNTS SINGLE LINE, SO REUSE IT
+" VIML VERSION: COUNTS SINGLE-LINE IMBALANCE, LESS ACCURATE
 " -------------------------------------------------------------------
 function! s:GetBracketDelta(lnum)
     if has('python3')
         return py3eval('get_bracket_delta(' . a:lnum . ')')
     endif
 
-    " VIML FALLBACK ALREADY COUNTS SINGLE LINE IMBALANCE
-    return s:GetBracketDepthVimL(a:lnum)
+    " VIML FALLBACK COUNTS SINGLE LINE IMBALANCE
+    return s:GetBracketDeltaVimL(a:lnum)
 endfunction
 
 " -------------------------------------------------------------------
@@ -732,7 +749,7 @@ endfunction
 " COUNTS BRACKET IMBALANCE ON SINGLE LINE (STRIPPED OF STRINGS)
 " RETURNS: POSITIVE IF MORE OPENS THAN CLOSES, 0 OTHERWISE
 " -------------------------------------------------------------------
-function! s:GetBracketDepthVimL(lnum)
+function! s:GetBracketDeltaVimL(lnum)
     let line = getline(a:lnum)
     let clean = s:StripStringsAndComments(line)
 
@@ -911,7 +928,7 @@ setlocal indentkeys=!^F,o,O,<:>,0),0],0},=else,=elif,=except,=finally,=case
 let b:did_indent = 1
 
 " UNDO SEQUENCE - FOR RETURNING TO EARTH
-let b:undo_indent = "setl ai< inde< indk< lisp<"
+let b:undo_indent = "setl inde< indk<"
 
 " ===================================================================
 " END OF PROGRAM
