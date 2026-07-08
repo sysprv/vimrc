@@ -19,6 +19,8 @@
 "   - BLANK LINE DEDENT RAMP AT END OF FILE (ONE LEVEL PER BLANK
 "     LINE PAST THE FIRST; NEVER INSIDE BRACKETS OR STRINGS)
 "   - GAPS MID-FILE INHERIT INDENTATION FROM THE CODE BELOW
+"   - DEFINITION KEYWORD SNAP (TYPING 'def '/'class '/'@' ON A
+"     FRESH LINE SNAPS TO THE PREVIOUS SIBLING DEFINITION)
 "
 " ===================================================================
 
@@ -101,6 +103,49 @@ function! UserGetPythonIndent() abort
     " LIKE REMOVING THERMAL BLANKETS TO INSPECT THE SPACECRAFT
     let pline_clean = s:StripStringsAndComments(pline)
     let cline_clean = s:StripStringsAndComments(cline)
+
+    " ---------------------------------------------------------------
+    " DEFINITION KEYWORD SNAP (REVISION 5.1)
+    " ---------------------------------------------------------------
+    " TRIGGERED BY INDENTKEYS '=def ' / '=class ' / '=@'. NOTE THE
+    " TRAILING SPACES IN THE FIRST TWO: 'defaults' AND 'classes'
+    " NEVER TRIGGER, BECAUSE 'def'/'class' ARE RESERVED WORDS AND A
+    " LINE STARTING 'def ' CAN ONLY BE A DEFINITION.
+    "
+    " WHEN THE CREW TYPES A DEFINITION KEYWORD ON A FRESH LINE,
+    " THEIR INTENT IS FINALLY KNOWN - NO BLANK-COUNT HEURISTIC CAN
+    " COMPETE WITH THAT. SNAP TO THE PREVIOUS SIBLING DEFINITION.
+    "
+    " PYTHON EXAMPLE - METHOD AFTER A NON-TERMINAL BODY:
+    "     class C:
+    "         def a(self):       <- THE SIBLING, AT INDENT 4
+    "             x = compute()  <- BODY AT 8, DOES NOT END TERMINAL
+    "                            <- ONE BLANK, CURSOR HELD AT 8
+    "         def b              <- TYPING 'def ' SNAPS 8 -> 4
+    "
+    " FLIGHT RULES:
+    "   - BARE KEYWORD ONLY: COMPLETE LINES ('def foo():') NEVER
+    "     SNAP, SO REINDENTING WITH = IS UNAFFECTED
+    "   - DEDENT ONLY: NEVER PULLS THE CREW BACK UP
+    "   - GLUED TO A DECORATOR DIRECTLY ABOVE
+    "   - NO SNAP WHEN THE PREVIOUS LINE OPENS A BLOCK (THE FIRST
+    "     STATEMENT OF A BLOCK BELONGS TO THE COLON RULE)
+    "   - NO SNAP INSIDE UNCLOSED BRACKETS
+    " ---------------------------------------------------------------
+    if cline_clean =~ '^\s*\%(\%(async\s\+\)\?\%(def\|class\)\s*\|@\)$'
+        if pline_clean =~ '^\s*@'
+            " GLUED TO THE DECORATOR ABOVE - NON-NEGOTIABLE
+            return pindent
+        endif
+        if pline_clean !~ ':\s*$' && s:GetBracketDepth(pnum) == 0
+            let sibling_indent = s:FindDefSibling(lnum, cline_clean)
+            if sibling_indent >= 0 && sibling_indent < indent(lnum)
+                return sibling_indent
+            endif
+            " NO SNAP TARGET - HOLD POSITION, DO NOT DISTURB THE CREW
+            return -1
+        endif
+    endif
 
     " ---------------------------------------------------------------
     " PROGRAM ALARM: BLANK LINE GAP DETECTION (REVISION 5.0)
@@ -687,6 +732,24 @@ def get_bracket_depth(lnum):
     """
     return _token_cache.get_bracket_depth(lnum)
 
+def get_scan_flags(lnum):
+    """
+    For lines 1..lnum return a list of 1/0 flags: 1 if the line is
+    structural (begins outside strings and outside brackets, so its
+    indent reflects code structure), 0 otherwise.
+    Used by the sibling finder's upward scan.
+    """
+    ranges = _token_cache.get_string_ranges()
+    oss = _token_cache.open_string_start
+    flags = []
+    for ln in range(1, lnum + 1):
+        in_string = any(s < ln <= e for s, e in ranges)
+        if not in_string and oss is not None and ln > oss:
+            in_string = True
+        in_bracket = ln > 1 and _token_cache.get_bracket_depth(ln - 1) > 0
+        flags.append(0 if (in_string or in_bracket) else 1)
+    return flags
+
 def get_string_start(lnum):
     """
     If line lnum ends a multi-line string, return the line number
@@ -1055,6 +1118,146 @@ function! s:FindBlockOpener(lnum, cline)
     endif
 endfunction
 
+" -------------------------------------------------------------------
+" STRUCTURAL LINE FLAGS - WHICH LINES DEFINE ALTITUDE
+" -------------------------------------------------------------------
+" RETURNS A LIST OF 1/0 FOR LINES 1..LNUM: 1 IF THE LINE BEGINS
+" OUTSIDE STRINGS AND OUTSIDE BRACKETS (ITS INDENT IS REAL CODE
+" STRUCTURE), 0 IF IT IS STRING CARGO OR A BRACKET CONTINUATION.
+"
+" ONE CALL, ONE PASS - FEEDS THE SIBLING FINDER'S UPWARD SCAN SO IT
+" NEVER MISTAKES DOCSTRING PROSE ('def foo(x)' IN A DOCTEST!) OR A
+" WRAPPED ARGUMENT FOR A REAL DEFINITION.
+" -------------------------------------------------------------------
+function! s:GetScanFlags(lnum)
+    if a:lnum <= 0
+        return []
+    endif
+
+    if has('python3')
+        return py3eval('get_scan_flags(' . a:lnum . ')')
+    endif
+
+    return s:GetScanFlagsVimL(a:lnum)
+endfunction
+
+function! s:GetScanFlagsVimL(lnum)
+    let flags = []
+    let state = [0, 0]
+    let depth = 0
+
+    for i in range(1, a:lnum)
+        let line = getline(i)
+        let was_in_string = state[0] || state[1]
+        call add(flags, (!was_in_string && depth <= 0) ? 1 : 0)
+
+        let state = s:ScanTriples(line, state)
+        if !was_in_string
+            let clean = s:StripStringsAndComments(line)
+            let depth = depth + s:CountChar(clean, '(')
+            let depth = depth + s:CountChar(clean, '[')
+            let depth = depth + s:CountChar(clean, '{')
+            let depth = depth - s:CountChar(clean, ')')
+            let depth = depth - s:CountChar(clean, ']')
+            let depth = depth - s:CountChar(clean, '}')
+        endif
+    endfor
+
+    return flags
+endfunction
+
+" -------------------------------------------------------------------
+" SUBROUTINE 8: DEFINITION SIBLING FINDER (REVISION 5.1)
+" -------------------------------------------------------------------
+" THE CREW IS TYPING 'def ', 'class ' OR '@' ON A FRESH LINE. FIND
+" THE ALTITUDE OF THE PREVIOUS SIBLING DEFINITION TO SNAP TO.
+"
+" WHAT COUNTS AS A SIBLING:
+"   - TYPING def / @  -> PREVIOUS def (INCL. async def) OR DECORATOR
+"   - TYPING class    -> PREVIOUS class
+"
+" THE SCAN WALKS UP THE INDENT FRONTIER (LIKE SUBROUTINE 7), USING
+" THE STRUCTURAL FLAGS TO IGNORE STRING CARGO, BRACKET
+" CONTINUATIONS, BLANK LINES AND COMMENT-ONLY LINES.
+"
+" FLIGHT RULES:
+"   - A def DOES NOT ESCAPE ITS CLASS BY IMPLICATION: A class
+"     OPENER STRICTLY ABOVE OUR ALTITUDE ENDS THE SEARCH, SO THE
+"     FIRST METHOD AFTER CLASS ATTRIBUTES STAYS PUT.
+"   - OTHER OPENERS (if/for/while/try/with) ARE WALKED THROUGH: A
+"     METHOD TYPED AFTER A BODY ENDING IN AN if BLOCK STILL FINDS
+"     ITS SIBLING METHOD.
+"   - KNOWN AMBIGUITY: A NESTED def TYPED AFTER BODY CODE SNAPS TO
+"     THE ENCLOSING def'S LEVEL. INTENT CANNOT BE READ FROM ORBIT;
+"     SIBLINGS ARE FAR MORE COMMON THAN CLOSURES. ONE CTRL-T UNDOES.
+"
+" RETURNS: INDENT OF THE SIBLING, OR -1 IF NONE FOUND
+" -------------------------------------------------------------------
+function! s:FindDefSibling(lnum, cline_clean)
+    " WHAT KIND OF BIRD IS COMING IN TO LAND?
+    if a:cline_clean =~ '^\s*class\>'
+        " CLASS SEEKS CLASS; A class OPENER IS ITSELF THE TARGET,
+        " SO NO SEPARATE BOUNDARY IS NEEDED
+        let pref = '^\s*class\>'
+        let stop_at_class = 0
+    else
+        " DEF AND DECORATORS SEEK DEFS (AND OTHER DECORATORS)
+        let pref = '^\s*\%(\%(async\s\+\)\?def\>\|@\)'
+        let stop_at_class = 1
+    endif
+
+    let cur_indent = indent(a:lnum)
+    let flags = s:GetScanFlags(a:lnum - 1)
+    let min_indent_seen = 999999
+
+    let l = a:lnum - 1
+    while l > 0
+        " SKIP NON-STRUCTURAL TERRAIN
+        if !flags[l - 1]
+            let l = l - 1
+            continue
+        endif
+
+        let line = getline(l)
+        if line =~ '^\s*$'
+            let l = l - 1
+            continue
+        endif
+
+        let line_clean = s:StripStringsAndComments(line)
+        if line_clean =~ '^\s*$'
+            " COMMENT-ONLY LINE - DECORATION, NOT STRUCTURE
+            let l = l - 1
+            continue
+        endif
+
+        let line_indent = indent(l)
+        if line_indent < min_indent_seen
+            let min_indent_seen = line_indent
+        endif
+
+        " ONLY LINES AT THE FRONTIER COUNT - NOT LINES NESTED IN
+        " BLOCKS WE HAVE ALREADY PASSED, NOT LINES DEEPER THAN US
+        if line_indent <= min_indent_seen && line_indent <= cur_indent
+            if line_clean =~ pref
+                return line_indent
+            endif
+
+            " A class OPENER STRICTLY ABOVE US: WE ARE IN ITS BODY.
+            " STAND DOWN - THE CREW IS TYPING A METHOD, NOT ESCAPING.
+            if stop_at_class && line_indent < cur_indent
+                        \ && line_clean =~ '^\s*class\>'
+                return -1
+            endif
+        endif
+
+        let l = l - 1
+    endwhile
+
+    " NO SIBLING ON RADAR
+    return -1
+endfunction
+
 " ===================================================================
 " INITIALIZATION SEQUENCE
 " ===================================================================
@@ -1068,14 +1271,26 @@ setlocal indentexpr=UserGetPythonIndent()
 " INDENTKEYS: WHICH KEYSTROKES TRIGGER RECALCULATION
 "   !^F      - CTRL-F REQUESTS MANUAL RECOMPUTATION
 "   o,O      - CREW OPENING NEW LINE (PRIMARY METHOD OF ADVANCE)
-"   <:>      - COLON ENTRY (MAY SIGNAL BLOCK START)
 "   0),0],0} - CLOSING BRACKETS AT LINE START
 "   =else    - ELSE KEYWORD (ALIGNS WITH IF/FOR/WHILE/TRY)
 "   =elif    - ELIF KEYWORD (ALIGNS WITH IF)
 "   =except  - EXCEPT KEYWORD (ALIGNS WITH TRY)
 "   =finally - FINALLY KEYWORD (ALIGNS WITH TRY)
 "   =case    - CASE KEYWORD (ALIGNS WITH MATCH, PYTHON 3.10+)
-setlocal indentkeys=!^F,o,O,<:>,0),0],0},=else,=elif,=except,=finally,=case
+"   =def␣    - DEF + SPACE (SNAPS TO SIBLING DEF - REVISION 5.1)
+"   =class␣  - CLASS + SPACE (SNAPS TO SIBLING CLASS)
+"   =@       - DECORATOR START (SNAPS LIKE DEF)
+"
+" THE TRAILING SPACES IN =def / =class ARE LOAD-BEARING: THEY KEEP
+" IDENTIFIERS LIKE 'defaults' AND 'classes' FROM EVER TRIGGERING.
+"
+" REVISION 5.1: <:> REMOVED. EVERY KEYWORD THAT NEEDS REALIGNMENT
+" HAS ITS OWN =WORD TRIGGER, SO THE COLON RETRIGGER ADDED NOTHING -
+" EXCEPT RECOMPUTING (AND SOMETIMES YANKING) HAND-ADJUSTED LINES ON
+" EVERY DICT KEY, SLICE AND ANNOTATION. IT WOULD ALSO HAVE UNDONE
+" THE DEF SNAP THE MOMENT THE CREW TYPED THE COLON OF 'def b():'.
+setlocal indentkeys=!^F,o,O,0),0],0},=else,=elif,=except,=finally,=case
+setlocal indentkeys+==def\ ,=class\ ,=@
 
 " MARK THIS BUFFER AS HAVING RECEIVED GUIDANCE INITIALIZATION
 let b:did_indent = 1

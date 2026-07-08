@@ -36,8 +36,11 @@ and this style must be preserved in every edit:
 ## Architecture
 
 - Entry point `UserGetPythonIndent()` is set as `indentexpr`, with
-  `indentkeys` triggering on new lines, `:`, closing brackets, and the
-  block keywords (`else`, `elif`, `except`, `finally`, `case`).
+  `indentkeys` triggering on new lines, closing brackets, the block
+  keywords (`else`, `elif`, `except`, `finally`, `case`), and the
+  definition snap triggers (`=def\ `, `=class\ ` — trailing spaces
+  intentional — and `=@`). `<:>` is deliberately absent (see
+  invariant 6).
 - Two engines, decided at call time by `has('python3')`:
   - **python3 / tokenize** (primary): `TokenCache` tokenizes the whole
     buffer once per `b:changedtick`, deriving multi-line string ranges
@@ -75,7 +78,27 @@ and this style must be preserved in every edit:
    start line is recovered from the tokenizer's error; the VimL
    engine gets this for free from quote parity). Mid-file gaps
    inherit indent from the code below instead of ramping.
-6. **tokenize error handling**: catch `tokenize.TokenError` and
+6. **Definition keyword snap** (Revision 5.1): typing `def ` /
+   `class ` (triggers include the trailing space — that's what keeps
+   `defaults`/`classes` from ever firing) or `@` on a fresh line
+   snaps to the previous sibling definition's indent. Rules: bare
+   keyword only (complete `def foo():` lines never snap, so `=`
+   reindent is unaffected); dedent-only; a `def` under a decorator
+   glues to the decorator's indent; no snap when the previous line
+   opens a block or inside brackets; the upward scan walks the
+   indent frontier using structural-line flags (skipping string
+   content — including doctest prose — bracket continuations, and
+   comment-only lines), walks *through* `if`/`for`/`try` openers,
+   and stops at a `class` opener strictly above (a def never
+   escapes its class implicitly — first method after class
+   attributes stays put). Known ambiguity: a nested def typed after
+   body code snaps to the enclosing def's level (siblings are more
+   common than closures; one Ctrl-T undoes). Also in 5.1: `<:>` was
+   removed from `indentkeys` — every keyword has its own `=word`
+   trigger, and the colon retrigger yanked hand-adjusted lines on
+   dict/slice/annotation colons and would have undone the snap at
+   the `:` of `def b():`.
+7. **tokenize error handling**: catch `tokenize.TokenError` and
    `SyntaxError` separately. `IndentationError` (a `SyntaxError`
    subclass) is raised for inconsistent dedents — routine in
    half-typed code — and newer Pythons (3.12+) raise `SyntaxError`
@@ -83,12 +106,12 @@ and this style must be preserved in every edit:
    and breaks the indentexpr. When the error is an unterminated
    multi-line string, record its start line (`open_string_start`) so
    string protection covers docstrings being typed.
-7. **No `b:did_indent` guard, on purpose**: this file must run even if
+8. **No `b:did_indent` guard, on purpose**: this file must run even if
    the distribution's indent plugin ran first. Consequence: if two
    copies of this file are on the runtimepath, the later one silently
    wins (`function!` redefinition). Isolate tests with
    `--cmd 'set rtp=<dir>,$VIMRUNTIME'`.
-8. Requires Vim >= 8.02 (`v:version < 802` guard at the top).
+9. Requires Vim >= 8.02 (`v:version < 802` guard at the top).
 
 ## Testing
 
@@ -102,8 +125,11 @@ plugin path). It exercises, non-interactively:
   `execute "normal! i...\<CR>..."` so `indentkeys` actually fire:
   if/else terminal dedent, match/case, brackets, typing across a
   docstring, the four ramp behaviors (sibling method, top level,
-  step-per-blank, ground-level clamp), and the two no-ramp guards
-  (open brackets, unclosed docstring).
+  step-per-blank, ground-level clamp), the two no-ramp guards
+  (open brackets, unclosed docstring), and the seven definition-snap
+  cases (sibling def, stay-inside-class, walk through if-blocks,
+  decorator + glue, sibling class, `defaults` non-trigger,
+  async def).
 
 Recipe for one-off experiments:
 

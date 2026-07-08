@@ -31,3 +31,13 @@ def dispatch(command):
             return 0
         case _:
             return 1
+
+
+class Deco:
+    attr = 1
+
+    @property
+    def val(self):
+        def inner():
+            return 2
+        return inner

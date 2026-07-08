@@ -138,4 +138,33 @@ typed "no ramp inside open brackets" 'data = {\<CR>\"a\": 1,\<CR>\<CR>\<CR>\"b\"
 printf 'def f():\n    doc = """\n    para one\n\n\n    para two\n' > "$WORK/exp_guard_string.py"
 typed "no ramp inside unclosed docstring" 'def f():\<CR>doc = \"\"\"\<CR>para one\<CR>\<CR>\<CR>para two' "$WORK/exp_guard_string.py"
 
+# --- the definition keyword snap ------------------------------------
+# def after a non-terminal body + one blank -> sibling method level
+printf 'class C:\n    def a(self):\n        x = 1\n\n    def b(self):\n        pass\n' > "$WORK/exp_snap1.py"
+typed "snap: def after non-terminal body" 'class C:\<CR>def a(self):\<CR>x = 1\<CR>\<CR>def b(self):\<CR>pass' "$WORK/exp_snap1.py"
+
+# first method after class attributes must NOT escape the class
+printf 'class C:\n    x = 1\n\n    def __init__(self):\n        pass\n' > "$WORK/exp_snap2.py"
+typed "snap: first method after attributes stays" 'class C:\<CR>x = 1\<CR>\<CR>def __init__(self):\<CR>pass' "$WORK/exp_snap2.py"
+
+# the scan walks through non-class openers (if/for/try)
+printf 'class C:\n    def a(self):\n        if x:\n            y()\n\n    def b(self):\n        pass\n' > "$WORK/exp_snap3.py"
+typed "snap: def after if-block finds sibling" 'class C:\<CR>def a(self):\<CR>if x:\<CR>y()\<CR>\<CR>def b(self):\<CR>pass' "$WORK/exp_snap3.py"
+
+# decorator snaps like def; the def below glues to the decorator
+printf 'class C:\n    def a(self):\n        x = 1\n\n    @property\n    def b(self):\n        pass\n' > "$WORK/exp_snap4.py"
+typed "snap: decorator + glued def" 'class C:\<CR>def a(self):\<CR>x = 1\<CR>\<CR>@property\<CR>def b(self):\<CR>pass' "$WORK/exp_snap4.py"
+
+# class prefers a sibling class (here: back to top level)
+printf 'class C:\n    def a(self):\n        x = 1\n\n\nclass D:\n    pass\n' > "$WORK/exp_snap5.py"
+typed "snap: class seeks sibling class" 'class C:\<CR>def a(self):\<CR>x = 1\<CR>\<CR>\<CR>class D:\<CR>pass' "$WORK/exp_snap5.py"
+
+# identifiers with keyword prefixes must never trigger the snap
+printf 'class C:\n    def a(self):\n        x = 1\n        defaults = 2\n' > "$WORK/exp_snap6.py"
+typed "snap: 'defaults' does not trigger" 'class C:\<CR>def a(self):\<CR>x = 1\<CR>defaults = 2' "$WORK/exp_snap6.py"
+
+# async def snaps like def
+printf 'class C:\n    def a(self):\n        x = 1\n\n    async def b(self):\n        pass\n' > "$WORK/exp_snap7.py"
+typed "snap: async def" 'class C:\<CR>def a(self):\<CR>x = 1\<CR>\<CR>async def b(self):\<CR>pass' "$WORK/exp_snap7.py"
+
 exit $FAIL
