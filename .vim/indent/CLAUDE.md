@@ -63,17 +63,32 @@ and this style must be preserved in every edit:
    `raise`) applies one level to fresh lines only — a non-empty line
    already sitting at a shallower indent keeps it (how many levels to
    drop is ambiguous; respect manual guidance).
-5. **tokenize error handling**: catch `(tokenize.TokenError,
-   SyntaxError)`. `IndentationError` (a `SyntaxError` subclass) is
-   raised for inconsistent dedents — routine in half-typed code — and
-   newer Pythons (3.12+) raise `SyntaxError` from tokenize more often.
-   An uncaught exception escapes `py3eval` and breaks the indentexpr.
-6. **No `b:did_indent` guard, on purpose**: this file must run even if
+5. **Blank-line dedent ramp at EOF** (Revision 5.0, replaced the old
+   reset-to-zero cliff): the first blank line holds altitude (PEP 8
+   paragraph spacing); every further blank line dedents one level,
+   floored at 0. The base is colon/terminal-aware, which makes PEP 8
+   spacing land naturally: one blank after a method's `return` →
+   sibling-method level; two blanks → top level. The ramp **never**
+   fires inside unclosed brackets (blank lines in a literal are
+   formatting — guarded by cumulative bracket depth) or inside
+   strings, including *still-open* docstrings (the open string's
+   start line is recovered from the tokenizer's error; the VimL
+   engine gets this for free from quote parity). Mid-file gaps
+   inherit indent from the code below instead of ramping.
+6. **tokenize error handling**: catch `tokenize.TokenError` and
+   `SyntaxError` separately. `IndentationError` (a `SyntaxError`
+   subclass) is raised for inconsistent dedents — routine in
+   half-typed code — and newer Pythons (3.12+) raise `SyntaxError`
+   from tokenize more often. An uncaught exception escapes `py3eval`
+   and breaks the indentexpr. When the error is an unterminated
+   multi-line string, record its start line (`open_string_start`) so
+   string protection covers docstrings being typed.
+7. **No `b:did_indent` guard, on purpose**: this file must run even if
    the distribution's indent plugin ran first. Consequence: if two
    copies of this file are on the runtimepath, the later one silently
    wins (`function!` redefinition). Isolate tests with
    `--cmd 'set rtp=<dir>,$VIMRUNTIME'`.
-7. Requires Vim >= 8.02 (`v:version < 802` guard at the top).
+8. Requires Vim >= 8.02 (`v:version < 802` guard at the top).
 
 ## Testing
 
@@ -83,10 +98,12 @@ plugin path). It exercises, non-interactively:
 - reindent idempotence (`gg=G`) on fixtures, on **both** engines — the
   fallback is tested by `sed`-ing `has('python3')` to `0` in a copy;
 - survival of `tokenize` on inconsistently dedented code;
-- insert-mode typing simulations via
-  `execute "normal! i...\<CR>..."` so `indentkeys` actually fire
-  (if/else terminal dedent, match/case, brackets, two-blank-line
-  reset, typing across a docstring).
+- insert-mode typing simulations, also on both engines, via
+  `execute "normal! i...\<CR>..."` so `indentkeys` actually fire:
+  if/else terminal dedent, match/case, brackets, typing across a
+  docstring, the four ramp behaviors (sibling method, top level,
+  step-per-blank, ground-level clamp), and the two no-ramp guards
+  (open brackets, unclosed docstring).
 
 Recipe for one-off experiments:
 

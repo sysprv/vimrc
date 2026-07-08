@@ -16,7 +16,9 @@
 "   - DEDENT AFTER TERMINAL STATEMENTS (RETURN/BREAK/CONTINUE/PASS/RAISE)
 "   - KEYWORD ALIGNMENT (ELSE/ELIF/EXCEPT/FINALLY ALIGN WITH OPENER)
 "   - BRACKET CONTINUATION (OPEN PAREN/BRACKET/BRACE)
-"   - TWO-BLANK-LINE RESET (ONLY AT END OF FILE)
+"   - BLANK LINE DEDENT RAMP AT END OF FILE (ONE LEVEL PER BLANK
+"     LINE PAST THE FIRST; NEVER INSIDE BRACKETS OR STRINGS)
+"   - GAPS MID-FILE INHERIT INDENTATION FROM THE CODE BELOW
 "
 " ===================================================================
 
@@ -58,49 +60,6 @@ function! UserGetPythonIndent() abort
         return 0
     endif
 
-    " ---------------------------------------------------------------
-    " PROGRAM ALARM: BLANK LINE GAP DETECTION
-    " ---------------------------------------------------------------
-    " COUNT THE VOID BETWEEN US AND THE LAST SIGN OF LIFE.
-    " IF GAP EXCEEDS 2 LINES, WE MUST DECIDE: ARE WE STARTING A
-    " NEW MISSION (RESET TO ZERO) OR MERELY INSERTING INTO AN
-    " EXISTING TRAJECTORY?
-    "
-    " IF AT END OF FILE -> RESET TO ZERO (NEW TOP-LEVEL BLOCK)
-    " IF CODE EXISTS BELOW -> INHERIT FROM TERRAIN BELOW
-    "
-    " THE LOGIC IS SOUND. PROBABLY.
-    " ---------------------------------------------------------------
-    let empty_lines = 0
-    let check_line = lnum - 1
-    while check_line > 0 && getline(check_line) =~ '^\s*$'
-        let empty_lines = empty_lines + 1
-        let check_line = check_line - 1
-    endwhile
-
-    if empty_lines >= 2
-        " TWO OR MORE LINES OF VOID DETECTED
-        if s:AtEndOfFile(lnum)
-            " AFFIRMATIVE - WE ARE IN FREE SPACE
-            " THE EAGLE HAS LANDED (AT COLUMN ZERO)
-            return 0
-        else
-            " NEGATIVE - THERE IS TERRAIN BELOW
-            " ACQUIRE TARGET INDENTATION FROM SURFACE
-            let next_nonblank = s:NextNonBlankLine(lnum)
-            if next_nonblank > 0
-                return indent(next_nonblank)
-            endif
-            " BACKUP GUIDANCE - BETTER SAFE THAN SORRY
-            return indent(pnum)
-        endif
-    endif
-
-    " ---------------------------------------------------------------
-    " NORMAL GUIDANCE SEQUENCE
-    " NO SIGNIFICANT GAP - PROCEED WITH STANDARD CALCULATIONS
-    " ---------------------------------------------------------------
-
     " ACQUIRE LINE DATA FOR ANALYSIS
     let pline = getline(pnum)
     let cline = getline(lnum)
@@ -109,12 +68,17 @@ function! UserGetPythonIndent() abort
     let pindent = indent(pnum)
 
     " ---------------------------------------------------------------
-    " STRING LITERAL DETECTION
+    " STRING LITERAL DETECTION - ALWAYS CHECKED FIRST
     " ---------------------------------------------------------------
     " IF THE CURRENT LINE BEGINS INSIDE A TRIPLE-QUOTED STRING, IT IS
     " STRING CARGO, NOT CODE. REINDENTING IT WOULD ALTER THE PAYLOAD,
     " SO RETURN -1 (VIM FOR 'LEAVE THE INDENT ALONE').
     " A FRESH BLANK LINE OPENED INSIDE THE STRING MAINTAINS HEADING.
+    "
+    " REVISION 5.0: THIS CHECK NOW RUNS BEFORE THE BLANK LINE GAP
+    " LOGIC. PREVIOUSLY A DOCSTRING WITH PARAGRAPH GAPS COULD TRIGGER
+    " THE GAP RULES AND YANK THE CREW OUT OF THEIR OWN PROSE. THIS
+    " COVERS STILL-OPEN STRINGS TOO (SEE OPEN STRING RECOVERY BELOW).
     " ---------------------------------------------------------------
     if s:InString(lnum)
         return cline =~ '\S' ? -1 : pindent
@@ -137,6 +101,87 @@ function! UserGetPythonIndent() abort
     " LIKE REMOVING THERMAL BLANKETS TO INSPECT THE SPACECRAFT
     let pline_clean = s:StripStringsAndComments(pline)
     let cline_clean = s:StripStringsAndComments(cline)
+
+    " ---------------------------------------------------------------
+    " PROGRAM ALARM: BLANK LINE GAP DETECTION (REVISION 5.0)
+    " ---------------------------------------------------------------
+    " COUNT THE VOID BETWEEN US AND THE LAST SIGN OF LIFE, THEN
+    " DECIDE: ARE WE DESCENDING TO A LOWER ORBIT, OR MERELY
+    " INSERTING INTO AN EXISTING TRAJECTORY?
+    "
+    " IF CODE EXISTS BELOW -> INHERIT FROM TERRAIN BELOW
+    " IF AT END OF FILE    -> DEDENT RAMP (SEE BELOW)
+    "
+    " REVISION 5.0: THE OLD RULE RESET TO COLUMN ZERO AFTER TWO
+    " BLANK LINES AT END OF FILE. A CLIFF: RIGHT WHEN STARTING A NEW
+    " TOP-LEVEL BLOCK, WRONG EVERYWHERE ELSE (NEXT METHOD IN A CLASS,
+    " NESTED CODE, COMMENTS). REPLACED WITH A RAMP: THE FIRST BLANK
+    " LINE HOLDS ALTITUDE (PEP 8 PARAGRAPH SPACING), EVERY FURTHER
+    " BLANK LINE DESCENDS EXACTLY ONE LEVEL. NO CLIFFS. LEAN ON THE
+    " ENTER KEY TO DIAL IN THE LEVEL; OVERSHOOT COSTS ONE CTRL-T.
+    "
+    " THE RAMP BASE IS COLON/TERMINAL AWARE, SO PEP 8 SPACING LANDS
+    " EXACTLY WHERE THE CREW EXPECTS. THE LADDER, STEP BY STEP:
+    "
+    " PYTHON EXAMPLE - ONE BLANK AFTER RETURN = SIBLING METHOD:
+    "     class C:
+    "         def a(self):
+    "             return 1
+    "                          <- 1 BLANK (HANDLED BY TERMINAL RULE)
+    "         def b(self):     <- LANDS AT METHOD LEVEL
+    "
+    " PYTHON EXAMPLE - TWO BLANKS AFTER RETURN = TOP LEVEL:
+    "     class C:
+    "         def a(self):
+    "             return 1
+    "                          <- 2 BLANKS
+    "
+    "     x = 1                <- LANDS AT TOP LEVEL (RAMP)
+    "
+    " GUARDS - THE VOID IS NOT ALWAYS A GAP:
+    "   - INSIDE UNCLOSED BRACKETS, BLANK LINES ARE FORMATTING.
+    "     NO RAMP - FALL THROUGH TO NORMAL GUIDANCE.
+    "   - INSIDE STRINGS WE NEVER GET HERE (CHECKED ABOVE).
+    " ---------------------------------------------------------------
+    let empty_lines = 0
+    let check_line = lnum - 1
+    while check_line > 0 && getline(check_line) =~ '^\s*$'
+        let empty_lines = empty_lines + 1
+        let check_line = check_line - 1
+    endwhile
+
+    if empty_lines >= 2 && s:GetBracketDepth(pnum) == 0
+        if s:AtEndOfFile(lnum)
+            " FREE SPACE BELOW - ENGAGE THE DEDENT RAMP.
+            " THE BASE CONTINUES WHATEVER THE FIRST BLANK LINE'S
+            " NORMAL RULES GAVE: A COLON STILL OPENS A BLOCK, A
+            " TERMINAL STATEMENT ALREADY DROPPED US ONE LEVEL.
+            let base = pindent
+            if pline_clean =~ ':\s*$'
+                let base = base + shiftwidth()
+            elseif s:IsTerminalStatement(pline_clean)
+                let base = base - shiftwidth()
+            endif
+            " EVERY BLANK LINE PAST THE FIRST DESCENDS ONE LEVEL
+            let target = base - (empty_lines - 1) * shiftwidth()
+            " DO NOT GO BELOW GROUND LEVEL
+            return target > 0 ? target : 0
+        else
+            " NEGATIVE - THERE IS TERRAIN BELOW
+            " ACQUIRE TARGET INDENTATION FROM SURFACE
+            let next_nonblank = s:NextNonBlankLine(lnum)
+            if next_nonblank > 0
+                return indent(next_nonblank)
+            endif
+            " BACKUP GUIDANCE - BETTER SAFE THAN SORRY
+            return indent(pnum)
+        endif
+    endif
+
+    " ---------------------------------------------------------------
+    " NORMAL GUIDANCE SEQUENCE
+    " NO SIGNIFICANT GAP - PROCEED WITH STANDARD CALCULATIONS
+    " ---------------------------------------------------------------
 
     " ---------------------------------------------------------------
     " KEYWORD ALIGNMENT: ELSE/ELIF/EXCEPT/FINALLY/CASE
@@ -514,6 +559,10 @@ class TokenCache:
         self.changedtick = None
         self.string_ranges = None
         self.bracket_depth_by_line = None
+        # Line where a still-unterminated multi-line string opens,
+        # recovered from the tokenizer's error. None if all strings
+        # are closed (or tokenization failed for another reason).
+        self.open_string_start = None
 
     def _is_cache_valid(self):
         """Check if cache is still valid for current buffer state."""
@@ -536,6 +585,7 @@ class TokenCache:
         # Clear derived data
         self.string_ranges = []
         self.bracket_depth_by_line = {}
+        self.open_string_start = None
 
         # Tokenize without storing tokens
         source = '\n'.join(vim.current.buffer[:])
@@ -568,12 +618,27 @@ class TokenCache:
                     current_line = line_no
                 self.bracket_depth_by_line[line_no] = depth
 
-        except (tokenize.TokenError, SyntaxError):
-            # Incomplete code (TokenError), inconsistent dedent
-            # (IndentationError) or otherwise untokenizable code
-            # (SyntaxError, raised by newer tokenize versions).
-            # Use the tokens we got before the error.
-            pass
+        except tokenize.TokenError as e:
+            # Incomplete code: an unclosed bracket or string at EOF.
+            # Use the tokens we got before the error. If the culprit
+            # is an unterminated multi-line string, remember where it
+            # opened so check_in_string() can protect its contents
+            # (the crew is mid-docstring; blank lines in there are
+            # prose, not structure).
+            #   e.args: ('EOF in multi-line string', (srow, scol))
+            if e.args and 'string' in str(e.args[0]) and len(e.args) > 1:
+                try:
+                    self.open_string_start = int(e.args[1][0])
+                except (TypeError, ValueError, IndexError):
+                    pass
+        except SyntaxError as e:
+            # Newer tokenizers (3.12+) raise SyntaxError instead,
+            # e.g. 'unterminated triple-quoted string literal
+            # (detected at line N)' with e.lineno at the opening
+            # quotes. IndentationError (inconsistent dedent while
+            # editing) is a SyntaxError subclass and also lands here.
+            if 'string' in str(e) and getattr(e, 'lineno', None):
+                self.open_string_start = e.lineno
 
     def get_string_ranges(self):
         """Get list of (start_line, end_line) for multi-line strings."""
@@ -607,7 +672,20 @@ def check_in_string(lnum):
         if start < lnum <= end:
             return 1
 
+    # A string that is still open at EOF never became a STRING token;
+    # its start line was recovered from the tokenizer's error instead.
+    oss = _token_cache.open_string_start
+    if oss is not None and lnum > oss:
+        return 1
+
     return 0
+
+def get_bracket_depth(lnum):
+    """
+    Get bracket/paren/brace nesting depth at end of line lnum.
+    Returns integer >= 0.
+    """
+    return _token_cache.get_bracket_depth(lnum)
 
 def get_string_start(lnum):
     """
@@ -694,31 +772,106 @@ endfunction
 " SCANS FROM LINE 1 COUNTING TRIPLE QUOTES
 " LESS ACCURATE BUT WORKS ON INCOMPLETE CODE
 " -------------------------------------------------------------------
+" -------------------------------------------------------------------
+" TRIPLE QUOTE PARITY SCANNER - ONE LINE AT A TIME
+" -------------------------------------------------------------------
+" TAKES A LINE AND THE RUNNING STATE [IN_SINGLE, IN_DOUBLE] AND
+" RETURNS THE UPDATED STATE AFTER THE LINE.
+"
+" SHARED BY THE STRING DETECTOR AND THE BRACKET DEPTH COUNTER SO
+" BOTH INSTRUMENTS READ FROM THE SAME GYROSCOPE.
+"
+" REVISION 5.0: A ''' INSIDE AN OPEN """ (OR VICE VERSA) NO LONGER
+" TOGGLES - IT IS JUST STRING CARGO
+" -------------------------------------------------------------------
+function! s:ScanTriples(line, state)
+    let in_single = a:state[0]
+    let in_double = a:state[1]
+
+    let idx = 0
+    while idx < len(a:line) - 2
+        if a:line[idx:idx+2] == "'''" && !in_double
+            let in_single = !in_single
+            let idx = idx + 3
+        elseif a:line[idx:idx+2] == '"""' && !in_single
+            let in_double = !in_double
+            let idx = idx + 3
+        else
+            let idx = idx + 1
+        endif
+    endwhile
+
+    return [in_single, in_double]
+endfunction
+
 function! s:InStringVimL(lnum)
-    let triple_single = 0
-    let triple_double = 0
-
     " SCAN FROM BEGINNING OF MISSION (LINE 1) TO CURRENT POSITION
+    let state = [0, 0]
     for i in range(1, a:lnum)
-        let line = getline(i)
-
-        " SEARCH FOR TRIPLE QUOTE SEQUENCES
-        let idx = 0
-        while idx < len(line) - 2
-            if line[idx:idx+2] == "'''"
-                let triple_single = !triple_single
-                let idx = idx + 3
-            elseif line[idx:idx+2] == '"""'
-                let triple_double = !triple_double
-                let idx = idx + 3
-            else
-                let idx = idx + 1
-            endif
-        endwhile
+        let state = s:ScanTriples(getline(i), state)
     endfor
 
     " IF EITHER COUNTER IS ODD, WE ARE FLOATING IN STRING SPACE
-    return triple_single || triple_double
+    return state[0] || state[1]
+endfunction
+
+" -------------------------------------------------------------------
+" BRACKET DEPTH DETECTOR - CUMULATIVE NESTING AT END OF A LINE
+" -------------------------------------------------------------------
+" RETURNS THE BRACKET NESTING DEPTH AT THE END OF LINE LNUM.
+" DEPTH > 0 MEANS WE ARE INSIDE UNCLOSED BRACKETS.
+"
+" REVISION 5.0: RESTORED TO ACTIVE DUTY. THE BLANK LINE GAP LOGIC
+" USES THIS TO TELL A REAL GAP FROM MERE FORMATTING INSIDE A LONG
+" LITERAL - BLANK LINES BETWEEN DICT ENTRIES ARE NOT A REQUEST TO
+" DEORBIT.
+"
+" PYTHON VERSION: EXACT, FROM TOKENIZE
+" VIML VERSION: SINGLE-PASS SCAN OF THE WHOLE FILE, SKIPPING
+" STRING CONTENT VIA TRIPLE QUOTE PARITY. LESS ACCURATE.
+" -------------------------------------------------------------------
+function! s:GetBracketDepth(lnum)
+    if has('python3')
+        return py3eval('get_bracket_depth(' . a:lnum . ')')
+    endif
+
+    return s:GetBracketDepthVimL(a:lnum)
+endfunction
+
+" -------------------------------------------------------------------
+" VIML FALLBACK CUMULATIVE BRACKET COUNTER
+" -------------------------------------------------------------------
+" WALKS THE FILE FROM LINE 1, ACCUMULATING OPENS MINUS CLOSES ON
+" EVERY LINE THAT IS NOT STRING CONTENT.
+"
+" KNOWN APPROXIMATION: A LINE THAT STARTS INSIDE A STRING IS
+" SKIPPED ENTIRELY, INCLUDING ANY CODE AFTER THE CLOSING QUOTES ON
+" THAT SAME LINE. THE CREW SHOULD NOT WRITE THAT ANYWAY.
+" -------------------------------------------------------------------
+function! s:GetBracketDepthVimL(lnum)
+    let depth = 0
+    let state = [0, 0]
+
+    for i in range(1, a:lnum)
+        let line = getline(i)
+        let was_in_string = state[0] || state[1]
+        let state = s:ScanTriples(line, state)
+
+        " STRING CARGO CARRIES NO STRUCTURE
+        if was_in_string
+            continue
+        endif
+
+        let clean = s:StripStringsAndComments(line)
+        let depth = depth + s:CountChar(clean, '(')
+        let depth = depth + s:CountChar(clean, '[')
+        let depth = depth + s:CountChar(clean, '{')
+        let depth = depth - s:CountChar(clean, ')')
+        let depth = depth - s:CountChar(clean, ']')
+        let depth = depth - s:CountChar(clean, '}')
+    endfor
+
+    return depth > 0 ? depth : 0
 endfunction
 
 " -------------------------------------------------------------------

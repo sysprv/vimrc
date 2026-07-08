@@ -1,6 +1,8 @@
 def f():
     doc = """
 keep me
-      ragged
+
+
+      ragged after a gap
 """
     return doc

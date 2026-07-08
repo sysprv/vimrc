@@ -5,11 +5,15 @@
 # Usage: run_tests.sh [path-to-indent-script]
 #
 # Exercises the plugin by driving real vim in silent ex mode:
-#   - reindent (gg=G) idempotence on correctly indented fixtures,
-#     on both engines (python3/tokenize, and the VimL fallback via a
-#     sed-patched copy with has('python3') forced to 0)
+#   - reindent (gg=G) idempotence on correctly indented fixtures
 #   - tokenize survival on inconsistently dedented code
-#   - insert-mode typing simulations (indentkeys must fire)
+#   - insert-mode typing simulations (indentkeys must fire):
+#     block/dedent flows, the blank-line dedent ramp, and the
+#     no-ramp guards (open brackets, unclosed docstrings)
+#
+# Everything except the tokenize probe runs on BOTH engines: the
+# python3/tokenize primary, and the VimL fallback via a sed-patched
+# copy with has('python3') forced to 0.
 #
 # See ../CLAUDE.md for the invariants these tests enforce.
 # ===================================================================
@@ -28,11 +32,14 @@ if vim --version | grep -q '+python3'; then
     have_py3=1
 fi
 
-reindent() { # $1=plugin $2=infile $3=outfile
-    $VIMBASE \
-        -c 'set shiftwidth=4 expandtab' \
-        -c "source $1" \
-        -c 'normal! gg=G' -c "w! $3" -c 'qa!' "$2" 2>/dev/null
+sed "s/has('python3')/0/g" "$PLUGIN" > "$WORK/fallback_python.vim"
+
+plugin_for() { # $1=engine (py3|viml)
+    if [ "$1" = py3 ]; then echo "$PLUGIN"; else echo "$WORK/fallback_python.vim"; fi
+}
+
+engine_available() { # $1=engine
+    [ "$1" = viml ] || [ "$have_py3" -eq 1 ]
 }
 
 check() { # $1=name $2=expected $3=actual
@@ -43,17 +50,23 @@ check() { # $1=name $2=expected $3=actual
     fi
 }
 
-# --- reindent idempotence (python3 engine and VimL fallback) -------
-sed "s/has('python3')/0/g" "$PLUGIN" > "$WORK/fallback_python.vim"
+# --- reindent idempotence ------------------------------------------
+reindent() { # $1=plugin $2=infile $3=outfile
+    $VIMBASE \
+        -c 'set shiftwidth=4 expandtab' \
+        -c "source $1" \
+        -c 'normal! gg=G' -c "w! $3" -c 'qa!' "$2" 2>/dev/null
+}
+
 for f in correct strings; do
-    if [ "$have_py3" -eq 1 ]; then
-        reindent "$PLUGIN" "$DIR/$f.py" "$WORK/$f.out"
-        check "reindent $f.py (python3)" "$DIR/$f.py" "$WORK/$f.out"
-    else
-        echo "SKIP: reindent $f.py (python3) - vim lacks +python3"
-    fi
-    reindent "$WORK/fallback_python.vim" "$DIR/$f.py" "$WORK/$f.fb.out"
-    check "reindent $f.py (VimL fallback)" "$DIR/$f.py" "$WORK/$f.fb.out"
+    for eng in py3 viml; do
+        if engine_available $eng; then
+            reindent "$(plugin_for $eng)" "$DIR/$f.py" "$WORK/$f.$eng.out"
+            check "reindent $f.py ($eng)" "$DIR/$f.py" "$WORK/$f.$eng.out"
+        else
+            echo "SKIP: reindent $f.py ($eng) - vim lacks +python3"
+        fi
+    done
 done
 
 # --- broken dedent must not raise through py3eval ------------------
@@ -71,14 +84,20 @@ else
     echo "SKIP: tokenize bad-dedent probe - vim lacks +python3"
 fi
 
-# --- interactive typing simulations --------------------------------
+# --- interactive typing simulations (both engines) -----------------
 typed() { # $1=name $2=keys $3=expected-file
-    $VIMBASE \
-        -c 'set shiftwidth=4 expandtab' \
-        -c "source $PLUGIN" \
-        -c "execute \"normal! i$2\"" \
-        -c "w! $WORK/typed.out" -c 'qa!' /dev/null 2>/dev/null
-    check "typing $1" "$3" "$WORK/typed.out"
+    for eng in py3 viml; do
+        if ! engine_available $eng; then
+            echo "SKIP: typing $1 ($eng) - vim lacks +python3"
+            continue
+        fi
+        $VIMBASE \
+            -c 'set shiftwidth=4 expandtab' \
+            -c "source $(plugin_for $eng)" \
+            -c "execute \"normal! i$2\"" \
+            -c "w! $WORK/typed.out" -c 'qa!' /dev/null 2>/dev/null
+        check "typing $1 ($eng)" "$3" "$WORK/typed.out"
+    done
 }
 
 printf 'if x > 0:\n    y = 1\n    return y\nelse:\n    y = 2\n' > "$WORK/exp_ifelse.py"
@@ -90,10 +109,33 @@ typed "match/case" 'match cmd:\<CR>case 1:\<CR>return 1\<CR>case _:\<CR>return 2
 printf 'data = {\n    "key": 1,\n}\nx = f(\n)\n' > "$WORK/exp_brackets.py"
 typed "brackets" 'data = {\<CR>\"key\": 1,\<CR>}\<CR>x = f(\<CR>)' "$WORK/exp_brackets.py"
 
-printf 'def f():\n    return 1\n\n\ndef g():\n    return 2\n' > "$WORK/exp_blank.py"
-typed "two-blank-line reset" 'def f():\<CR>return 1\<CR>\<CR>\<CR>def g():\<CR>return 2' "$WORK/exp_blank.py"
-
 printf 'def f():\n    doc = """\nline one\nline two\n"""\n    return doc\n' > "$WORK/exp_docstring.py"
 typed "across a docstring" 'def f():\<CR>doc = \"\"\"\<CR>\<C-D>line one\<CR>line two\<CR>\"\"\"\<CR>return doc' "$WORK/exp_docstring.py"
+
+# --- the blank-line dedent ramp ------------------------------------
+# ONE blank after a method's return -> sibling method level (PEP 8)
+printf 'class C:\n    def a(self):\n        return 1\n\n    def b(self):\n        pass\n' > "$WORK/exp_ramp1.py"
+typed "ramp: 1 blank after return = sibling method" 'class C:\<CR>def a(self):\<CR>return 1\<CR>\<CR>def b(self):\<CR>pass' "$WORK/exp_ramp1.py"
+
+# TWO blanks after a method's return -> top level (PEP 8)
+printf 'class C:\n    def a(self):\n        return 1\n\n\nx = 1\n' > "$WORK/exp_ramp2.py"
+typed "ramp: 2 blanks after return = top level" 'class C:\<CR>def a(self):\<CR>return 1\<CR>\<CR>\<CR>x = 1' "$WORK/exp_ramp2.py"
+
+# non-terminal body: blank holds, each further blank steps out once
+printf 'class C:\n    def a(self):\n        x = 1\n\n\n    def b(self):\n        pass\n' > "$WORK/exp_ramp3.py"
+typed "ramp: steps one level per extra blank" 'class C:\<CR>def a(self):\<CR>x = 1\<CR>\<CR>\<CR>def b(self):\<CR>pass' "$WORK/exp_ramp3.py"
+
+# ramp clamps at column zero
+printf 'def f():\n    return 1\n\n\ndef g():\n    return 2\n' > "$WORK/exp_ramp4.py"
+typed "ramp: clamps at ground level" 'def f():\<CR>return 1\<CR>\<CR>\<CR>def g():\<CR>return 2' "$WORK/exp_ramp4.py"
+
+# --- no-ramp guards -------------------------------------------------
+# blank lines inside an unclosed bracket are formatting, not a gap
+printf 'data = {\n    "a": 1,\n\n\n    "b": 2,\n' > "$WORK/exp_guard_bracket.py"
+typed "no ramp inside open brackets" 'data = {\<CR>\"a\": 1,\<CR>\<CR>\<CR>\"b\": 2,' "$WORK/exp_guard_bracket.py"
+
+# blank lines inside a still-unclosed docstring are prose, not a gap
+printf 'def f():\n    doc = """\n    para one\n\n\n    para two\n' > "$WORK/exp_guard_string.py"
+typed "no ramp inside unclosed docstring" 'def f():\<CR>doc = \"\"\"\<CR>para one\<CR>\<CR>\<CR>para two' "$WORK/exp_guard_string.py"
 
 exit $FAIL
