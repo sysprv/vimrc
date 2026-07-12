@@ -564,7 +564,10 @@ endif
 " natural with vim as $EDITOR.
 set backupcopy=yes
 
-set modeline modelineexpr
+set modeline
+if exists('+modelineexpr')
+set modelineexpr
+endif
 
 " shellredir - pretty bad stuff that'll never get fixed now.
 " https://groups.google.com/g/vim_dev/c/SGcwy7GViNs
