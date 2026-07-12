@@ -3395,9 +3395,6 @@ command -nargs=+ -complete=command Capture call UserSpoolEx(<q-args>)
 
 " bufnr() / bufexists() lookup by name isn't great. using [] and fnameescape()
 " is a world of annoyances, so not calling the buffer [Buffer List] like vile.
-"
-" 2023-08-31 empty 'bufhidden' should follow 'hidden', but setting bh seems
-" needed, to prevent scratch buffers from getting saved by mksession.
 
 function! UserPreviewBufferList() abort
     let l:bn = 'v_buffer_list'
@@ -5336,7 +5333,16 @@ endfunction
 
 command -range -nargs=+ Filter <line1>,<line2>call Filter(<q-args>)
 
+" text may be a string or a list of strings.
 function! UserAppendBuf(buf, text) abort
+    " a fresh buffer holds a single empty line; write over it instead of
+    " leaving it above the first append. check the line count instead of
+    " fetching all lines - this buffer only grows. linecount requires
+    " patch-8.1.0876; older vims fall through to appendbufline.
+    let linecount = get(get(getbufinfo(a:buf), 0, {}), 'linecount', 0)
+    if linecount == 1 && getbufline(a:buf, 1) == ['']
+        return setbufline(a:buf, 1, a:text)
+    endif
     return appendbufline(a:buf, '$', a:text)
 endfunction
 
@@ -5371,14 +5377,14 @@ function! UserCopyFile(src, dest) abort
 endfunction
 
 
-function! UserBackupCopyFile(file) abort
+function! UserBackupCopyFile(file, ...) abort
     let copystat = -1
     let file = a:file
     if UserTestBackupskip(file) == -1
         return [copystat]
     endif
-    let [backupdir, ext] = UserBufferBackupLoc(file)
-    let backupf = UserBackupFilename(file) . '.swapchoice'
+    let ext = a:0 > 0 ? a:1 : '.swapchoice'
+    let backupf = UserBackupFilename(file) . ext
     return UserCopyFile(file, backupf)
 endfunction
 
@@ -5389,130 +5395,154 @@ endfunction
 " setbufline()      8.0.1039
 "
 " enough to work on current iVim.
-function! UserSwapChoice(swapname) abort
-    let swapchoice = ''     " ask
-    if !has('patch-8.1.0313')
-        return swapchoice
+
+" the decision tree, kept pure: evidence in, [swapchoice, reason] out.
+" no side effects; hostname and ios-ness are parameters so that every
+" branch is reachable in a headless test.
+"
+" note: a valid swap file always records a nonzero pid, so off ios the
+" pid check wins for any same-host swap and the mtime/dirty analysis
+" below it only ever runs on ios (where the pid is meaningless - the os
+" kills and restarts iVim at will).
+function! UserSwapDecision(sw, filetime, myhost, ios) abort
+    if has_key(a:sw, 'error')
+        " garbage/unreadable swap - the fields below would all be
+        " defaults; let vim prompt.
+        return ['', 'PROMPT (swapinfo failed: ' . a:sw.error . ')']
     endif
 
-    let afile = expand('<afile>')
-    let file = fnamemodify(afile, ':p')
+    let dirty = get(a:sw, 'dirty', 0)
+    let swap_mtime = get(a:sw, 'mtime', 0)
+    let file_newer = a:filetime > swap_mtime
+    let file_much_newer = (a:filetime - swap_mtime) >= 3600
 
-    let msgbuf = bufadd('!swap-messages')
-    " same as :Scratch
-    call setbufvar(msgbuf, '&buftype', 'nofile')
-    call setbufvar(msgbuf, '&bufhidden', 'hide')
-    call setbufvar(msgbuf, '&swapfile', 0)
-    call setbufvar(msgbuf, '&filetype', 'text')
+    if get(a:sw, 'host', '') !=# a:myhost
+        return ['o', 'read-only (different host)']
+    endif
+    if get(a:sw, 'pid', 0) && !a:ios
+        return ['o', 'read-only (pid exists, might be running)']
+    endif
+    if dirty && !file_newer
+        return ['r', 'recover (dirty, swap not older than file)']
+    endif
+    if dirty    " and file newer
+        return a:ios ? ['d', 'delete (dirty, but file newer)']
+                    \ : ['', 'PROMPT (dirty swap + file newer - conflict)']
+    endif
+    " clean swap below. note: modern vim silently deletes a clean swap
+    " of a dead process when the file is unchanged - SwapExists only
+    " fires for these when the file changed elsewhere meanwhile.
+    if file_much_newer
+        return ['d', 'delete (clean swap, file much newer)']
+    endif
+    if swap_mtime >= a:filetime
+        return ['r', 'recover (clean, swap mtime >= file mtime)']
+    endif
+    return ['o', 'read-only (clean, file newer)']
+endfunction
 
-    call bufload(msgbuf)
-    call setbufvar(msgbuf, '&buflisted', 1)
+function! UserSwapChoice(swapname) abort
+    if !has('patch-8.1.0313')
+        return ''   " ask
+    endif
 
-    call UserAppendBuf(msgbuf, 'file = ' . file)
+    let file = fnamemodify(expand('<afile>'), ':p')
+    let swapname = a:swapname
+    let log = ['file = ' . file]
 
     " conservative - backup the file before any decision; even if the decision
     " ends up being delete-swap.
     if filereadable(file)
         let result = UserBackupCopyFile(file)
         if result[0] == 0
-            call UserAppendBuf(msgbuf, 'backup succeeded, status = ' . result[0])
-            call UserAppendBuf(msgbuf, 'backup = ' . result[1])
+            call add(log, 'backup succeeded, status = ' . result[0])
+            call add(log, 'backup = ' . result[1])
         else
-            call UserAppendBuf(msgbuf, '! backup failed, status = ' . result[0])
-            call UserAppendBuf(msgbuf, '')
+            call add(log, '! backup failed, status = ' . result[0])
         endif
     endif
 
-    let swapname = a:swapname
     let sw = swapinfo(swapname)
-    let b:swapname_old = swapname
-
     " mtime of file being edited
     let filetime = getftime(file)
     let swap_recorded_mtime = get(sw, 'mtime', 0)
-    let swap_actual_mtime = getftime(swapname)
     let timediff = filetime - swap_recorded_mtime
 
-    let dirty = get(sw, 'dirty', 0)
-    let host = get(sw, 'host', '')
-    let pid = get(sw, 'pid', '')
-
-    let file_newer = filetime > swap_recorded_mtime
-    let file_much_newer = timediff >= 3600
-
     " log/inspect
-    call UserAppendBuf(msgbuf, 'old swapname = ' . swapname)
-    call UserAppendBuf(msgbuf, 'dirty = ' . (dirty ? 'yes' : 'no'))
-    call UserAppendBuf(msgbuf, 'host = ' . host)
-    call UserAppendBuf(msgbuf, 'pid = ' . pid)
-    call UserAppendBuf(msgbuf, 'file mtime (current)      = ' . strftime('%F %T', filetime))
-    call UserAppendBuf(msgbuf, 'file mtime (in swap)      = ' . strftime('%F %T', swap_recorded_mtime))
-    call UserAppendBuf(msgbuf, 'swap file mtime (actual)  = ' . strftime('%F %T', swap_actual_mtime))
-    let time_diff_msg = file_newer ? 'file newer' : 'swap newer'
-    call UserAppendBuf(msgbuf, 'timediff = ' . timediff . ' (' . time_diff_msg . ')')
-    call UserAppendBuf(msgbuf, 'error = ' . get(sw, 'error', ''))
+    call add(log, 'old swapname = ' . swapname)
+    call add(log, 'dirty = ' . (get(sw, 'dirty', 0) ? 'yes' : 'no'))
+    call add(log, 'host = ' . get(sw, 'host', ''))
+    call add(log, 'pid = ' . get(sw, 'pid', ''))
+    call add(log, 'file mtime (current)      = ' . strftime('%F %T', filetime))
+    call add(log, 'file mtime (in swap)      = ' . strftime('%F %T', swap_recorded_mtime))
+    call add(log, 'swap file mtime (actual)  = ' . strftime('%F %T', getftime(swapname)))
+    call add(log, 'timediff = ' . timediff
+                \ . ' (' . (timediff > 0 ? 'file newer' : 'swap newer') . ')')
+    call add(log, 'error = ' . get(sw, 'error', ''))
 
     " the new swap file name (f.ex. .swo) that'll be created for the new buffer
     " isn't available until later, i.e. swapname('%') returns nothing.
 
-    if host !=# hostname()
-        let swapchoice = 'o'
-        let decision = 'read-only (different host)'
-    elseif pid && !has('ios')
-        let swapchoice = 'o'
-        let decision = 'read-only (pid exists, might be running)'
-    elseif dirty
-        if file_newer
-            if has('ios')
-                let swapchoice = 'd'
-                let decision = 'delete (file newer)'
-            else
-                let swapchoice = ''
-                let decision = 'PROMPT (dirty swap + file newer - conflict)'
-            endif
+    let [swapchoice, decision] = UserSwapDecision(sw, filetime, hostname(),
+                \ has('ios'))
+
+    call add(log, 'swapchoice = ''' . swapchoice . '''')
+    call add(log, 'decision: ' . decision)
+
+    if swapchoice ==# 'r'
+        " only 'r' queues the old swap for cleanup; after 'o' the swap may
+        " belong to a live session - RenameOldSwap/DeleteOldSwap must not
+        " touch it.
+        let b:swapname_old = swapname
+        call add(log, '')
+        call add(log, '!' . swapname . ': recovering + queuing for rename')
+        call add(log, '! DiffOrig?')
+        call add(log, '')
+        "autocmd UserVimRc BufUnload RenameOldSwap
+    elseif swapchoice ==# 'd'
+        " vim will delete the swap file, and it may hold unsaved changes;
+        " keep a copy anyway.
+        let result = UserBackupCopyFile(swapname, '.deleted-swap')
+        if result[0] == 0
+            call add(log, 'swap backup = ' . result[1])
         else
-            let swapchoice = 'r'
-            let decision = 'recover (dirty, swap not older than file)'
+            call add(log, '! swap backup failed, status = ' . result[0])
         endif
-    else
-        if file_much_newer
-            let swapchoice = 'd'
-            let decision = 'delete (clean swap, file much newer)'
-        elseif swap_recorded_mtime >= filetime
-            let swapchoice = 'r'
-            let decision = 'recover (clean, swap mtime >= file mtime)'
-        else
-            let swapchoice = 'o'
-            let decision = 'read-only (clean, file newer)'
-        endif
+    elseif swapchoice ==# 'o'
+        " read-only but modifiable allows edits, a pain to back out from.
+        " setlocal, not set - for buffer-local options, plain set also
+        " changes the global default, turning every buffer created
+        " afterwards nomodifiable.
+        setlocal nomodifiable
     endif
 
-    call UserAppendBuf(msgbuf, 'swapchoice = ''' . swapchoice . '''')
-    call UserAppendBuf(msgbuf, 'decision: ' . decision)
-    if swapchoice ==# 'r'
-        call UserAppendBuf(msgbuf, '')
-        call UserAppendBuf(msgbuf, '!' . swapname . ': recovering + queuing for rename')
-        call UserAppendBuf(msgbuf, '! DiffOrig?')
-        call UserAppendBuf(msgbuf, '')
-        "autocmd UserVimRc BufUnload RenameOldSwap
-    endif
-    call UserAppendBuf(msgbuf, string(sw))
-    call UserAppendBuf(msgbuf, '--')
-    if swapchoice ==# 'o'
-        " read-only but modifiable allows edits, a pain to back out from.
-        set nomodifiable
-    endif
+    call add(log, string(sw))
+    call add(log, '--')
+
+    let msgbuf = bufadd('!swap-messages')
+    " same as :Scratch, but unlisted - otherwise gets saved in vim session
+    call setbufvar(msgbuf, '&buftype', 'nofile')
+    call setbufvar(msgbuf, '&bufhidden', 'hide')
+    call setbufvar(msgbuf, '&buflisted', 0)
+    call setbufvar(msgbuf, '&swapfile', 0)
+    call setbufvar(msgbuf, '&filetype', 'text')
+    call bufload(msgbuf)
+    call UserAppendBuf(msgbuf, log)
+
     return swapchoice
 endfunction
 
+command SwMessages      buffer !swap-messages
+
+" filereadable(), not glob() - swap paths can contain glob metachars ([).
 command RenameOldSwap   if exists('b:swapname_old') &&
-            \ (glob(b:swapname_old, 1, 1) == [ b:swapname_old ])
+            \ filereadable(b:swapname_old)
             \ | call rename(b:swapname_old, b:swapname_old . '-recovered')
             \ | unlet b:swapname_old
             \ | endif
 
 command DeleteOldSwap   if exists('b:swapname_old') &&
-            \ (glob(b:swapname_old, 1, 1) == [ b:swapname_old ])
+            \ filereadable(b:swapname_old)
             \ | call delete(b:swapname_old)
             \ | unlet b:swapname_old
             \ | endif
