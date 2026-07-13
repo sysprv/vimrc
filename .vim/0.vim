@@ -5399,15 +5399,36 @@ endfunction
 "
 " enough to work on current iVim.
 
+" is the process that owns the swap file still alive on this host?
+" a valid swap file always records a nonzero pid, but on ios the pid is
+" meaningless - the os kills and restarts iVim at will. elsewhere check
+" /proc when available; where liveness can't be checked, treat any
+" recorded pid as alive (same conservative read-only outcome as not
+" checking at all).
+function! UserSwapPidAlive(pid) abort
+    if !a:pid || has('ios')
+        return 0
+    endif
+    if isdirectory('/proc')
+        return isdirectory('/proc/' . a:pid)
+    endif
+    return 1
+endfunction
+
 " the decision tree, kept pure: evidence in, [swapchoice, reason] out.
-" no side effects; hostname and ios-ness are parameters so that every
-" branch is reachable in a headless test.
+" no side effects; hostname, pid liveness and interactivity are plain
+" parameters so that every branch is reachable in a headless test, and
+" no platform sniffing happens in here.
 "
-" note: a valid swap file always records a nonzero pid, so off ios the
-" pid check wins for any same-host swap and the mtime/dirty analysis
-" below it only ever runs on ios (where the pid is meaningless - the os
-" kills and restarts iVim at will).
-function! UserSwapDecision(sw, filetime, myhost, ios) abort
+" interactive: whether prompting the user is acceptable for a genuine
+" conflict (dirty swap + file changed since). on iVim prompts are
+" disruptive and that situation is routine (os killed iVim, iCloud
+" synced a newer copy), so the caller passes 0 there.
+"
+" swap_local: whether the swap file sits in the host-local central
+" swap dir (g:u.swap_dir, under $HOME).
+function! UserSwapDecision(sw, filetime, myhost, pid_alive, interactive,
+            \ swap_local) abort
     if has_key(a:sw, 'error')
         " garbage/unreadable swap - the fields below would all be
         " defaults; let vim prompt.
@@ -5419,18 +5440,25 @@ function! UserSwapDecision(sw, filetime, myhost, ios) abort
     let file_newer = a:filetime > swap_mtime
     let file_much_newer = (a:filetime - swap_mtime) >= 3600
 
-    if get(a:sw, 'host', '') !=# a:myhost
+    " a hostname mismatch only means a possibly-live foreign session
+    " when the swap could actually be reached from another host. in the
+    " host-local central swap dir it's just this machine under an old
+    " name (dhcp, ios) and the pid/mtime evidence below stays valid;
+    " only the 'directory' fallback of '.' can put a swap on a shared
+    " or synced mount next to the file.
+    if get(a:sw, 'host', '') !=# a:myhost && !a:swap_local
         return ['o', 'read-only (different host)']
     endif
-    if get(a:sw, 'pid', 0) && !a:ios
-        return ['o', 'read-only (pid exists, might be running)']
+    if a:pid_alive
+        return ['o', 'read-only (owning process alive)']
     endif
     if dirty && !file_newer
         return ['r', 'recover (dirty, swap not older than file)']
     endif
     if dirty    " and file newer
-        return a:ios ? ['d', 'delete (dirty, but file newer)']
-                    \ : ['', 'PROMPT (dirty swap + file newer - conflict)']
+        return a:interactive
+                    \ ? ['', 'PROMPT (dirty swap + file newer - conflict)']
+                    \ : ['d', 'delete (dirty, but file newer)']
     endif
     " clean swap below. note: modern vim silently deletes a clean swap
     " of a dead process when the file is unchanged - SwapExists only
@@ -5475,10 +5503,18 @@ function! UserSwapChoice(swapname) abort
     call add(log, 'old swapname = ' . swapname)
     call add(log, 'dirty = ' . (get(sw, 'dirty', 0) ? 'yes' : 'no'))
     call add(log, 'host = ' . get(sw, 'host', ''))
-    call add(log, 'pid = ' . get(sw, 'pid', ''))
-    call add(log, 'file mtime (current)      = ' . strftime('%F %T', filetime))
-    call add(log, 'file mtime (in swap)      = ' . strftime('%F %T', swap_recorded_mtime))
-    call add(log, 'swap file mtime (actual)  = ' . strftime('%F %T', getftime(swapname)))
+    let pid_alive = UserSwapPidAlive(get(sw, 'pid', 0))
+    call add(log, 'pid = ' . get(sw, 'pid', '')
+                \ . ' (' . (pid_alive ? 'alive/unknowable' : 'presumed dead') . ')')
+    " ':p:h' on both sides normalizes the trailing '//' of g:u.swap_dir.
+    let swap_local = fnamemodify(swapname, ':p:h')
+                \ ==# fnamemodify(expand(g:u.swap_dir), ':p:h')
+    call add(log, 'swap in local central dir = ' . (swap_local ? 'yes' : 'no'))
+    " -1: file missing (getftime), 0: field absent from swapinfo
+    let Ftime = { t -> t > 0 ? strftime('%F %T', t) : '(none)' }
+    call add(log, 'file mtime (current)      = ' . Ftime(filetime))
+    call add(log, 'file mtime (in swap)      = ' . Ftime(swap_recorded_mtime))
+    call add(log, 'swap file mtime (actual)  = ' . Ftime(getftime(swapname)))
     call add(log, 'timediff = ' . timediff
                 \ . ' (' . (timediff > 0 ? 'file newer' : 'swap newer') . ')')
     call add(log, 'error = ' . get(sw, 'error', ''))
@@ -5487,7 +5523,7 @@ function! UserSwapChoice(swapname) abort
     " isn't available until later, i.e. swapname('%') returns nothing.
 
     let [swapchoice, decision] = UserSwapDecision(sw, filetime, hostname(),
-                \ has('ios'))
+                \ pid_alive, !has('ios'), swap_local)
 
     call add(log, 'swapchoice = ''' . swapchoice . '''')
     call add(log, 'decision: ' . decision)
