@@ -1,19 +1,19 @@
 " decision-table test for the pure swap functions in 0.vim
-" (UserSwapPidAlive, UserSwapDecision).
+" (UserSwapPidAlive, UserSwapDecision, UserSwapPickSibling).
 "
 " usage, from any directory:
 "   vim -N -u NONE -i NONE -es -c 'source /path/to/swap_decision_test.vim'
 " prints the table results; exits nonzero on any failure.
 "
 " 0.vim can't be sourced headlessly (dies on highlight groups long
-" before the swap section), so the two functions are extracted by name
+" before the swap section), so the functions are extracted by name
 " and sourced on their own - they were kept pure exactly for this.
 
 let s:lines = readfile(expand('<sfile>:p:h') . '/0.vim')
 let s:keep = []
 let s:in = 0
 for s:line in s:lines
-    if !s:in && s:line =~# '^function! UserSwap\%(PidAlive\|Decision\)('
+    if !s:in && s:line =~# '^function! UserSwap\%(PidAlive\|Decision\|PickSibling\)('
         let s:in = 1
     endif
     if s:in
@@ -28,6 +28,7 @@ call writefile(s:keep, s:tmp)
 execute 'source' fnameescape(s:tmp)
 call delete(s:tmp)
 if !exists('*UserSwapPidAlive') || !exists('*UserSwapDecision')
+            \ || !exists('*UserSwapPickSibling')
     call setline(1, 'FAIL: could not extract functions from 0.vim')
     %print
     cquit
@@ -91,6 +92,41 @@ call s:Case('clean, swap newer', 'r',
 " 10. clean, file slightly newer -> read-only
 call s:Case('clean, file slightly newer', 'o',
             \ {'host': 'h', 'dirty': 0, 'pid': 1, 'mtime': s:T - 5}, s:T, 'h', 0, 1, 1)
+
+" sibling pick: [name, swapinfo, pid_alive] candidates -> name to keep.
+function! s:Pick(desc, expected, cands)
+    let s:runs += 1
+    let got = UserSwapPickSibling(a:cands)
+    if got !=# a:expected
+        let s:fails += 1
+        call append('$', 'FAIL: ' . a:desc . ': expected ''' . a:expected
+                    \ . ''' got ''' . got . '''')
+    endif
+endfunction
+
+" P1. both dirty, dead -> newest
+call s:Pick('both dirty, newest wins', 'a.swo',
+            \ [['a.swp', {'dirty': 1, 'mtime': s:T}, 0],
+            \  ['a.swo', {'dirty': 1, 'mtime': s:T + 5}, 0]])
+" P2. dirty beats clean even when older
+call s:Pick('dirty beats newer clean', 'a.swo',
+            \ [['a.swp', {'dirty': 0, 'mtime': s:T + 5}, 0],
+            \  ['a.swo', {'dirty': 1, 'mtime': s:T}, 0]])
+" P3. a live session's swap beats everything
+call s:Pick('live beats dirty', 'a.swo',
+            \ [['a.swp', {'dirty': 1, 'mtime': s:T + 5}, 0],
+            \  ['a.swo', {'dirty': 0, 'mtime': s:T}, 1]])
+" P4. unreadable candidates are skipped
+call s:Pick('garbage skipped', 'a.swo',
+            \ [['a.swp', {'error': 'Not a swap file'}, 0],
+            \  ['a.swo', {'dirty': 0, 'mtime': s:T}, 0]])
+" P5. nothing readable -> ''
+call s:Pick('all garbage', '',
+            \ [['a.swp', {'error': 'x'}, 0], ['a.swo', {'error': 'y'}, 0]])
+" P6. tie on rank and mtime -> first listed (stable)
+call s:Pick('tie keeps first', 'a.swp',
+            \ [['a.swp', {'dirty': 1, 'mtime': s:T}, 0],
+            \  ['a.swo', {'dirty': 1, 'mtime': s:T}, 0]])
 
 " pid liveness. pid 0 is never alive anywhere; real checks need /proc.
 let s:runs += 1

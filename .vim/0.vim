@@ -5472,6 +5472,172 @@ function! UserSwapDecision(sw, filetime, myhost, pid_alive, interactive,
     return ['o', 'read-only (clean, file newer)']
 endfunction
 
+" vim only ever consults <file>.swp: findswapname() runs the whole
+" attention block - SwapExists included - for the first name only and
+" silently skips past .swo, .swn, ... to the next free name. recovery
+" ('r') then ignores v:swapname, globs for every .sw? of the file and,
+" finding more than one, asks "Enter number of swap file to use". so a
+" second swap is invisible until a .swp shows up next to it, and then
+" it's a prompt. the SwapExists handler (UserSwapChoice, below) is the
+" only place to sort this out.
+"
+" pick the swap to keep: a live session's swap first (never touch that),
+" then dirty over clean, then the newest recorded mtime. pure - a list
+" of [swapname, swapinfo(), pid_alive] in, the winning swapname out;
+" '' when nothing's readable.
+function! UserSwapPickSibling(cands) abort
+    let best = ''
+    let [best_rank, best_mtime] = [-1, -1]
+    for [name, sw, alive] in a:cands
+        if has_key(sw, 'error')
+            continue
+        endif
+        " lists don't compare with >, so: rank, then mtime.
+        let rank = 2 * alive + get(sw, 'dirty', 0)
+        let mtime = get(sw, 'mtime', 0)
+        if rank > best_rank || (rank == best_rank && mtime > best_mtime)
+            let [best, best_rank, best_mtime] = [name, rank, mtime]
+        endif
+    endfor
+    return best
+endfunction
+
+" keep one of the swap files for the file (see above), back up and delete
+" the rest. the keeper is renamed to .swp (a:swapname) so that vim's own
+" prompt, its 'd' and everything downstream act on the real thing;
+" returns the name the decision should be made on. a sibling that a live
+" process owns is never touched (nor renamed from under that process).
+" appends to a:log.
+function! UserSwapKeepOne(swapname, log) abort
+    " glob, not readdir - older; swap paths can contain metachars ([),
+    " fnameescape covers them.
+    let sibs = glob(fnameescape(a:swapname[:-2]) . '?', 1, 1)
+    if len(sibs) < 2
+        return a:swapname
+    endif
+    let cands = []
+    for name in sibs
+        let sw = swapinfo(name)
+        call add(cands, [name, sw, UserSwapPidAlive(get(sw, 'pid', 0))])
+    endfor
+    let keep = UserSwapPickSibling(cands)
+    if keep ==# ''
+        let keep = a:swapname     " all garbage; vim gets to prompt on .swp
+    endif
+    call add(a:log, 'sibling swaps = ' . len(sibs) . ', keeping ' . keep)
+    let keep_alive = 0
+    for [name, sw, alive] in cands
+        if name ==# keep
+            let keep_alive = alive
+            continue
+        endif
+        if alive
+            call add(a:log, '! sibling ' . name . ' has a live pid, left alone')
+            continue
+        endif
+        let result = UserBackupCopyFile(name, '.sibling-swap')
+        if result[0] == 0
+            call delete(name)
+            call add(a:log, 'deleted sibling ' . name)
+            call add(a:log, 'sibling backup = ' . result[1])
+        else
+            " no backup, no delete; renaming still gets it out of
+            " recovery's .sw? glob.
+            call rename(name, name . '-parked')
+            call add(a:log, '! sibling backup failed, status = ' . result[0]
+                        \ . ', renamed ' . name . ' -> ' . name . '-parked')
+        endif
+    endfor
+    if keep !=# a:swapname && !keep_alive && !filereadable(a:swapname)
+                \ && rename(keep, a:swapname) == 0
+        call add(a:log, 'renamed ' . keep . ' -> ' . a:swapname)
+        return a:swapname
+    endif
+    return keep
+endfunction
+
+" the old swap's job after 'r' is done the moment recovery's done: the
+" text is in the buffer and, once synced, in the new swap. but
+" findswapname() only ever looks at .swp - so the new session must own
+" .swp, or a later kill leaves its swap invisible next to the old one.
+" move the old swap to the first free sibling name; vim then finds .swp
+" free and takes it, and recovery globs the old one up wherever it is.
+" returns the new name, or a:swapname when nothing could be done.
+function! UserSwapMoveAside(swapname, log) abort
+    let stem = a:swapname[:-2]
+    for c in split('onmlkjihgfedcb', '\zs')
+        let aside = stem . c
+        if !filereadable(aside) && !isdirectory(aside)
+            if rename(a:swapname, aside) == 0
+                call add(a:log, 'moved aside ' . a:swapname . ' -> ' . aside)
+                return aside
+            endif
+            break
+        endif
+    endfor
+    call add(a:log, '! could not move ' . a:swapname . ' aside')
+    return a:swapname
+endfunction
+
+" runs from a timer queued by the SwapExists handler after 'r': there's
+" no autocmd after ml_recover(), a timer fires once vim's back in the
+" main loop, recovery done. sync the recovered text to the new swap and
+" dispose of the old one (backup, then delete). otherwise only a write
+" would (BufWritePost DeleteOldSwap), and on iVim the os may kill the
+" session first, leaving two stale swaps. anything doubtful is left
+" queued in b:swapname_old for BufWritePost / manual handling.
+function! UserSwapAfterRecover(bufnr, timer) abort
+    let log = ['after recovery, buffer ' . a:bufnr]
+    if bufnr('%') != a:bufnr
+        call add(log, '! not the current buffer, old swap left queued')
+        call UserSwapMessages(log)
+        return
+    endif
+    if !exists('b:swapname_old')
+        return  " already dealt with (written)
+    endif
+    " ml_recover() marks missing blocks/lines with ???; the old swap may
+    " still be worth a manual look then.
+    if search('^???', 'nw') > 0
+        call add(log, '! recovery left ??? lines, old swap left queued: '
+                    \ . b:swapname_old)
+        call UserSwapMessages(log)
+        return
+    endif
+    " all text into the new swap; fails loudly (abort) before any delete.
+    " silent: this may run at the hit-enter prompt of the recovery
+    " messages, and "File preserved" would nest another prompt there,
+    " blocking here until the user's next key.
+    silent preserve
+    call add(log, 'preserved to ' . swapname('%'))
+    let result = UserBackupCopyFile(b:swapname_old, '.recovered-swap')
+    if result[0] == 0
+        call delete(b:swapname_old)
+        call add(log, 'deleted old swap ' . b:swapname_old)
+        call add(log, 'old swap backup = ' . result[1])
+        unlet b:swapname_old
+    else
+        call add(log, '! old swap backup failed, status = ' . result[0]
+                    \ . ', left queued: ' . b:swapname_old)
+    endif
+    call UserSwapMessages(log)
+endfunction
+
+" the swap message buffer: unlisted scratch, see :SwMessages. each block
+" starts with a date comment - filetype text, so the UserDateComment
+" syntax rule makes the blocks easy to tell apart.
+function! UserSwapMessages(lines) abort
+    let msgbuf = bufadd('!swap-messages')
+    " same as :Scratch, but unlisted - otherwise gets saved in vim session
+    call setbufvar(msgbuf, '&buftype', 'nofile')
+    call setbufvar(msgbuf, '&bufhidden', 'hide')
+    call setbufvar(msgbuf, '&buflisted', 0)
+    call setbufvar(msgbuf, '&swapfile', 0)
+    call setbufvar(msgbuf, '&filetype', 'text')
+    call bufload(msgbuf)
+    call UserAppendBuf(msgbuf, [UserDateTimeComment()] + a:lines)
+endfunction
+
 function! UserSwapChoice(swapname) abort
     if !has('patch-8.1.0313')
         return ''   " ask
@@ -5492,6 +5658,9 @@ function! UserSwapChoice(swapname) abort
             call add(log, '! backup failed, status = ' . result[0])
         endif
     endif
+
+    " more than one swap for the file: keep the best, decide on that one.
+    let swapname = UserSwapKeepOne(swapname, log)
 
     let sw = swapinfo(swapname)
     " mtime of file being edited
@@ -5532,12 +5701,14 @@ function! UserSwapChoice(swapname) abort
         " only 'r' queues the old swap for cleanup; after 'o' the swap may
         " belong to a live session - RenameOldSwap/DeleteOldSwap must not
         " touch it.
-        let b:swapname_old = swapname
+        let b:swapname_old = UserSwapMoveAside(swapname, log)
         call add(log, '')
-        call add(log, '!' . swapname . ': recovering + queuing for rename')
+        call add(log, '!' . b:swapname_old . ': recovering + queuing for cleanup')
         call add(log, '! DiffOrig?')
         call add(log, '')
-        "autocmd UserVimRc BufUnload RenameOldSwap
+        if exists('*timer_start')
+            call timer_start(0, function('UserSwapAfterRecover', [bufnr('%')]))
+        endif
     elseif swapchoice ==# 'd'
         " vim will delete the swap file, and it may hold unsaved changes;
         " keep a copy anyway.
@@ -5557,16 +5728,7 @@ function! UserSwapChoice(swapname) abort
 
     call add(log, string(sw))
     call add(log, '--')
-
-    let msgbuf = bufadd('!swap-messages')
-    " same as :Scratch, but unlisted - otherwise gets saved in vim session
-    call setbufvar(msgbuf, '&buftype', 'nofile')
-    call setbufvar(msgbuf, '&bufhidden', 'hide')
-    call setbufvar(msgbuf, '&buflisted', 0)
-    call setbufvar(msgbuf, '&swapfile', 0)
-    call setbufvar(msgbuf, '&filetype', 'text')
-    call bufload(msgbuf)
-    call UserAppendBuf(msgbuf, log)
+    call UserSwapMessages(log)
 
     return swapchoice
 endfunction
