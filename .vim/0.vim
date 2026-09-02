@@ -5626,7 +5626,27 @@ endfunction
 " the swap message buffer: unlisted scratch, see :SwMessages. each block
 " starts with a date comment - filetype text, so the UserDateComment
 " syntax rule makes the blocks easy to tell apart.
+"
+" never bufload() from inside SwapExists: loading any buffer resets vim's
+" swap_exists_action (buffer_ensure_loaded()), and the ATTENTION dialog
+" is only shown while that's set - so a '' (prompt) decision would
+" silently turn into "edit anyway", not even read-only. queue the lines
+" and load the buffer from a timer instead; once it's loaded, append
+" directly. the queue keeps blocks in order whichever way they get out.
 function! UserSwapMessages(lines) abort
+    let g:u.swap_messages = get(g:u, 'swap_messages', [])
+                \ + [UserDateTimeComment()] + a:lines
+    if !bufloaded('!swap-messages') && exists('*timer_start')
+        call timer_start(0, function('UserSwapMessagesFlush'))
+        return
+    endif
+    call UserSwapMessagesFlush(0)
+endfunction
+
+function! UserSwapMessagesFlush(timer) abort
+    if empty(get(g:u, 'swap_messages', []))
+        return
+    endif
     let msgbuf = bufadd('!swap-messages')
     " same as :Scratch, but unlisted - otherwise gets saved in vim session
     call setbufvar(msgbuf, '&buftype', 'nofile')
@@ -5635,7 +5655,8 @@ function! UserSwapMessages(lines) abort
     call setbufvar(msgbuf, '&swapfile', 0)
     call setbufvar(msgbuf, '&filetype', 'text')
     call bufload(msgbuf)
-    call UserAppendBuf(msgbuf, [UserDateTimeComment()] + a:lines)
+    call UserAppendBuf(msgbuf, g:u.swap_messages)
+    let g:u.swap_messages = []
 endfunction
 
 function! UserSwapChoice(swapname) abort
