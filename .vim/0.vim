@@ -5594,7 +5594,11 @@ function! UserSwapAfterRecover(bufnr, timer) abort
         return
     endif
     if !exists('b:swapname_old')
-        return  " already dealt with (written)
+        " already dealt with (written meanwhile?) - just say so.
+        " no trailing comment after :return - the " starts a string (E114).
+        call add(log, 'old swap already gone (b:swapname_old unset)')
+        call UserSwapMessages(log)
+        return
     endif
     " ml_recover() marks missing blocks/lines with ???; the old swap may
     " still be worth a manual look then.

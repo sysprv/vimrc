@@ -166,6 +166,22 @@ check "D2 non-interactive: deleted" msgs_has '^decision: delete'
 check "D2 swap dir empty" dir_is ''
 check "D2 both backups kept" bash -c 'ls bak | grep -q deleted-swap && ls bak | grep -q sibling-swap'
 
+echo "F. after-recovery callback branches that the scenarios don't reach"
+# vim only parses a function line when it runs; an untested branch can hide
+# a syntax error (E114 from a comment after a bare :return, seen on iVim).
+# old swap already gone: must log, not error.
+$VIM -N -u NONE -i NONE -es -c 'source rc.vim' \
+    -c 'try | call UserSwapAfterRecover(bufnr("%"), 0) | call UserSwapMessagesFlush(0) | catch | call writefile([v:exception], "f.err") | endtry' \
+    -c 'call writefile(getbufline("!swap-messages", 1, "$"), "f.out")' -c 'qa!'
+check "F old swap gone: no error" bash -c '! [ -e f.err ]'
+check "F old swap gone: logged" bash -c 'grep -q "already gone" f.out'
+# wrong buffer: must log, not error
+$VIM -N -u NONE -i NONE -es -c 'source rc.vim' \
+    -c 'try | call UserSwapAfterRecover(bufnr("%") + 100, 0) | call UserSwapMessagesFlush(0) | catch | call writefile([v:exception], "f2.err") | endtry' \
+    -c 'call writefile(getbufline("!swap-messages", 1, "$"), "f2.out")' -c 'qa!'
+check "F wrong buffer: no error" bash -c '! [ -e f2.err ]'
+check "F wrong buffer: logged" bash -c 'grep -q "not the current buffer" f2.out'
+
 echo "E. live session on .swp, stale .swo beside it"
 fresh single; rm -rf dir; mkdir dir
 python3 "$PTY" 12 quit -- -X -N -u NONE -i NONE --cmd 'set directory=./dir// swapfile' t.txt > /dev/null &
