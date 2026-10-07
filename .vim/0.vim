@@ -2774,7 +2774,7 @@ function! UserColours256()
             highlight Normal guifg=#f3f3f3 guibg=#0a0a0f
         endif
         " amber
-        highlight UserDateComment ctermfg=130 guifg=#ffb000 gui=italic
+        highlight UserDateComment ctermfg=130 guifg=#ffb000 guibg=#0a0a0f gui=italic
         highlight UserHashTag ctermbg=24 guibg=#005f5f
         " trailing whitespace same as SpellBad
         highlight UserTrailingWhitespace ctermbg=24 guibg=grey25
@@ -3067,6 +3067,9 @@ function! UserColoursPrelude()
         elseif &term =~# '.*kitty.*'
             " ain't gonna go editing config for the occasional run
             set background=dark termguicolors
+            let l:done = 1
+        elseif has('osxdarwin')
+            set background=dark termguicolors t_Co=16777216
             let l:done = 1
         endif
     endif
@@ -3972,6 +3975,11 @@ function! UserGetClipboardStrategy(...) abort
                         \ 'write_cmd': '/usr/bin/xsel -b -i'
                         \ }
         endif
+    elseif has('osxdarwin')
+        let l:result = { 'mode': 'cmd', 'reg': 'w',
+                    \ 'read_cmd': 'pbpaste',
+                    \ 'write_cmd': 'pbcopy'
+                    \ }
     else
         let l:result = { 'mode': 'native', 'reg': 'w' }
     endif
