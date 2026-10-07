@@ -1001,8 +1001,10 @@ if v:version >= 900
     "
     " https://gist.github.com/g0xA52A2A/7cb1be24a078724f4522444a0da5de0a
 
-    set diffopt+=indent-heuristic
-    set diffopt+=algorithm:patience
+    if v:version >= 902
+        set diffopt+=indent-heuristic
+        set diffopt+=algorithm:patience
+    endif
 
     " following needs patch-8.2.2569 for multibyte chanrs in fcs/stl,
     " patch-8.2.3578, patch-8.2.3605 for hlget/hlset.
