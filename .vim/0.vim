@@ -858,6 +858,7 @@ set scrolloff=2
 set cpoptions-=A        " don't modify alternate filename on :w <fn>
 
 "set confirm
+" 2026-10-07 try living without autowriteall
 set autoread autowrite autowriteall
 set hidden
 set matchpairs+=<:>,«:»,｢:｣
@@ -5983,6 +5984,11 @@ augroup UserVimRc
     "endif
 
     autocmd VimEnter *  call UserClearVColorNames()
+
+    " latro
+    if has('ivim')
+        autocmd VimEnter * ++nested silent source Session.vim
+    endif
 augroup end
 " /UserVimRc
 
@@ -6137,25 +6143,3 @@ if !g:u.term_primitive
 endif
 
 " ~ fini ~
-
-" latro mode - iOS 26 kills apps more often than iOS 18, having to :e often is
-" a pain.
-if has('ivim') && argc() == 0 && filereadable('Session.vim')
-    " autocmds to update Session.vim
-    autocmd UserVimRc BufWritePost    * call UserMakeDefaultSession()
-    " VimLeavePre - too intrusive
-
-    " 2025-11-19 workaround for vim < 8.2; only the last &scrolloff lines of the
-    " buffer are displayed, at the top of the window. switching buffers, z- or
-    " zb fixes it. not bisecting all that, maybe someday.
-    "
-    " too troublesome to workaround for all cases/all versions (feedkeys)/all
-    " file sizes.
-    if has('ivim') && v:version < 802
-        call timer_start(0, {-> execute('normal! z-')})
-    endif
-
-    " silent to suppress Press ENTER or type command to continue
-    silent source Session.vim
-endif
-
